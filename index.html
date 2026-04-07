@@ -3,18 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบบริหารจัดการการอบรม (TMS)</title>
+  <title>ระบบ TMS V5.0 - ฉบับสมบูรณ์</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
-    body { font-family: 'Niramit', sans-serif; background-color: #f4f7f6; }
-    .fade-in { animation: fadeIn 0.5s; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .menu-card { cursor: pointer; transition: 0.3s; border: none; }
-    .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
-    .speaker-card { cursor: pointer; transition: 0.2s; border: 2px solid #eee; }
-    .speaker-card.active { border-color: #0d6efd; background-color: #f0f7ff; }
+    body { font-family: 'Niramit', sans-serif; background-color: #f0f4f8; color: #2c3e50; }
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .menu-card { cursor: pointer; transition: 0.3s; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .menu-card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1) !important; }
+    .speaker-card { cursor: pointer; transition: 0.2s; border: 2px solid #dee2e6; background: white; }
+    .speaker-card.active { border-color: #0d6efd; background-color: #eef6ff; box-shadow: 0 4px 12px rgba(13,110,253,0.15); }
+    .btn-rounded { border-radius: 50px; }
+    .exam-question-card { border-left: 5px solid #ffc107 !important; }
   </style>
 </head>
 <body>
@@ -23,63 +25,88 @@
     
     <div id="loginSection" class="row justify-content-center fade-in">
       <div class="col-md-6 col-lg-4">
-        <div class="card shadow-sm text-center p-4 border-0 rounded-4">
-          <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
-          <input type="text" id="personalId" class="form-control text-center mb-3" placeholder="กรอกรหัสประจำตัว">
-          <button class="btn btn-primary w-100 fw-bold rounded-pill" onclick="login()">เข้าสู่ระบบ</button>
+        <div class="card shadow-lg text-center p-4 border-0 rounded-4">
+          <div class="mb-3 text-primary" style="font-size: 3rem;">🎓</div>
+          <h4 class="fw-bold mb-1">เข้าสู่ระบบ TMS</h4>
+          <p class="text-muted small mb-4">Version 5.0 (Full Option)</p>
+          <div class="form-floating mb-3">
+            <input type="text" id="personalId" class="form-control" placeholder="รหัสประจำตัว">
+            <label for="personalId">รหัสประจำตัว (เช่น SV001)</label>
+          </div>
+          <button class="btn btn-primary w-100 fw-bold btn-rounded p-2" onclick="login()">เข้าสู่ระบบ</button>
         </div>
       </div>
     </div>
 
     <div id="dashboardSection" class="d-none fade-in">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
-        <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="logout()">ออกจากระบบ</button>
+      <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm">
+        <div>
+          <h3 class="fw-bold mb-0">ระบบนิเทศออนไลน์</h3>
+          <p class="text-muted mb-0 small">ยินดีต้อนรับรหัส: <span id="displayUser" class="fw-bold text-primary"></span></p>
+        </div>
+        <button class="btn btn-outline-danger btn-sm btn-rounded px-3" onclick="logout()">ออกจากระบบ</button>
       </div>
+      
       <div class="row g-3 text-center">
-        <div class="col-6 col-md-3"><div class="card menu-card bg-info text-white p-3 h-100 rounded-4" onclick="openAttendanceForm()"><h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5></div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-warning text-dark p-3 h-100 rounded-4" onclick="openExamForm()"><h5 class="fw-bold mt-2">📝 ทำข้อสอบ</h5></div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-success text-white p-3 h-100 rounded-4" onclick="openSurveyForm('PROJECT_SURVEY')"><h5 class="fw-bold mt-2">📊 ประเมินโครงการ</h5></div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-primary text-white p-3 h-100 rounded-4" onclick="openSurveyForm('SPEAKER_SURVEY')"><h5 class="fw-bold mt-2">🎤 ประเมินวิทยากร</h5></div></div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-info text-white p-4 h-100 rounded-4" onclick="openAttendanceForm()">
+            <div class="fs-1 mb-2">⏱️</div><h5 class="fw-bold">ลงเวลา</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-warning text-dark p-4 h-100 rounded-4" onclick="openExamForm()">
+            <div class="fs-1 mb-2">📝</div><h5 class="fw-bold">ทำข้อสอบ</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-success text-white p-4 h-100 rounded-4" onclick="openSurveyForm('PROJECT_SURVEY')">
+            <div class="fs-1 mb-2">📊</div><h5 class="fw-bold">ประเมินโครงการ</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-primary text-white p-4 h-100 rounded-4" onclick="openSurveyForm('SPEAKER_SURVEY')">
+            <div class="fs-1 mb-2">🎤</div><h5 class="fw-bold">ประเมินวิทยากร</h5>
+          </div>
+        </div>
       </div>
     </div>
 
     <div id="attendanceSection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 500px;">
-        <h4 class="mb-4 text-info fw-bold text-center">⏱️ ลงเวลาเข้าอบรม</h4>
-        <div id="attendanceButtonsContainer"></div>
-        <button class="btn btn-secondary w-100 rounded-pill mt-3" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
+      <div class="card shadow-lg p-4 mx-auto border-0 rounded-4" style="max-width: 500px;">
+        <h4 class="mb-4 text-info fw-bold text-center border-bottom pb-2">⏱️ บันทึกเวลาเข้ารับการอบรม</h4>
+        <div id="attendanceButtonsContainer" class="mb-3"></div>
+        <button class="btn btn-secondary w-100 btn-rounded shadow-sm" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
       </div>
     </div>
 
     <div id="examSection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 800px;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="card shadow-lg p-4 mx-auto border-0 rounded-4" style="max-width: 900px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3">
           <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
-          <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill">⏳ <span id="examTimeDisplay">30:00</span></div>
+          <div id="examTimerBadge" class="badge bg-danger fs-5 d-none btn-rounded px-3">⏳ <span id="examTimeDisplay">30:00</span></div>
         </div>
         <div id="examContentArea"></div>
-        <div class="d-flex justify-content-between mt-4">
-          <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('examSection')">กลับ</button>
-          <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-4 d-none rounded-pill" onclick="submitRealExam()">ส่งคำตอบ</button>
+        <div class="d-flex justify-content-between mt-4 border-top pt-4">
+          <button class="btn btn-secondary px-4 btn-rounded" onclick="backToDashboard('examSection')">ยกเลิก</button>
+          <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-4 d-none btn-rounded shadow" onclick="submitRealExam()">ส่งคำตอบ</button>
         </div>
       </div>
     </div>
 
     <div id="surveySection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 800px;">
+      <div class="card shadow-lg p-4 mx-auto border-0 rounded-4" style="max-width: 900px;">
         <h4 class="text-success fw-bold border-bottom pb-3 mb-4">📊 <span id="surveyTitleLabel"></span></h4>
         
         <div id="speakerSelectionArea" class="mb-4 d-none">
-          <label class="form-label fw-bold text-primary mb-3">โปรดเลือกวิทยากรที่ต้องการประเมิน:</label>
+          <label class="form-label fw-bold text-primary mb-3">🎤 กรุณาเลือกวิทยากรที่ต้องการประเมิน:</label>
           <div id="speakerButtonsGrid" class="row g-3"></div>
         </div>
 
         <div id="surveyContentArea"></div>
 
         <div class="d-flex justify-content-between mt-4 pt-4 border-top">
-          <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('surveySection')">กลับ</button>
-          <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-4 d-none rounded-pill shadow-sm" onclick="submitRealSurvey()">ส่งผลประเมิน</button>
+          <button class="btn btn-secondary px-4 btn-rounded" onclick="backToDashboard('surveySection')">กลับหน้าหลัก</button>
+          <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-5 d-none btn-rounded shadow" onclick="submitRealSurvey()">ส่งผลประเมิน</button>
         </div>
       </div>
     </div>
