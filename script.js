@@ -5,7 +5,6 @@ const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzsKRuMkwiBflXOpO9R
 // 1. ระบบยืนยันตัวตน (Authentication)
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
-  // ตรวจสอบว่าเคยเข้าสู่ระบบไว้หรือไม่
   let savedId = localStorage.getItem("tms_personal_id");
   if (savedId) {
     document.getElementById("personalId").value = savedId;
@@ -19,7 +18,6 @@ function login() {
     Swal.fire('แจ้งเตือน', 'กรุณากรอกรหัสประจำตัวก่อนครับ', 'warning');
     return;
   }
-  // บันทึกรหัสลงในเบราว์เซอร์
   localStorage.setItem("tms_personal_id", id);
   showDashboard();
   Swal.fire({ 
@@ -45,11 +43,6 @@ function logout() {
 function showDashboard() {
   document.getElementById("loginSection").classList.add("d-none");
   document.getElementById("dashboardSection").classList.remove("d-none");
-}
-
-function openAttendanceForm() {
-  document.getElementById("dashboardSection").classList.add("d-none");
-  document.getElementById("attendanceSection").classList.remove("d-none");
 }
 
 function backToDashboard(currentSectionId) {
@@ -115,8 +108,7 @@ function renderAttendanceButtons(schedule, userLogs) {
       icon = '✔️';
       isDisabled = true;
     } else {
-      // คำนวณเวลาว่า "สาย" หรือไม่ (เทียบกับ end_time)
-      // สมมติ slot.date = "2026-03-30" และ slot.end_time = "08:30"
+      // คำนวณเวลาว่า "สาย" หรือไม่
       let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
       
       if (now > endDateTime) {
@@ -130,11 +122,11 @@ function renderAttendanceButtons(schedule, userLogs) {
       }
     }
 
-    // สร้างปุ่ม (HTML)
+    // สร้างปุ่ม
     let btnHtml = `
       <button class="btn ${btnClass} w-100 mb-2 py-3 fw-bold text-start shadow-sm" 
               ${isDisabled ? 'disabled' : ''} 
-              onclick="${isDisabled ? '' : `submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${btnClass === 'btn-warning text-dark' ? 'สาย' : 'ตรงเวลา'}')`}">
+              onclick="${isDisabled ? '' : `submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${btnClass.includes('warning') ? 'สาย' : 'ตรงเวลา'}')`}">
         ${icon} ${btnText} <br>
         <small class="text-white-50 ms-4 fw-normal">วันที่ ${slot.day_no} | ${slot.start_time} - ${slot.end_time}</small>
       </button>
@@ -143,9 +135,10 @@ function renderAttendanceButtons(schedule, userLogs) {
   });
 }
 
+// 🔥 ฟังก์ชันที่แก้บั๊กเรื่อง Pop-up กดไม่ไปครับ
 async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
-  // 1. สร้าง Pop-up ถามหมายเหตุก่อน (ถ้าไม่กรอกก็กดบันทึกได้เลย)
-  const { value: userNote, isDismissed } = await Swal.fire({
+  // 1. เรียก Pop-up
+  const swalResult = await Swal.fire({
     title: 'หมายเหตุการลงเวลา',
     text: 'ระบุหมายเหตุเพิ่มเติม (ถ้ามี)',
     input: 'text',
@@ -157,17 +150,17 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
     cancelButtonColor: '#6c757d'
   });
 
-  // 2. ถ้าผู้ใช้กดยกเลิก หรือคลิกปิด Pop-up ให้หยุดการทำงานทันที
-  if (isDismissed) {
-    return; 
+  // 2. เช็คว่าผู้ใช้กด "ยกเลิก" หรือไม่ (ใช้ .isConfirmed จะชัวร์ที่สุด)
+  if (!swalResult.isConfirmed) {
+    return; // หยุดทำงานถ้ากดปิดหรือกดยกเลิก
   }
 
-  // 3. เริ่มกระบวนการส่งข้อมูล
-  let userId = localStorage.getItem("tms_personal_id");
-  
-  // แนบสถานะ (สาย/ตรงเวลา) ไปด้วยอัตโนมัติ 
-  let finalNote = userNote.trim() ? `[${timeStatus}] ${userNote.trim()}` : `[${timeStatus}]`;
+  // 3. เซฟตี้ดักค่าว่าง (ป้องกัน Error)
+  let safeNote = swalResult.value || ""; 
+  let finalNote = safeNote.trim() ? `[${timeStatus}] ${safeNote.trim()}` : `[${timeStatus}]`;
 
+  // 4. เตรียมข้อมูลส่งขึ้นเซิร์ฟเวอร์
+  let userId = localStorage.getItem("tms_personal_id");
   let payloadData = {
     log_id: 'ATT-' + Date.now(),
     personal_id: userId,
@@ -176,12 +169,14 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
     note: finalNote
   };
 
+  // 5. โชว์สถานะกำลังโหลด
   Swal.fire({ 
     title: 'กำลังบันทึกเวลา...', 
     allowOutsideClick: false, 
     didOpen: () => { Swal.showLoading(); }
   });
 
+  // 6. ส่งข้อมูล
   try {
     let response = await fetch(GAS_API_URL, {
       method: 'POST',
@@ -191,13 +186,13 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 
     if (result.status === 'success') {
       Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => {
-        // โหลดหน้าปุ่มใหม่ เพื่อให้ปุ่มเปลี่ยนเป็นสีเทา (ลงเวลาแล้ว)
-        openAttendanceForm(); 
+        openAttendanceForm(); // รีเฟรชปุ่มให้กลายเป็นสีเทา
       });
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
     }
   } catch (error) {
+    console.error(error);
     Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
   }
 }
