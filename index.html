@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบบริหารจัดการการอบรม (TMS)</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container mt-5">
+    <div id="loginSection" class="row justify-content-center fade-in">
+      <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm text-center p-4">
+          <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
+          <p class="text-muted small">โครงการประเมินและทดสอบ PISA</p>
+          <input type="text" id="personalId" class="form-control text-center mb-3" placeholder="กรอกรหัสประจำตัว (เช่น SV001)">
+          <button class="btn btn-primary w-100" onclick="login()">เข้าสู่ระบบ</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dashboardSection" class="d-none fade-in">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark">เมนูหลัก</h3>
+        <button class="btn btn-outline-danger btn-sm" onclick="logout()">ออกจากระบบ</button>
+      </div>
+      
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-info text-white text-center p-3 h-100" onclick="testSubmit('submitAttendance')">
+            <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
+            <small>เช็คอินเข้าอบรม</small>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-warning text-dark text-center p-3 h-100" onclick="testSubmit('submitExam')">
+            <h5 class="fw-bold mt-2">📝 ทำข้อสอบ</h5>
+            <small>Pre-Test / Post-Test</small>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-success text-white text-center p-3 h-100" onclick="testSubmit('submitProjectEval')">
+            <h5 class="fw-bold mt-2">📊 ประเมิน</h5>
+            <small>ภาพรวมโครงการ</small>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-primary text-white text-center p-3 h-100" onclick="testSubmit('submitSpeakerEval')">
+            <h5 class="fw-bold mt-2">🎤 ประเมิน</h5>
+            <small>วิทยากรรายบุคคล</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
