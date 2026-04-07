@@ -13,27 +13,28 @@
 </head>
 <body>
 
-  <div class="container mt-5">
+  <div class="container mt-5 mb-5">
+    
     <div id="loginSection" class="row justify-content-center fade-in">
       <div class="col-md-6 col-lg-4">
         <div class="card shadow-sm text-center p-4">
           <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
           <p class="text-muted small">โครงการประเมินและทดสอบ PISA</p>
           <input type="text" id="personalId" class="form-control text-center mb-3" placeholder="กรอกรหัสประจำตัว (เช่น SV001)">
-          <button class="btn btn-primary w-100" onclick="login()">เข้าสู่ระบบ</button>
+          <button class="btn btn-primary w-100 fw-bold" onclick="login()">เข้าสู่ระบบ</button>
         </div>
       </div>
     </div>
 
     <div id="dashboardSection" class="d-none fade-in">
       <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-dark">เมนูหลัก</h3>
+        <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
         <button class="btn btn-outline-danger btn-sm" onclick="logout()">ออกจากระบบ</button>
       </div>
       
       <div class="row g-3">
         <div class="col-6 col-md-3">
-          <div class="card menu-card bg-info text-white text-center p-3 h-100" onclick="testSubmit('submitAttendance')">
+          <div class="card menu-card bg-info text-white text-center p-3 h-100" onclick="openAttendanceForm()">
             <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
             <small>เช็คอินเข้าอบรม</small>
           </div>
@@ -58,6 +59,42 @@
         </div>
       </div>
     </div>
+
+    <div id="attendanceSection" class="d-none fade-in">
+      <div class="card shadow-sm p-4 mx-auto" style="max-width: 500px;">
+        <h4 class="mb-4 text-info fw-bold text-center">⏱️ ลงเวลาเข้าอบรม</h4>
+        
+        <div class="mb-3">
+          <label class="form-label text-muted fw-bold">วันที่เข้าอบรม</label>
+          <select id="attDay" class="form-select">
+            <option value="1">วันที่ 1 (30 มี.ค. 2026)</option>
+            <option value="2">วันที่ 2 (31 มี.ค. 2026)</option>
+            <option value="3">วันที่ 3 (1 เม.ย. 2026)</option>
+            <option value="4">วันที่ 4 (2 เม.ย. 2026)</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-muted fw-bold">ช่วงเวลา</label>
+          <select id="attSlot" class="form-select">
+            <option value="Morning">รอบเช้า</option>
+            <option value="Afternoon">รอบบ่าย</option>
+            <option value="Evening">รอบเย็น</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label text-muted fw-bold">หมายเหตุ (ถ้ามี)</label>
+          <input type="text" id="attNote" class="form-control" placeholder="เช่น มาสาย, ลากิจช่วงบ่าย">
+        </div>
+
+        <div class="d-flex justify-content-between mt-2">
+          <button class="btn btn-secondary px-4" onclick="backToDashboard('attendanceSection')">กลับ</button>
+          <button class="btn btn-info text-white px-4 fw-bold" onclick="submitRealAttendance()">บันทึกเวลา</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="script.js"></script>
