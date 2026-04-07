@@ -146,10 +146,25 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 }
 
 // ==========================================
-// 3. ระบบจัดการการสอบ (Assessment Engine V2.1)
+// 3. ระบบจัดการการสอบ (V3.0 - Auto-Save, Anti-Cheat, 5-Min Alert)
 // ==========================================
 let globalExamData = null; 
 let examCountdown = null; 
+let isExamActive = false; // ตัวแปรเช็คว่ากำลังทำข้อสอบอยู่หรือไม่
+
+// 🚨 ระบบ Anti-Cheat ป้องกันการสลับหน้าจอ (ทำงานอัตโนมัติ)
+document.addEventListener('visibilitychange', () => {
+  if (isExamActive && document.visibilityState === 'hidden') {
+    // โชว์แจ้งเตือนเมื่อผู้ใช้ซ่อนหน้าต่างหรือสลับแท็บ
+    Swal.fire({
+      icon: 'warning',
+      title: 'คำเตือน: คุณกำลังสลับหน้าจอ!',
+      text: 'ระบบกำลังบันทึกพฤติกรรมการสลับหน้าจอ กรุณากลับมาทำข้อสอบให้เสร็จสิ้น',
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'รับทราบและกลับไปทำข้อสอบ'
+    });
+  }
+});
 
 // ฟังก์ชันสลับตำแหน่ง (Fisher-Yates Shuffle)
 function shuffleArray(array) {
@@ -158,6 +173,18 @@ function shuffleArray(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+}
+
+// 💾 ฟังก์ชัน Auto-Save คำตอบลงในเครื่องผู้ใช้
+function saveDraftAnswer(qId, selectedValue) {
+  let userId = localStorage.getItem("tms_personal_id");
+  let testType = globalExamData.activeExam.type;
+  let storageKey = `tms_draft_${userId}_${testType}`;
+  
+  // ดึงของเก่ามาเพิ่ม หรือสร้างก้อนใหม่
+  let draft = JSON.parse(localStorage.getItem(storageKey) || "{}");
+  draft[qId] = selectedValue;
+  localStorage.setItem(storageKey, JSON.stringify(draft));
 }
 
 async function openExamForm() {
@@ -203,7 +230,6 @@ function renderExamStartScreen() {
   let btnLabel = 'เริ่มทำข้อสอบ';
   let btnColor = 'btn-success';
 
-  // 🚨 แจ้งเตือนการสอบซ่อม
   if (exam.isRetake) {
     let percent = ((exam.previousScore / exam.fullScore) * 100).toFixed(2);
     retakeMessage = `
@@ -218,20 +244,29 @@ function renderExamStartScreen() {
     btnColor = 'btn-warning text-dark';
   }
 
+  // แจ้งเตือนเรื่องระบบป้องกันและออโต้เซฟ
   contentArea.innerHTML = `
     <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
       <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
       ${retakeMessage}
       <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ (ข้อละ 2 คะแนน)</p>
-      <div class="alert alert-danger text-start small mx-auto" style="max-width: 400px;">
-        <b>⚠️ คำเตือน:</b><br>ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม และมีการสลับข้อ/สลับตัวเลือก
+      
+      <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
+        <ul class="mb-0">
+          <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม</li>
+          <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
+          <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะมีการแจ้งเตือน</li>
+        </ul>
       </div>
+
       <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">${btnLabel}</button>
     </div>
   `;
 }
 
 function startExamTimer() {
+  isExamActive = true; // เปิดโหมดสอบ (ระบบ Anti-Cheat จะเริ่มทำงาน)
+
   let contentArea = document.getElementById("examContentArea");
   let questions = globalExamData.questions;
   
@@ -255,8 +290,12 @@ function startExamTimer() {
     opts.forEach((opt, i) => {
       optionsHtml += `
         <div class="form-check mb-2">
-          <input class="form-check-input border-secondary" type="radio" name="q_${q.id}" value="${opt.key}" id="q_${q.id}_${opt.key}"> 
-          <label class="form-check-label" for="q_${q.id}_${opt.key}"><b class="text-primary">${thaiChoices[i]}</b> ${opt.text}</label>
+          <input class="form-check-input border-secondary auto-save-radio" type="radio" 
+                 name="q_${q.id}" value="${opt.key}" id="q_${q.id}_${opt.key}" 
+                 onchange="saveDraftAnswer('${q.id}', '${opt.key}')"> 
+          <label class="form-check-label w-100" for="q_${q.id}_${opt.key}" style="cursor: pointer;">
+            <b class="text-primary">${thaiChoices[i]}</b> ${opt.text}
+          </label>
         </div>`;
     });
 
@@ -271,6 +310,17 @@ function startExamTimer() {
   
   document.getElementById("btnSubmitExam").classList.remove("d-none");
   document.getElementById("examTimerBadge").classList.remove("d-none");
+
+  // 💾 โหลดข้อมูลที่เคยกดไว้ (กรณีเน็ตหลุดแล้วเข้ามาใหม่)
+  let userId = localStorage.getItem("tms_personal_id");
+  let testType = globalExamData.activeExam.type;
+  let storageKey = `tms_draft_${userId}_${testType}`;
+  let draft = JSON.parse(localStorage.getItem(storageKey) || "{}");
+  
+  Object.keys(draft).forEach(qId => {
+    let savedRadio = document.querySelector(`input[name="q_${qId}"][value="${draft[qId]}"]`);
+    if (savedRadio) savedRadio.checked = true;
+  });
   
   // ตั้งเวลา 30 นาที
   let timeRemaining = 30 * 60; 
@@ -280,6 +330,24 @@ function startExamTimer() {
     let minutes = parseInt(timeRemaining / 60, 10);
     let seconds = parseInt(timeRemaining % 60, 10);
     display.textContent = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
+
+    // 🚨 แจ้งเตือนเมื่อเหลือเวลา 5 นาที (300 วินาที)
+    if (timeRemaining === 300) {
+      Swal.fire({
+        toast: true,
+        position: 'top',
+        icon: 'warning',
+        title: 'เหลือเวลาทำข้อสอบอีก 5 นาที!',
+        showConfirmButton: false,
+        timer: 5000,
+        timerProgressBar: true,
+        background: '#fff3cd',
+        color: '#856404'
+      });
+      // เปลี่ยนสีป้ายจับเวลาให้เตือนความจำ
+      document.getElementById("examTimerBadge").classList.remove('bg-danger');
+      document.getElementById("examTimerBadge").classList.add('bg-warning', 'text-dark', 'fs-4');
+    }
 
     if (--timeRemaining < 0) {
       clearInterval(examCountdown);
@@ -303,6 +371,7 @@ async function submitRealExam() {
   if (!confirmSubmit.isConfirmed) return;
 
   clearInterval(examCountdown);
+  isExamActive = false; // ปิดโหมดสอบ (ระบบ Anti-Cheat จะหยุดทำงาน)
 
   // 1. ตรวจคำตอบ (ข้อละ 2 คะแนน)
   let questions = globalExamData.questions;
@@ -334,6 +403,10 @@ async function submitRealExam() {
 
     if (result.status === 'success') {
       
+      // 🧹 ล้างข้อมูล Auto-Save ทิ้งเพราะสอบเสร็จแล้ว
+      let storageKey = `tms_draft_${userId}_${testType}`;
+      localStorage.removeItem(storageKey);
+
       // 2. ลอจิกตรวจสอบการสอบซ่อม (Retake Logic)
       let percent = (score / maxScore) * 100;
       let passingGrade = globalExamData.activeExam.passingPercent || 80;
@@ -351,13 +424,13 @@ async function submitRealExam() {
         showCancelButton: canRetake,
         confirmButtonText: canRetake ? 'สอบซ่อมทันที' : 'กลับเมนูหลัก',
         cancelButtonText: 'กลับเมนูหลัก',
-        confirmButtonColor: canRetake ? '#ffc107' : '#0d6efd',
+        confirmButtonColor: canRetake ? '#ffc107',
         cancelButtonColor: '#6c757d'
       }).then((res) => {
         document.getElementById("examTimerBadge").classList.add("d-none");
         
         if (canRetake && res.isConfirmed) {
-          openExamForm(); // โหลดหน้าสอบใหม่ทันที
+          openExamForm(); 
         } else {
           backToDashboard('examSection');
         }
