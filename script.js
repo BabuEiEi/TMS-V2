@@ -146,7 +146,7 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 }
 
 // ==========================================
-// 3. ระบบจัดการการสอบ (V4.0 - Auto-Save, Anti-Cheat, Dynamic Retake)
+// 3. ระบบจัดการการสอบ (Assessment Engine V4.1)
 // ==========================================
 let globalExamData = null; 
 let examCountdown = null; 
@@ -393,32 +393,55 @@ async function submitRealExam() {
       localStorage.removeItem(storageKey);
 
       let percent = (score / maxScore) * 100;
-      let passingGrade = globalExamData.activeExam.passingPercent || 80; // ดึงเกณฑ์จาก DB
-      let isFailedPostTest = (testType === 'POST' && percent < passingGrade);
-      let canRetake = isFailedPostTest && !globalExamData.activeExam.isRetake;
+      let passingGrade = globalExamData.activeExam.passingPercent; // ดึงเกณฑ์จาก DB
 
-      Swal.fire({
-        icon: percent >= passingGrade ? 'success' : 'warning',
-        title: percent >= passingGrade ? 'ยินดีด้วย! คุณสอบผ่าน' : 'เกือบผ่านแล้วครับ!',
-        html: `
-          <h4 class="mt-2">คะแนนของคุณ: <b class="${percent >= passingGrade ? 'text-success' : 'text-danger'} fs-2">${score} / ${maxScore}</b></h4>
-          <p class="text-muted">คิดเป็นร้อยละ ${percent.toFixed(2)}% (เกณฑ์ผ่านคือ ${passingGrade}%)</p>
-          ${canRetake ? '<p class="text-primary fw-bold">คุณมีสิทธิ์สอบแก้ตัวได้อีก 1 ครั้งครับ</p>' : ''}
-        `,
-        showCancelButton: canRetake,
-        confirmButtonText: canRetake ? 'สอบซ่อมทันที' : 'กลับเมนูหลัก',
-        cancelButtonText: 'กลับเมนูหลัก',
-        confirmButtonColor: canRetake ? '#ffc107' : '#0d6efd',
-        cancelButtonColor: '#6c757d'
-      }).then((res) => {
-        document.getElementById("examTimerBadge").classList.add("d-none");
+      // 🧠 แยกลอจิกการโชว์ผลสอบ ระหว่าง PRE และ POST
+      if (testType === 'PRE') {
         
-        if (canRetake && res.isConfirmed) {
-          openExamForm(); 
-        } else {
+        // 🔹 แจ้งเตือนสำหรับ Pre-Test (ไม่ตัดสินผ่าน/ตก)
+        Swal.fire({
+          icon: 'info',
+          title: 'บันทึก Pre-Test สำเร็จ!',
+          html: `
+            <h4 class="mt-3">คะแนนพื้นฐานของคุณ: <b class="text-primary fs-1">${score} / ${maxScore}</b></h4>
+            <p class="text-muted mt-2">ระบบได้บันทึกคะแนนเพื่อใช้เป็นข้อมูลเปรียบเทียบเรียบร้อยแล้วครับ</p>
+          `,
+          confirmButtonText: 'กลับเมนูหลัก',
+          confirmButtonColor: '#0d6efd'
+        }).then(() => {
+          document.getElementById("examTimerBadge").classList.add("d-none");
           backToDashboard('examSection');
-        }
-      });
+        });
+
+      } else {
+
+        // 🔸 แจ้งเตือนสำหรับ Post-Test (มีเกณฑ์ผ่าน/ตก และสอบซ่อม)
+        let isFailedPostTest = percent < passingGrade;
+        let canRetake = isFailedPostTest && !globalExamData.activeExam.isRetake;
+
+        Swal.fire({
+          icon: percent >= passingGrade ? 'success' : 'warning',
+          title: percent >= passingGrade ? 'ยินดีด้วย! คุณสอบผ่าน' : 'พยายามอีกนิดนะครับ!',
+          html: `
+            <h4 class="mt-2">คะแนนของคุณ: <b class="${percent >= passingGrade ? 'text-success' : 'text-danger'} fs-2">${score} / ${maxScore}</b></h4>
+            <p class="text-muted">คิดเป็นร้อยละ ${percent.toFixed(2)}% (เกณฑ์ผ่านคือ ${passingGrade}%)</p>
+            ${canRetake ? '<p class="text-primary fw-bold">คุณมีสิทธิ์สอบแก้ตัวได้อีก 1 ครั้งครับ</p>' : ''}
+          `,
+          showCancelButton: canRetake,
+          confirmButtonText: canRetake ? 'สอบซ่อมทันที' : 'กลับเมนูหลัก',
+          cancelButtonText: 'กลับเมนูหลัก',
+          confirmButtonColor: canRetake ? '#ffc107' : '#0d6efd',
+          cancelButtonColor: '#6c757d'
+        }).then((res) => {
+          document.getElementById("examTimerBadge").classList.add("d-none");
+          if (canRetake && res.isConfirmed) {
+            openExamForm(); 
+          } else {
+            backToDashboard('examSection');
+          }
+        });
+
+      }
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
     }
