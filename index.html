@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบบริหารจัดการการอบรม (TMS) - V20.0</title>
+  <title>ระบบบริหารจัดการการอบรม (TMS) - V21.0</title>
   
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="style.css">
 
   <style>
-    /* [CORE-STYLE: บรรทัดขยายตัวมาตรฐาน] */
+    /* [CORE-STYLE: บรรทัดขยายมาตรฐาน] */
     body { 
       font-family: 'Niramit', sans-serif; 
       background-color: #f4f7f9; 
@@ -42,83 +42,46 @@
       transform: translateY(-5px); 
       box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; 
     }
-    
-    /* [#SURVEY_CSS: แยกสไตล์ตอนที่ 1 และ ตอนที่ 2] */
-    .horizontal-rating-wrapper { 
-      margin-top: 15px;
-      margin-bottom: 15px; 
-    }
 
-    .horizontal-rating-container { 
-      display: flex; 
-      flex-direction: row;
-      justify-content: space-between; 
-      max-width: 500px; 
-      margin-bottom: 8px;
-    }
-
-    .rating-btn-item { 
-      flex: 1;
-      text-align: center;
-      position: relative; 
-    }
-
-    .rating-btn-item input { 
-      position: absolute; 
-      opacity: 0; 
-      cursor: pointer; 
-      width: 100%;
-      height: 100%;
-      left: 0;
-      top: 0;
-      z-index: 2;
-    }
-
-    .rating-btn-label { 
-      display: flex; 
-      align-items: center; 
-      justify-content: center;
-      width: 48px; 
-      height: 48px; 
-      margin: 0 auto;
-      border: 2px solid #dee2e6; 
-      border-radius: 50%; 
-      cursor: pointer; 
-      transition: 0.2s; 
-      font-weight: bold;
-      background-color: #fff;
-      position: relative;
-      z-index: 1;
-    }
-
-    .rating-btn-item input:checked + .rating-btn-label { 
-      background-color: #0d6efd; 
-      color: white; 
-      border-color: #0d6efd; 
-      box-shadow: 0 4px 10px rgba(13,110,253,0.3);
-      transform: scale(1.1);
-    }
-
-    .rating-desc-text {
+    /* [#SURVEY_UI_FIX: สไตล์จัดการตอนที่ 2 แนวนอน] */
+    .horizontal-options {
       display: flex;
       flex-direction: row;
-      justify-content: space-between;
-      max-width: 500px;
-      padding-left: 5px;
-      padding-right: 5px;
+      justify-content: flex-start;
+      gap: 30px; /* ระยะห่างระหว่าง Bullet */
+      padding-left: 10px;
+      margin-top: 10px;
     }
 
-    .rating-desc-text span {
-      font-size: 13px;
-      color: #0d6efd;
+    .horizontal-options .form-check {
+      margin-bottom: 0;
+    }
+
+    /* สไตล์ช่องคำถามประเมิน */
+    .question-card {
+      border-radius: 15px;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-left: 5px solid #0dcaf0; /* แถบสีฟ้าข้างคำถาม */
+      margin-bottom: 20px;
+      padding: 20px;
+      background-color: #fff;
+    }
+
+    .question-text {
       font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      color: #2c3e50;
     }
 
-    /* สไตล์แนวตั้งสำหรับตอนที่ 1 */
-    .vertical-bullet-item {
-      margin-bottom: 12px;
-      padding-left: 15px;
-      display: block;
+    .category-title {
+      color: #0d6efd;
+      font-weight: 700;
+      margin-top: 30px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 10px;
     }
   </style>
 </head>
@@ -130,7 +93,7 @@
       <div class="col-md-6 col-lg-4">
         <div class="card shadow-sm text-center p-4 border-0 rounded-4">
           <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
-          <p class="text-muted small">โครงการประเมินและทดสอบ PISA (Version 20.0)</p>
+          <p class="text-muted small">โครงการประเมินและทดสอบ PISA (Version 21.0)</p>
           <input type="text" id="personalId" class="form-control text-center mb-3 p-2" placeholder="กรอกรหัสประจำตัว (เช่น SV001)">
           <button class="btn btn-primary w-100 fw-bold p-2 rounded-pill shadow-sm" onclick="login()">
             เข้าสู่ระบบ
