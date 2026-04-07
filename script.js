@@ -152,10 +152,9 @@ let globalExamData = null;
 let examCountdown = null; 
 let isExamActive = false; // ตัวแปรเช็คว่ากำลังทำข้อสอบอยู่หรือไม่
 
-// 🚨 ระบบ Anti-Cheat ป้องกันการสลับหน้าจอ (ทำงานอัตโนมัติ)
+// 🚨 ระบบ Anti-Cheat ป้องกันการสลับหน้าจอ
 document.addEventListener('visibilitychange', () => {
   if (isExamActive && document.visibilityState === 'hidden') {
-    // โชว์แจ้งเตือนเมื่อผู้ใช้ซ่อนหน้าต่างหรือสลับแท็บ
     Swal.fire({
       icon: 'warning',
       title: 'คำเตือน: คุณกำลังสลับหน้าจอ!',
@@ -175,13 +174,12 @@ function shuffleArray(array) {
   return array;
 }
 
-// 💾 ฟังก์ชัน Auto-Save คำตอบลงในเครื่องผู้ใช้
+// 💾 ฟังก์ชัน Auto-Save คำตอบ
 function saveDraftAnswer(qId, selectedValue) {
   let userId = localStorage.getItem("tms_personal_id");
   let testType = globalExamData.activeExam.type;
   let storageKey = `tms_draft_${userId}_${testType}`;
   
-  // ดึงของเก่ามาเพิ่ม หรือสร้างก้อนใหม่
   let draft = JSON.parse(localStorage.getItem(storageKey) || "{}");
   draft[qId] = selectedValue;
   localStorage.setItem(storageKey, JSON.stringify(draft));
@@ -244,7 +242,6 @@ function renderExamStartScreen() {
     btnColor = 'btn-warning text-dark';
   }
 
-  // แจ้งเตือนเรื่องระบบป้องกันและออโต้เซฟ
   contentArea.innerHTML = `
     <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
       <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
@@ -265,12 +262,11 @@ function renderExamStartScreen() {
 }
 
 function startExamTimer() {
-  isExamActive = true; // เปิดโหมดสอบ (ระบบ Anti-Cheat จะเริ่มทำงาน)
+  isExamActive = true; 
 
   let contentArea = document.getElementById("examContentArea");
   let questions = globalExamData.questions;
   
-  // 🔀 สลับข้อสอบ
   shuffleArray(questions);
 
   let html = '';
@@ -283,7 +279,6 @@ function startExamTimer() {
     if(q.options.C) opts.push({key: 'C', text: q.options.C});
     if(q.options.D) opts.push({key: 'D', text: q.options.D});
     
-    // 🔀 สลับตัวเลือกภายในข้อ
     shuffleArray(opts);
 
     let optionsHtml = '';
@@ -311,7 +306,7 @@ function startExamTimer() {
   document.getElementById("btnSubmitExam").classList.remove("d-none");
   document.getElementById("examTimerBadge").classList.remove("d-none");
 
-  // 💾 โหลดข้อมูลที่เคยกดไว้ (กรณีเน็ตหลุดแล้วเข้ามาใหม่)
+  // 💾 โหลดข้อมูล Auto-Save
   let userId = localStorage.getItem("tms_personal_id");
   let testType = globalExamData.activeExam.type;
   let storageKey = `tms_draft_${userId}_${testType}`;
@@ -325,28 +320,26 @@ function startExamTimer() {
   // ตั้งเวลา 30 นาที
   let timeRemaining = 30 * 60; 
   let display = document.getElementById("examTimeDisplay");
+  
+  // รีเซ็ตสีป้ายเวลาเผื่อโดนเปลี่ยนจากรอบก่อน
+  document.getElementById("examTimerBadge").classList.remove('bg-warning', 'text-dark');
+  document.getElementById("examTimerBadge").classList.add('bg-danger');
 
   examCountdown = setInterval(() => {
     let minutes = parseInt(timeRemaining / 60, 10);
     let seconds = parseInt(timeRemaining % 60, 10);
     display.textContent = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
 
-    // 🚨 แจ้งเตือนเมื่อเหลือเวลา 5 นาที (300 วินาที)
+    // 🚨 แจ้งเตือน 5 นาที
     if (timeRemaining === 300) {
       Swal.fire({
-        toast: true,
-        position: 'top',
-        icon: 'warning',
+        toast: true, position: 'top', icon: 'warning',
         title: 'เหลือเวลาทำข้อสอบอีก 5 นาที!',
-        showConfirmButton: false,
-        timer: 5000,
-        timerProgressBar: true,
-        background: '#fff3cd',
-        color: '#856404'
+        showConfirmButton: false, timer: 5000, timerProgressBar: true,
+        background: '#fff3cd', color: '#856404'
       });
-      // เปลี่ยนสีป้ายจับเวลาให้เตือนความจำ
       document.getElementById("examTimerBadge").classList.remove('bg-danger');
-      document.getElementById("examTimerBadge").classList.add('bg-warning', 'text-dark', 'fs-4');
+      document.getElementById("examTimerBadge").classList.add('bg-warning', 'text-dark');
     }
 
     if (--timeRemaining < 0) {
@@ -371,9 +364,8 @@ async function submitRealExam() {
   if (!confirmSubmit.isConfirmed) return;
 
   clearInterval(examCountdown);
-  isExamActive = false; // ปิดโหมดสอบ (ระบบ Anti-Cheat จะหยุดทำงาน)
+  isExamActive = false; 
 
-  // 1. ตรวจคำตอบ (ข้อละ 2 คะแนน)
   let questions = globalExamData.questions;
   let score = 0;
   let maxScore = questions.length * 2; 
@@ -387,13 +379,7 @@ async function submitRealExam() {
 
   let userId = localStorage.getItem("tms_personal_id");
   let testType = globalExamData.activeExam.type;
-  let payloadData = { 
-    log_id: 'TEST-' + Date.now(), 
-    personal_id: userId, 
-    test_type: testType, 
-    score: score, 
-    max_score: maxScore 
-  };
+  let payloadData = { log_id: 'TEST-' + Date.now(), personal_id: userId, test_type: testType, score: score, max_score: maxScore };
 
   Swal.fire({ title: 'กำลังบันทึกคะแนน...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
@@ -403,11 +389,10 @@ async function submitRealExam() {
 
     if (result.status === 'success') {
       
-      // 🧹 ล้างข้อมูล Auto-Save ทิ้งเพราะสอบเสร็จแล้ว
+      // 🧹 ล้างข้อมูล Auto-Save ทิ้ง
       let storageKey = `tms_draft_${userId}_${testType}`;
       localStorage.removeItem(storageKey);
 
-      // 2. ลอจิกตรวจสอบการสอบซ่อม (Retake Logic)
       let percent = (score / maxScore) * 100;
       let passingGrade = globalExamData.activeExam.passingPercent || 80;
       let isFailedPostTest = (testType === 'POST' && percent < passingGrade);
@@ -424,7 +409,7 @@ async function submitRealExam() {
         showCancelButton: canRetake,
         confirmButtonText: canRetake ? 'สอบซ่อมทันที' : 'กลับเมนูหลัก',
         cancelButtonText: 'กลับเมนูหลัก',
-        confirmButtonColor: canRetake ? '#ffc107',
+        confirmButtonColor: canRetake ? '#ffc107' : '#0d6efd',
         cancelButtonColor: '#6c757d'
       }).then((res) => {
         document.getElementById("examTimerBadge").classList.add("d-none");
