@@ -58,50 +58,125 @@ function backToDashboard(currentSectionId) {
 }
 
 // ==========================================
-// 3. ระบบส่งข้อมูลจริง: แบบฟอร์มลงเวลา (Production)
+// 3. ระบบส่งข้อมูลจริง: แบบฟอร์มลงเวลา (Smart Buttons)
 // ==========================================
-async function submitRealAttendance() {
-  let userId = localStorage.getItem("tms_personal_id");
-  let dayNo = document.getElementById("attDay").value;
-  let timeSlot = document.getElementById("attSlot").value;
-  let note = document.getElementById("attNote").value.trim();
 
-  // จัดเตรียมข้อมูลก่อนส่ง
+async function openAttendanceForm() {
+  document.getElementById("dashboardSection").classList.add("d-none");
+  document.getElementById("attendanceSection").classList.remove("d-none");
+  
+  let userId = localStorage.getItem("tms_personal_id");
+  let btnContainer = document.getElementById("attendanceButtonsContainer");
+  
+  // โชว์โหลดดิ้งรอข้อมูลจาก GAS
+  btnContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">กำลังตรวจสอบรอบเวลา...</p></div>';
+
+  try {
+    let response = await fetch(GAS_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: userId } })
+    });
+    let result = await response.json();
+
+    if (result.status === 'success') {
+      renderAttendanceButtons(result.schedule, result.userLogs);
+    } else {
+      btnContainer.innerHTML = `<div class="alert alert-danger">ผิดพลาด: ${result.message}</div>`;
+    }
+  } catch (error) {
+    btnContainer.innerHTML = '<div class="alert alert-danger">ขาดการเชื่อมต่อกับเซิร์ฟเวอร์</div>';
+  }
+}
+
+function renderAttendanceButtons(schedule, userLogs) {
+  let btnContainer = document.getElementById("attendanceButtonsContainer");
+  btnContainer.innerHTML = ''; // ล้างของเดิม
+  
+  if (schedule.length === 0) {
+    btnContainer.innerHTML = '<div class="alert alert-warning text-center">ไม่มีรอบการลงเวลาที่เปิดใช้งานในขณะนี้</div>';
+    return;
+  }
+
+  let now = new Date();
+
+  schedule.forEach(slot => {
+    let key = slot.day_no + '_' + slot.slot_id;
+    let loggedTime = userLogs[key];
+    
+    let btnClass = '';
+    let btnText = '';
+    let icon = '';
+    let isDisabled = false;
+
+    // เช็คว่าลงเวลาไปหรือยัง
+    if (loggedTime) {
+      btnClass = 'btn-secondary opacity-75'; // สีเทา
+      btnText = `ลงเวลาแล้ว (${loggedTime})`;
+      icon = '✔️';
+      isDisabled = true;
+    } else {
+      // คำนวณเวลาว่า "สาย" หรือไม่ (เทียบกับ end_time)
+      // สมมติ slot.date = "2026-03-30" และ slot.end_time = "08:30"
+      let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
+      
+      if (now > endDateTime) {
+        btnClass = 'btn-warning text-dark'; // สีเหลือง (เกินเวลา)
+        btnText = `ลงเวลา: ${slot.slot_label} (สาย)`;
+        icon = '⚠️';
+      } else {
+        btnClass = 'btn-success'; // สีเขียว (ในเวลา)
+        btnText = `ลงเวลา: ${slot.slot_label}`;
+        icon = '📌';
+      }
+    }
+
+    // สร้างปุ่ม (HTML)
+    let btnHtml = `
+      <button class="btn ${btnClass} w-100 mb-2 py-3 fw-bold text-start shadow-sm" 
+              ${isDisabled ? 'disabled' : ''} 
+              onclick="${isDisabled ? '' : `submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${btnClass === 'btn-warning text-dark' ? 'สาย' : 'ตรงเวลา'}')`}">
+        ${icon} ${btnText} <br>
+        <small class="text-white-50 ms-4 fw-normal">วันที่ ${slot.day_no} | ${slot.start_time} - ${slot.end_time}</small>
+      </button>
+    `;
+    btnContainer.innerHTML += btnHtml;
+  });
+}
+
+async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
+  let userId = localStorage.getItem("tms_personal_id");
+  let userNote = document.getElementById("attNote").value.trim();
+  
+  // แนบคำว่า "สาย" ไปในช่องหมายเหตุแบบอัตโนมัติ (ถ้ามีพิมพ์มาด้วยก็ต่อท้ายกัน)
+  let finalNote = userNote ? `[${timeStatus}] ${userNote}` : `[${timeStatus}]`;
+
   let payloadData = {
     log_id: 'ATT-' + Date.now(),
     personal_id: userId,
     day_no: dayNo,
     time_slot: timeSlot,
-    note: note
+    note: finalNote
   };
 
-  Swal.fire({ 
-    title: 'กำลังบันทึกเวลา...', 
-    allowOutsideClick: false,
-    didOpen: () => { Swal.showLoading(); }
-  });
+  Swal.fire({ title: 'กำลังบันทึกเวลา...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
   try {
     let response = await fetch(GAS_API_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'submitAttendance', payload: payloadData })
     });
-
     let result = await response.json();
 
     if (result.status === 'success') {
       Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => {
-        document.getElementById("attNote").value = ""; // ล้างค่าฟิลด์หมายเหตุ
-        backToDashboard('attendanceSection'); // ดีดกลับหน้าหลัก
+        document.getElementById("attNote").value = ""; 
+        openAttendanceForm(); // โหลดหน้าปุ่มใหม่เพื่อเปลี่ยนสีปุ่มเป็นสีเทา!
       });
-    } else if (result.status === 'busy') {
-      Swal.fire('คิวระบบเต็มชั่วคราว', result.message, 'warning');
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
     }
   } catch (error) {
-    console.error("Fetch Error: ", error);
-    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ โปรดตรวจสอบอินเทอร์เน็ตครับ', 'error');
+    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
   }
 }
 
