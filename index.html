@@ -3,20 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบบริหารจัดการการอบรม (TMS)</title>
+  <title>ระบบบริหารจัดการการอบรม (TMS) - ฉบับสมบูรณ์</title>
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <div class="container mt-5 mb-5">
+    
     <div id="loginSection" class="row justify-content-center fade-in">
       <div class="col-md-6 col-lg-4">
         <div class="card shadow-sm text-center p-4 border-0 rounded-4">
           <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
-          <input type="text" id="personalId" class="form-control text-center mb-3" placeholder="รหัสประจำตัว (เช่น SV001)">
-          <button class="btn btn-primary w-100 fw-bold rounded-pill" onclick="login()">เข้าสู่ระบบ</button>
+          <p class="text-muted small">โครงการประเมินและทดสอบ PISA</p>
+          <input type="text" id="personalId" class="form-control text-center mb-3 p-2" placeholder="กรอกรหัสประจำตัว (เช่น SV001)">
+          <button class="btn btn-primary w-100 fw-bold p-2 rounded-pill" onclick="login()">เข้าสู่ระบบ</button>
         </div>
       </div>
     </div>
@@ -24,53 +28,75 @@
     <div id="dashboardSection" class="d-none fade-in">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
-        <button class="btn btn-outline-danger btn-sm rounded-pill" onclick="logout()">ออกระบบ</button>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="logout()">ออกจากระบบ</button>
       </div>
-      <div class="row g-3">
-        <div class="col-6 col-md-3"><div class="card menu-card bg-info text-white text-center p-3 h-100 rounded-4" onclick="openAttendanceForm()">⏱️ ลงเวลา</div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-warning text-dark text-center p-3 h-100 rounded-4" onclick="openExamForm()">📝 ข้อสอบ</div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-success text-white text-center p-3 h-100 rounded-4" onclick="openSurveyForm('PROJECT_SURVEY')">📊 ประเมินโครงการ</div></div>
-        <div class="col-6 col-md-3"><div class="card menu-card bg-primary text-white text-center p-3 h-100 rounded-4" onclick="openSurveyForm('SPEAKER_SURVEY')">🎤 ประเมินวิทยากร</div></div>
+      
+      <div class="row g-3 text-center">
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-info text-white p-3 h-100 border-0 rounded-4" onclick="openAttendanceForm()">
+            <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-warning text-dark p-3 h-100 border-0 rounded-4" onclick="openExamForm()">
+            <h5 class="fw-bold mt-2">📝 ทำข้อสอบ</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-success text-white p-3 h-100 border-0 rounded-4" onclick="openSurveyForm('PROJECT_SURVEY')">
+            <h5 class="fw-bold mt-2">📊 ประเมินโครงการ</h5>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card menu-card bg-primary text-white p-3 h-100 border-0 rounded-4" onclick="openSurveyForm('SPEAKER_SURVEY')">
+            <h5 class="fw-bold mt-2">🎤 ประเมินวิทยากร</h5>
+          </div>
+        </div>
       </div>
     </div>
 
     <div id="attendanceSection" class="d-none fade-in">
       <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 500px;">
-        <h4 class="mb-4 text-info fw-bold text-center">⏱️ ลงเวลา</h4>
+        <h4 class="mb-4 text-info fw-bold text-center border-bottom pb-2">⏱️ ลงเวลาเข้าอบรม</h4>
         <div id="attendanceButtonsContainer" class="mb-4"></div>
         <button class="btn btn-secondary w-100 rounded-pill" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
       </div>
     </div>
 
     <div id="examSection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 800px;">
-        <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
-          <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
-          <div id="examTimerBadge" class="badge bg-danger fs-5 d-none">⏳ <span id="examTimeDisplay">30:00</span></div>
+      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 850px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3">
+          <h4 class="text-warning fw-bold mb-0">📝 แบบทดสอบ <span id="examTitleLabel"></span></h4>
+          <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-3 shadow-sm">⏳ <span id="examTimeDisplay">30:00</span></div>
         </div>
         <div id="examContentArea"></div>
-        <div class="d-flex justify-content-between mt-4">
-          <button class="btn btn-secondary rounded-pill" onclick="backToDashboard('examSection')">ยกเลิก</button>
-          <button id="btnSubmitExam" class="btn btn-warning fw-bold d-none rounded-pill" onclick="submitRealExam()">ส่งคำตอบ</button>
+        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+          <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('examSection')">ยกเลิก</button>
+          <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-4 d-none rounded-pill shadow-sm" onclick="submitRealExam()">ส่งคำตอบ</button>
         </div>
       </div>
     </div>
 
     <div id="surveySection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 800px;">
-        <h4 class="text-success fw-bold border-bottom pb-2 mb-3">📊 <span id="surveyTitleLabel"></span></h4>
-        <div id="speakerSelectionArea" class="mb-3 d-none">
-          <label class="form-label fw-bold">เลือกวิทยากร:</label>
-          <select id="speakerSelect" class="form-select border-primary"></select>
+      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 850px;">
+        <h4 class="text-success fw-bold border-bottom pb-3 mb-4">📊 <span id="surveyTitleLabel">แบบประเมิน</span></h4>
+        
+        <div id="speakerSelectionArea" class="mb-4 d-none">
+          <label class="form-label fw-bold text-primary mb-3">กรุณาเลือกวิทยากรที่ต้องการประเมิน:</label>
+          <div id="speakerButtonsGrid" class="row g-3"></div>
         </div>
+
         <div id="surveyContentArea"></div>
-        <div class="d-flex justify-content-between mt-4">
-          <button class="btn btn-secondary rounded-pill" onclick="backToDashboard('surveySection')">กลับ</button>
-          <button id="btnSubmitSurvey" class="btn btn-success fw-bold d-none rounded-pill" onclick="submitRealSurvey()">ส่งผลประเมิน</button>
+
+        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
+          <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('surveySection')">กลับ</button>
+          <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-4 d-none rounded-pill shadow-sm" onclick="submitRealSurvey()">ส่งผลประเมิน</button>
         </div>
       </div>
     </div>
+
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
