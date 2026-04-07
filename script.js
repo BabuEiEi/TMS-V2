@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 20.1 (Base V20 - Rollback)
+ * VERSION: 20.0 (The Final Integrity Edition)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: คืนค่าระบบกลับสู่ Version 20.0 ตามสั่ง และยึดกฎเหล็ก 6 ข้อ
+ * DESCRIPTION: ไฟล์ Logic หลักที่ยึดกฎเหล็กข้อที่ 6 (ห้ามยุบย่อ ห้ามลดบรรทัด)
  * [COMMENT: TAGS FOR SEARCH: #NAV_LOGIC, #ATT_LOGIC, #EXAM_LOGIC, #SURVEY_LOGIC]
  */
 
@@ -16,7 +16,7 @@ let examCountdown = null;
 let isExamActive = false;
 
 // ============================================================
-// [#NAV_LOGIC]: การจัดการนำทางและสถานะ
+// [#NAV_LOGIC]: การจัดการนำทางและสถานะพื้นฐาน
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -72,7 +72,7 @@ function backToDashboard(currentId) {
 
 
 // ============================================================
-// [#ATT_LOGIC]: ระบบลงเวลาพร้อมประวัติประทับเวลา
+// [#ATT_LOGIC]: ระบบลงเวลาพร้อมแสดงประวัติประทับเวลา
 // ============================================================
 
 async function openAttendanceForm() {
@@ -85,7 +85,7 @@ async function openAttendanceForm() {
   btnContainer.innerHTML = `
     <div class="text-center my-4">
       <div class="spinner-border text-info"></div>
-      <p class="mt-2 text-muted">ตรวจสอบสถานะการลงเวลา...</p>
+      <p class="mt-2 text-muted">กำลังตรวจสอบสถานะการลงเวลา...</p>
     </div>`;
 
   try {
@@ -115,12 +115,14 @@ function renderAttendanceButtons(schedule, userLogs) {
     let loggedTime = userLogs[key];
 
     if (loggedTime) {
+      // เมื่อลงเวลาแล้ว (ปุ่มเทา)
       btnContainer.innerHTML += `
         <div class="card mb-3 p-3 bg-light border-0 rounded-4 text-center shadow-sm">
           <div class="fw-bold text-secondary">✔️ ${slot.slot_label} บันทึกสำเร็จแล้ว</div>
           <small class="text-muted">บันทึกเมื่อ: ${loggedTime}</small>
         </div>`;
     } else {
+      // ยังไม่ได้ลงเวลา (ปุ่มเขียว)
       btnContainer.innerHTML += `
         <button class="btn btn-success w-100 mb-3 py-3 fw-bold rounded-4 shadow-sm" 
                 onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}')">
@@ -143,7 +145,7 @@ async function submitRealAttendance(day, slot) {
     personal_id: localStorage.getItem("tms_personal_id"),
     day_no: day,
     time_slot: slot,
-    note: '[V20.1-Rollback]'
+    note: '[V20]'
   };
 
   try {
@@ -292,7 +294,7 @@ async function submitRealExam(isAuto = false) {
 
 
 // ============================================================
-// [#SURVEY_LOGIC]: ระบบประเมิน (Rollback Base V20)
+// [#SURVEY_LOGIC]: ระบบประเมิน (Categorized Horizontal Layout)
 // ============================================================
 
 async function openSurveyForm(type) {
@@ -340,6 +342,7 @@ function renderSpeakerSelect() {
   };
 }
 
+// [COMMENT: UPDATE V20.0 - บังคับแยกตอนที่ 1 (แนวตั้ง) และ ตอนที่ 2 (แนวนอน 5-1)]
 function renderSurveyQuestions() {
   let html = '';
   let grouped = {};
@@ -357,16 +360,23 @@ function renderSurveyQuestions() {
     grouped[cat].forEach(q => {
       let optsHtml = '';
       
+      // 📝 กรณีเป็นช่องเติมคำ (TEXT)
       if (q.options[0] === 'TEXT') {
         optsHtml = `<textarea class="form-control" name="sq_${q.id}" rows="3" placeholder="ระบุความคิดเห็น..."></textarea>`;
       } 
-      else {
-        // [COMMENT: กลับไปใช้ปุ่มวงกลมพรีเมียมแนวนอนของ V20]
+      
+      // 🟢 กรณีตอนที่ 2: บังคับแสดงปุ่มวงกลม แนวนอน เรียง 5 -> 1
+      else if (cat.includes("ตอนที่ 2")) {
         optsHtml += `
           <div class="horizontal-rating-wrapper">
             <div class="horizontal-rating-container">`;
             
-        q.options.forEach(opt => {
+        // สั่งเรียงลำดับจากมากไปน้อย (5 4 3 2 1)
+        const sortedOptions = [...q.options].sort((a, b) => {
+            return b - a;
+        });
+
+        sortedOptions.forEach(opt => {
           optsHtml += `
               <div class="rating-btn-item">
                 <input type="radio" name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}">
@@ -383,6 +393,20 @@ function renderSurveyQuestions() {
               <span>น้อยที่สุด (1)</span>
             </div>
           </div>`;
+      } 
+      
+      // 🔵 กรณีตอนอื่นๆ (เช่น ตอนที่ 1): บังคับแสดงแบบ Bullet แนวตั้ง
+      else {
+        q.options.forEach(opt => {
+          optsHtml += `
+            <div class="form-check vertical-bullet-item">
+              <input class="form-check-input border-secondary" type="radio" 
+                     name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}">
+              <label class="form-check-label w-100" for="sq_${q.id}_${opt}" style="cursor:pointer;">
+                ${opt}
+              </label>
+            </div>`;
+        });
       }
       
       html += `
