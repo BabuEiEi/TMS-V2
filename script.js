@@ -88,7 +88,7 @@ function renderAttendanceButtons(schedule, userLogs) {
     let btnClass = '', btnText = '', icon = '', isDisabled = false;
 
     if (loggedTime) {
-      btnClass = 'btn-secondary opacity-75'; btnText = `ลงเวลาแล้ว (${loggedTime})`; icon = '✔️'; isDisabled = true;
+      btnClass = 'btn-secondary opacity-75'; btnText = `ลงเวลาแล้ว`; icon = '✔️'; isDisabled = true;
     } else {
       let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
       if (now > endDateTime) {
@@ -146,11 +146,11 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 }
 
 // ==========================================
-// 3. ระบบจัดการการสอบ (V3.0 - Auto-Save, Anti-Cheat, 5-Min Alert)
+// 3. ระบบจัดการการสอบ (V4.0 - Auto-Save, Anti-Cheat, Dynamic Retake)
 // ==========================================
 let globalExamData = null; 
 let examCountdown = null; 
-let isExamActive = false; // ตัวแปรเช็คว่ากำลังทำข้อสอบอยู่หรือไม่
+let isExamActive = false; 
 
 // 🚨 ระบบ Anti-Cheat ป้องกันการสลับหน้าจอ
 document.addEventListener('visibilitychange', () => {
@@ -252,7 +252,7 @@ function renderExamStartScreen() {
         <ul class="mb-0">
           <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม</li>
           <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
-          <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะมีการแจ้งเตือน</li>
+          <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะแจ้งเตือน</li>
         </ul>
       </div>
 
@@ -321,7 +321,6 @@ function startExamTimer() {
   let timeRemaining = 30 * 60; 
   let display = document.getElementById("examTimeDisplay");
   
-  // รีเซ็ตสีป้ายเวลาเผื่อโดนเปลี่ยนจากรอบก่อน
   document.getElementById("examTimerBadge").classList.remove('bg-warning', 'text-dark');
   document.getElementById("examTimerBadge").classList.add('bg-danger');
 
@@ -394,7 +393,7 @@ async function submitRealExam() {
       localStorage.removeItem(storageKey);
 
       let percent = (score / maxScore) * 100;
-      let passingGrade = globalExamData.activeExam.passingPercent || 80;
+      let passingGrade = globalExamData.activeExam.passingPercent || 80; // ดึงเกณฑ์จาก DB
       let isFailedPostTest = (testType === 'POST' && percent < passingGrade);
       let canRetake = isFailedPostTest && !globalExamData.activeExam.isRetake;
 
