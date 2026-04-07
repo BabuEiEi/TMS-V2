@@ -1,8 +1,8 @@
-// 🔥 URL API ของพี่บาบู (เชื่อมต่อฐานข้อมูล GAS)
+// 🔥 URL API ของพี่บาบู (ห้ามลบ/ห้ามแก้)
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzsKRuMkwiBflXOpO9Reh_PJM9JiZG1PIKSddDnbemp8zamumYpAAX-dec5lNtRdchMyg/exec';
 
 // ==========================================
-// 1. ระบบยืนยันตัวตน (Authentication)
+// 1. ระบบยืนยันตัวตน (Auth) & นำทาง (Navigation)
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
   let savedId = localStorage.getItem("tms_personal_id");
@@ -20,13 +20,7 @@ function login() {
   }
   localStorage.setItem("tms_personal_id", id);
   showDashboard();
-  Swal.fire({ 
-    icon: 'success', 
-    title: 'ยินดีต้อนรับ', 
-    text: 'รหัสผู้ใช้งาน: ' + id, 
-    timer: 1500, 
-    showConfirmButton: false 
-  });
+  Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับ', text: 'รหัส: ' + id, timer: 1500, showConfirmButton: false });
 }
 
 function logout() {
@@ -34,12 +28,10 @@ function logout() {
   document.getElementById("personalId").value = "";
   document.getElementById("dashboardSection").classList.add("d-none");
   document.getElementById("attendanceSection").classList.add("d-none");
+  document.getElementById("examSection").classList.add("d-none");
   document.getElementById("loginSection").classList.remove("d-none");
 }
 
-// ==========================================
-// 2. ระบบนำทางหน้าจอ (Navigation)
-// ==========================================
 function showDashboard() {
   document.getElementById("loginSection").classList.add("d-none");
   document.getElementById("dashboardSection").classList.remove("d-none");
@@ -51,9 +43,8 @@ function backToDashboard(currentSectionId) {
 }
 
 // ==========================================
-// 3. ระบบส่งข้อมูลจริง: แบบฟอร์มลงเวลา (Smart Buttons)
+// 2. ระบบลงเวลาอัจฉริยะ (Smart Attendance)
 // ==========================================
-
 async function openAttendanceForm() {
   document.getElementById("dashboardSection").classList.add("d-none");
   document.getElementById("attendanceSection").classList.remove("d-none");
@@ -61,8 +52,7 @@ async function openAttendanceForm() {
   let userId = localStorage.getItem("tms_personal_id");
   let btnContainer = document.getElementById("attendanceButtonsContainer");
   
-  // โชว์โหลดดิ้งรอข้อมูลจาก GAS
-  btnContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">กำลังตรวจสอบรอบเวลา...</p></div>';
+  btnContainer.innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">กำลังตรวจสอบรอบเวลา...</p></div>';
 
   try {
     let response = await fetch(GAS_API_URL, {
@@ -74,19 +64,19 @@ async function openAttendanceForm() {
     if (result.status === 'success') {
       renderAttendanceButtons(result.schedule, result.userLogs);
     } else {
-      btnContainer.innerHTML = `<div class="alert alert-danger">ผิดพลาด: ${result.message}</div>`;
+      btnContainer.innerHTML = `<div class="alert alert-danger rounded-4">${result.message}</div>`;
     }
   } catch (error) {
-    btnContainer.innerHTML = '<div class="alert alert-danger">ขาดการเชื่อมต่อกับเซิร์ฟเวอร์</div>';
+    btnContainer.innerHTML = '<div class="alert alert-danger rounded-4">ขาดการเชื่อมต่อกับเซิร์ฟเวอร์</div>';
   }
 }
 
 function renderAttendanceButtons(schedule, userLogs) {
   let btnContainer = document.getElementById("attendanceButtonsContainer");
-  btnContainer.innerHTML = ''; // ล้างของเดิม
+  btnContainer.innerHTML = ''; 
   
   if (schedule.length === 0) {
-    btnContainer.innerHTML = '<div class="alert alert-warning text-center">ไม่มีรอบการลงเวลาที่เปิดใช้งานในขณะนี้</div>';
+    btnContainer.innerHTML = '<div class="alert alert-warning text-center rounded-4">ไม่มีรอบการลงเวลาที่เปิดใช้งานในขณะนี้</div>';
     return;
   }
 
@@ -95,36 +85,21 @@ function renderAttendanceButtons(schedule, userLogs) {
   schedule.forEach(slot => {
     let key = slot.day_no + '_' + slot.slot_id;
     let loggedTime = userLogs[key];
-    
-    let btnClass = '';
-    let btnText = '';
-    let icon = '';
-    let isDisabled = false;
+    let btnClass = '', btnText = '', icon = '', isDisabled = false;
 
-    // เช็คว่าลงเวลาไปหรือยัง
     if (loggedTime) {
-      btnClass = 'btn-secondary opacity-75'; // สีเทา
-      btnText = `ลงเวลาแล้ว (${loggedTime})`;
-      icon = '✔️';
-      isDisabled = true;
+      btnClass = 'btn-secondary opacity-75'; btnText = `ลงเวลาแล้ว (${loggedTime})`; icon = '✔️'; isDisabled = true;
     } else {
-      // คำนวณเวลาว่า "สาย" หรือไม่
       let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
-      
       if (now > endDateTime) {
-        btnClass = 'btn-warning text-dark'; // สีเหลือง (เกินเวลา)
-        btnText = `ลงเวลา: ${slot.slot_label} (สาย)`;
-        icon = '⚠️';
+        btnClass = 'btn-warning text-dark'; btnText = `ลงเวลา: ${slot.slot_label} (สาย)`; icon = '⚠️';
       } else {
-        btnClass = 'btn-success'; // สีเขียว (ในเวลา)
-        btnText = `ลงเวลา: ${slot.slot_label}`;
-        icon = '📌';
+        btnClass = 'btn-success'; btnText = `ลงเวลา: ${slot.slot_label}`; icon = '📌';
       }
     }
 
-    // สร้างปุ่ม
     let btnHtml = `
-      <button class="btn ${btnClass} w-100 mb-2 py-3 fw-bold text-start shadow-sm" 
+      <button class="btn ${btnClass} w-100 mb-3 py-3 fw-bold text-start shadow-sm rounded-4" 
               ${isDisabled ? 'disabled' : ''} 
               onclick="${isDisabled ? '' : `submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${btnClass.includes('warning') ? 'สาย' : 'ตรงเวลา'}')`}">
         ${icon} ${btnText} <br>
@@ -135,9 +110,7 @@ function renderAttendanceButtons(schedule, userLogs) {
   });
 }
 
-// 🔥 ฟังก์ชันที่แก้บั๊กเรื่อง Pop-up กดไม่ไปครับ
 async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
-  // 1. เรียก Pop-up
   const swalResult = await Swal.fire({
     title: 'หมายเหตุการลงเวลา',
     text: 'ระบุหมายเหตุเพิ่มเติม (ถ้ามี)',
@@ -150,63 +123,198 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
     cancelButtonColor: '#6c757d'
   });
 
-  // 2. เช็คว่าผู้ใช้กด "ยกเลิก" หรือไม่ (ใช้ .isConfirmed จะชัวร์ที่สุด)
-  if (!swalResult.isConfirmed) {
-    return; // หยุดทำงานถ้ากดปิดหรือกดยกเลิก
-  }
+  if (!swalResult.isConfirmed) return; 
 
-  // 3. เซฟตี้ดักค่าว่าง (ป้องกัน Error)
   let safeNote = swalResult.value || ""; 
   let finalNote = safeNote.trim() ? `[${timeStatus}] ${safeNote.trim()}` : `[${timeStatus}]`;
-
-  // 4. เตรียมข้อมูลส่งขึ้นเซิร์ฟเวอร์
   let userId = localStorage.getItem("tms_personal_id");
-  let payloadData = {
-    log_id: 'ATT-' + Date.now(),
-    personal_id: userId,
-    day_no: dayNo,
-    time_slot: timeSlot,
-    note: finalNote
-  };
+  let payloadData = { log_id: 'ATT-' + Date.now(), personal_id: userId, day_no: dayNo, time_slot: timeSlot, note: finalNote };
 
-  // 5. โชว์สถานะกำลังโหลด
-  Swal.fire({ 
-    title: 'กำลังบันทึกเวลา...', 
-    allowOutsideClick: false, 
-    didOpen: () => { Swal.showLoading(); }
-  });
+  Swal.fire({ title: 'กำลังบันทึกเวลา...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-  // 6. ส่งข้อมูล
   try {
-    let response = await fetch(GAS_API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'submitAttendance', payload: payloadData })
-    });
+    let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAttendance', payload: payloadData }) });
     let result = await response.json();
-
     if (result.status === 'success') {
-      Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => {
-        openAttendanceForm(); // รีเฟรชปุ่มให้กลายเป็นสีเทา
-      });
+      Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => { openAttendanceForm(); });
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
     }
   } catch (error) {
-    console.error(error);
     Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
   }
 }
 
 // ==========================================
-// 4. ระบบจำลอง: สำหรับปุ่มที่กำลังพัฒนา (Mockup API)
+// 3. ระบบจัดการการสอบ (Assessment Engine)
+// ==========================================
+let globalExamData = null; 
+let examCountdown = null; 
+
+async function openExamForm() {
+  document.getElementById("dashboardSection").classList.add("d-none");
+  document.getElementById("examSection").classList.remove("d-none");
+  
+  let userId = localStorage.getItem("tms_personal_id");
+  let contentArea = document.getElementById("examContentArea");
+  let btnSubmit = document.getElementById("btnSubmitExam");
+  let timerBadge = document.getElementById("examTimerBadge");
+
+  contentArea.innerHTML = '<div class="text-center my-5"><div class="spinner-border text-warning"></div><p class="mt-2 text-muted">กำลังดึงชุดข้อสอบจากศูนย์กลาง...</p></div>';
+  btnSubmit.classList.add("d-none");
+  timerBadge.classList.add("d-none");
+  document.getElementById("examTitleLabel").innerText = "";
+
+  try {
+    let response = await fetch(GAS_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getExamData', payload: { personal_id: userId } })
+    });
+    let result = await response.json();
+
+    if (result.status === 'success') {
+      globalExamData = result;
+      renderExamStartScreen(); 
+    } else if (result.status === 'taken') {
+      contentArea.innerHTML = `<div class="alert alert-success text-center rounded-4"><h5>${result.message}</h5><p class="mb-0">ระบบได้บันทึกคะแนนของคุณเรียบร้อยแล้ว</p></div>`;
+    } else {
+      contentArea.innerHTML = `<div class="alert alert-warning text-center rounded-4">${result.message}</div>`;
+    }
+  } catch (error) {
+    contentArea.innerHTML = '<div class="alert alert-danger text-center rounded-4">ขาดการเชื่อมต่อกับเซิร์ฟเวอร์</div>';
+  }
+}
+
+function renderExamStartScreen() {
+  let contentArea = document.getElementById("examContentArea");
+  let exam = globalExamData.activeExam;
+  let qCount = globalExamData.questions.length;
+  
+  document.getElementById("examTitleLabel").innerText = exam.type + " TEST";
+
+  contentArea.innerHTML = `
+    <div class="text-center my-5 p-4 bg-light rounded-4 border">
+      <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
+      <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ</p>
+      <div class="alert alert-danger text-start small mx-auto" style="max-width: 400px;">
+        <b>⚠️ คำเตือน:</b><br>เมื่อกดเริ่มทำข้อสอบแล้ว ระบบจะเริ่มจับเวลาทันที และคุณจะไม่สามารถออกจากหน้านี้ได้จนกว่าจะส่งคำตอบ
+      </div>
+      <button class="btn btn-lg btn-success mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">เริ่มทำข้อสอบ</button>
+    </div>
+  `;
+}
+
+function startExamTimer() {
+  let contentArea = document.getElementById("examContentArea");
+  let btnSubmit = document.getElementById("btnSubmitExam");
+  let timerBadge = document.getElementById("examTimerBadge");
+  let questions = globalExamData.questions;
+
+  let html = '';
+  questions.forEach((q, index) => {
+    html += `
+      <div class="mb-4 p-4 border rounded-4 bg-light exam-question shadow-sm">
+        <p class="fw-bold mb-3 fs-5">${index + 1}. ${q.question}</p>
+        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="A" id="q_${q.id}_A"> <label class="form-check-label" for="q_${q.id}_A">ก. ${q.options.A}</label></div>
+        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="B" id="q_${q.id}_B"> <label class="form-check-label" for="q_${q.id}_B">ข. ${q.options.B}</label></div>
+        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="C" id="q_${q.id}_C"> <label class="form-check-label" for="q_${q.id}_C">ค. ${q.options.C}</label></div>
+        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="D" id="q_${q.id}_D"> <label class="form-check-label" for="q_${q.id}_D">ง. ${q.options.D}</label></div>
+      </div>
+    `;
+  });
+  contentArea.innerHTML = html;
+  
+  btnSubmit.classList.remove("d-none");
+  timerBadge.classList.remove("d-none");
+  
+  // ตั้งเวลา 30 นาที
+  let timeRemaining = 30 * 60; 
+  let display = document.getElementById("examTimeDisplay");
+
+  examCountdown = setInterval(() => {
+    let minutes = parseInt(timeRemaining / 60, 10);
+    let seconds = parseInt(timeRemaining % 60, 10);
+    minutes = minutes < 10 ? "0" + minutes : minutes;
+    seconds = seconds < 10 ? "0" + seconds : seconds;
+
+    display.textContent = minutes + ":" + seconds;
+
+    if (--timeRemaining < 0) {
+      clearInterval(examCountdown);
+      Swal.fire('หมดเวลา!', 'ระบบจะทำการส่งคำตอบของคุณอัตโนมัติ', 'warning').then(() => { submitRealExam(); });
+    }
+  }, 1000);
+}
+
+async function submitRealExam() {
+  // ถามเพื่อความแน่ใจก่อนส่ง
+  const confirmSubmit = await Swal.fire({
+    title: 'ยืนยันการส่งคำตอบ?',
+    text: "หากกดส่งแล้วจะไม่สามารถแก้ไขได้",
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#ffc107',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: '<span class="text-dark fw-bold">ใช่, ส่งคำตอบ</span>',
+    cancelButtonText: 'กลับไปตรวจทาน'
+  });
+
+  if (!confirmSubmit.isConfirmed) return;
+
+  clearInterval(examCountdown); // หยุดเวลา
+
+  // ตรวจคำตอบ
+  let questions = globalExamData.questions;
+  let score = 0;
+  let maxScore = questions.length;
+
+  questions.forEach(q => {
+    let selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+    if (selected && selected.value === q.answer) score++;
+  });
+
+  let userId = localStorage.getItem("tms_personal_id");
+  let payloadData = {
+    log_id: 'TEST-' + Date.now(),
+    personal_id: userId,
+    test_type: globalExamData.activeExam.type,
+    score: score,
+    max_score: maxScore
+  };
+
+  Swal.fire({ title: 'กำลังตรวจข้อสอบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+  try {
+    let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitExam', payload: payloadData }) });
+    let result = await response.json();
+
+    if (result.status === 'success') {
+      Swal.fire({
+        icon: 'success',
+        title: 'ส่งคำตอบสำเร็จ!',
+        html: `<h4 class="mt-2">คุณได้คะแนน: <b class="text-success fs-2">${score} / ${maxScore}</b></h4>`,
+        confirmButtonText: 'กลับเมนูหลัก',
+        confirmButtonColor: '#0d6efd'
+      }).then(() => {
+        document.getElementById("examTimerBadge").classList.add("d-none");
+        backToDashboard('examSection');
+      });
+    } else {
+      Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
+    }
+  } catch (error) {
+    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถส่งข้อสอบได้', 'error');
+  }
+}
+
+// ==========================================
+// 4. ระบบจำลอง (Mockup) สำหรับปุ่มที่เหลือ
 // ==========================================
 async function testSubmit(actionType) {
   let userId = localStorage.getItem("tms_personal_id");
   let payloadData = { log_id: actionType + '-MOCK-' + Date.now(), personal_id: userId };
   
-  if (actionType === 'submitExam') {
-    payloadData.test_type = 'PRE'; payloadData.score = 45; payloadData.max_score = 50;
-  } else if (actionType === 'submitProjectEval') {
+  if (actionType === 'submitProjectEval') {
     payloadData.target_id = 'PROJECT'; payloadData.answers = { "PRO-001": "ชาย", "PRO-002": "35-40 ปี" };
   } else if (actionType === 'submitSpeakerEval') {
     payloadData.target_id = 'SPK-834'; payloadData.answers = { "SPK-001": "5", "SPK-002": "4" };
@@ -215,18 +323,10 @@ async function testSubmit(actionType) {
   Swal.fire({ title: 'กำลังทดสอบส่งข้อมูล...', didOpen: () => { Swal.showLoading(); }});
 
   try {
-    let response = await fetch(GAS_API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: actionType, payload: payloadData })
-    });
-    
+    let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: actionType, payload: payloadData }) });
     let result = await response.json();
-
-    if (result.status === 'success') {
-      Swal.fire('สำเร็จ (โหมดทดสอบ)', 'ข้อมูลจำลองถูกส่งเข้าฐานข้อมูลแล้ว', 'success');
-    } else {
-      Swal.fire('ผิดพลาด', result.message, 'error');
-    }
+    if (result.status === 'success') Swal.fire('สำเร็จ (โหมดทดสอบ)', 'ข้อมูลถูกส่งเข้าฐานข้อมูลแล้ว', 'success');
+    else Swal.fire('ผิดพลาด', result.message, 'error');
   } catch (error) {
     Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
   }
