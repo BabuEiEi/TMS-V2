@@ -1,10 +1,11 @@
-// 🔥 URL ยานแม่ของพี่บาบู (ห้ามลบ/ห้ามแก้)
+// 🔥 URL API ของพี่บาบู (เชื่อมต่อฐานข้อมูล GAS)
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzsKRuMkwiBflXOpO9Reh_PJM9JiZG1PIKSddDnbemp8zamumYpAAX-dec5lNtRdchMyg/exec';
 
 // ==========================================
-// 1. ระบบจัดการสถานะเข้าสู่ระบบ (Authentication)
+// 1. ระบบยืนยันตัวตน (Authentication)
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
+  // ตรวจสอบว่าเคยเข้าสู่ระบบไว้หรือไม่
   let savedId = localStorage.getItem("tms_personal_id");
   if (savedId) {
     document.getElementById("personalId").value = savedId;
@@ -18,11 +19,15 @@ function login() {
     Swal.fire('แจ้งเตือน', 'กรุณากรอกรหัสประจำตัวก่อนครับ', 'warning');
     return;
   }
+  // บันทึกรหัสลงในเบราว์เซอร์
   localStorage.setItem("tms_personal_id", id);
   showDashboard();
   Swal.fire({ 
-    icon: 'success', title: 'ยินดีต้อนรับ', text: 'รหัสผู้ใช้งาน: ' + id, 
-    timer: 1500, showConfirmButton: false 
+    icon: 'success', 
+    title: 'ยินดีต้อนรับ', 
+    text: 'รหัสผู้ใช้งาน: ' + id, 
+    timer: 1500, 
+    showConfirmButton: false 
   });
 }
 
@@ -35,7 +40,7 @@ function logout() {
 }
 
 // ==========================================
-// 2. ระบบนำทาง (Navigation)
+// 2. ระบบนำทางหน้าจอ (Navigation)
 // ==========================================
 function showDashboard() {
   document.getElementById("loginSection").classList.add("d-none");
@@ -61,6 +66,7 @@ async function submitRealAttendance() {
   let timeSlot = document.getElementById("attSlot").value;
   let note = document.getElementById("attNote").value.trim();
 
+  // จัดเตรียมข้อมูลก่อนส่ง
   let payloadData = {
     log_id: 'ATT-' + Date.now(),
     personal_id: userId,
@@ -85,22 +91,22 @@ async function submitRealAttendance() {
 
     if (result.status === 'success') {
       Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => {
-        document.getElementById("attNote").value = ""; // ล้างค่าหมายเหตุ
-        backToDashboard('attendanceSection'); // กลับหน้าหลัก
+        document.getElementById("attNote").value = ""; // ล้างค่าฟิลด์หมายเหตุ
+        backToDashboard('attendanceSection'); // ดีดกลับหน้าหลัก
       });
     } else if (result.status === 'busy') {
-      Swal.fire('คิวระบบเต็ม', result.message, 'warning');
+      Swal.fire('คิวระบบเต็มชั่วคราว', result.message, 'warning');
     } else {
-      Swal.fire('ผิดพลาด', result.message, 'error');
+      Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
     }
   } catch (error) {
-    console.error(error);
-    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ลองตรวจสอบอินเทอร์เน็ตครับ', 'error');
+    console.error("Fetch Error: ", error);
+    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ โปรดตรวจสอบอินเทอร์เน็ตครับ', 'error');
   }
 }
 
 // ==========================================
-// 4. ระบบทดสอบ: สำหรับปุ่มที่ยังสร้างฟอร์มไม่เสร็จ (Mockup)
+// 4. ระบบจำลอง: สำหรับปุ่มที่กำลังพัฒนา (Mockup API)
 // ==========================================
 async function testSubmit(actionType) {
   let userId = localStorage.getItem("tms_personal_id");
@@ -121,14 +127,15 @@ async function testSubmit(actionType) {
       method: 'POST',
       body: JSON.stringify({ action: actionType, payload: payloadData })
     });
+    
     let result = await response.json();
 
     if (result.status === 'success') {
-      Swal.fire('สำเร็จ (โหมดทดสอบ)', 'ข้อมูลจำลองถูกส่งเข้าโกดังแล้ว', 'success');
+      Swal.fire('สำเร็จ (โหมดทดสอบ)', 'ข้อมูลจำลองถูกส่งเข้าฐานข้อมูลแล้ว', 'success');
     } else {
       Swal.fire('ผิดพลาด', result.message, 'error');
     }
   } catch (error) {
-    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
   }
 }
