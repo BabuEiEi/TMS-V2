@@ -146,12 +146,12 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 }
 
 // ==========================================
-// 3. ระบบจัดการการสอบ (Assessment Engine V2)
+// 3. ระบบจัดการการสอบ (Assessment Engine V2.1)
 // ==========================================
 let globalExamData = null; 
 let examCountdown = null; 
 
-// ฟังก์ชันสลับตำแหน่ง (Randomize Array)
+// ฟังก์ชันสลับตำแหน่ง (Fisher-Yates Shuffle)
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -183,7 +183,7 @@ async function openExamForm() {
       globalExamData = result;
       renderExamStartScreen(); 
     } else if (result.status === 'taken') {
-      contentArea.innerHTML = `<div class="alert alert-success text-center rounded-4"><h5>${result.message}</h5></div>`;
+      contentArea.innerHTML = `<div class="alert alert-success text-center rounded-4"><h5 class="mb-0">${result.message}</h5></div>`;
     } else {
       contentArea.innerHTML = `<div class="alert alert-warning text-center rounded-4">${result.message}</div>`;
     }
@@ -203,7 +203,7 @@ function renderExamStartScreen() {
   let btnLabel = 'เริ่มทำข้อสอบ';
   let btnColor = 'btn-success';
 
-  // 🚨 ถ้าเป็นการสอบซ่อม (สอบไม่ผ่านครั้งแรก)
+  // 🚨 แจ้งเตือนการสอบซ่อม
   if (exam.isRetake) {
     let percent = ((exam.previousScore / exam.fullScore) * 100).toFixed(2);
     retakeMessage = `
@@ -222,7 +222,7 @@ function renderExamStartScreen() {
     <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
       <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
       ${retakeMessage}
-      <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ</p>
+      <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ (ข้อละ 2 คะแนน)</p>
       <div class="alert alert-danger text-start small mx-auto" style="max-width: 400px;">
         <b>⚠️ คำเตือน:</b><br>ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม และมีการสลับข้อ/สลับตัวเลือก
       </div>
@@ -239,10 +239,9 @@ function startExamTimer() {
   shuffleArray(questions);
 
   let html = '';
-  const thaiChoices = ['ก.', 'ข.', 'ค.', 'ง.']; // ล็อก ก.ข.ค.ง. ไว้สวยๆ
+  const thaiChoices = ['ก.', 'ข.', 'ค.', 'ง.']; 
 
   questions.forEach((q, index) => {
-    // ดึงตัวเลือกเดิมออกมาใส่กล่อง
     let opts = [];
     if(q.options.A) opts.push({key: 'A', text: q.options.A});
     if(q.options.B) opts.push({key: 'B', text: q.options.B});
@@ -254,7 +253,6 @@ function startExamTimer() {
 
     let optionsHtml = '';
     opts.forEach((opt, i) => {
-      // หน้าจอโชว์ ก.ข.ค. แต่ value ที่ส่งให้หลังบ้านตรวจยังเป็นคีย์เดิมเป๊ะ!
       optionsHtml += `
         <div class="form-check mb-2">
           <input class="form-check-input border-secondary" type="radio" name="q_${q.id}" value="${opt.key}" id="q_${q.id}_${opt.key}"> 
@@ -306,19 +304,27 @@ async function submitRealExam() {
 
   clearInterval(examCountdown);
 
-  // ตรวจคำตอบด้วย JavaScript ฝั่งหน้าบ้าน (เร็วมาก)
+  // 1. ตรวจคำตอบ (ข้อละ 2 คะแนน)
   let questions = globalExamData.questions;
   let score = 0;
-  let maxScore = questions.length;
+  let maxScore = questions.length * 2; 
 
   questions.forEach(q => {
     let selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
-    // เทียบ value ที่เลือก กับเฉลยดั้งเดิม (แม้หน้าตาจะสลับกัน แต่โค้ดยังอ้างอิงของเดิมเสมอ)
-    if (selected && selected.value === q.answer) score++;
+    if (selected && selected.value === q.answer) {
+      score += 2; 
+    }
   });
 
   let userId = localStorage.getItem("tms_personal_id");
-  let payloadData = { log_id: 'TEST-' + Date.now(), personal_id: userId, test_type: globalExamData.activeExam.type, score: score, max_score: maxScore };
+  let testType = globalExamData.activeExam.type;
+  let payloadData = { 
+    log_id: 'TEST-' + Date.now(), 
+    personal_id: userId, 
+    test_type: testType, 
+    score: score, 
+    max_score: maxScore 
+  };
 
   Swal.fire({ title: 'กำลังบันทึกคะแนน...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
@@ -327,135 +333,34 @@ async function submitRealExam() {
     let result = await response.json();
 
     if (result.status === 'success') {
+      
+      // 2. ลอจิกตรวจสอบการสอบซ่อม (Retake Logic)
+      let percent = (score / maxScore) * 100;
+      let passingGrade = globalExamData.activeExam.passingPercent || 80;
+      let isFailedPostTest = (testType === 'POST' && percent < passingGrade);
+      let canRetake = isFailedPostTest && !globalExamData.activeExam.isRetake;
+
       Swal.fire({
-        icon: 'success', title: 'ส่งคำตอบสำเร็จ!',
-        html: `<h4 class="mt-2">คุณได้คะแนน: <b class="text-success fs-2">${score} / ${maxScore}</b></h4>`,
-        confirmButtonText: 'กลับเมนูหลัก', confirmButtonColor: '#0d6efd'
-      }).then(() => {
+        icon: percent >= passingGrade ? 'success' : 'warning',
+        title: percent >= passingGrade ? 'ยินดีด้วย! คุณสอบผ่าน' : 'เกือบผ่านแล้วครับ!',
+        html: `
+          <h4 class="mt-2">คะแนนของคุณ: <b class="${percent >= passingGrade ? 'text-success' : 'text-danger'} fs-2">${score} / ${maxScore}</b></h4>
+          <p class="text-muted">คิดเป็นร้อยละ ${percent.toFixed(2)}% (เกณฑ์ผ่านคือ ${passingGrade}%)</p>
+          ${canRetake ? '<p class="text-primary fw-bold">คุณมีสิทธิ์สอบแก้ตัวได้อีก 1 ครั้งครับ</p>' : ''}
+        `,
+        showCancelButton: canRetake,
+        confirmButtonText: canRetake ? 'สอบซ่อมทันที' : 'กลับเมนูหลัก',
+        cancelButtonText: 'กลับเมนูหลัก',
+        confirmButtonColor: canRetake ? '#ffc107' : '#0d6efd',
+        cancelButtonColor: '#6c757d'
+      }).then((res) => {
         document.getElementById("examTimerBadge").classList.add("d-none");
-        backToDashboard('examSection');
-      });
-    } else {
-      Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
-    }
-  } catch (error) {
-    Swal.fire('ขาดการเชื่อมต่อ', 'ไม่สามารถส่งข้อสอบได้', 'error');
-  }
-}
-
-function renderExamStartScreen() {
-  let contentArea = document.getElementById("examContentArea");
-  let exam = globalExamData.activeExam;
-  let qCount = globalExamData.questions.length;
-  
-  document.getElementById("examTitleLabel").innerText = exam.type + " TEST";
-
-  contentArea.innerHTML = `
-    <div class="text-center my-5 p-4 bg-light rounded-4 border">
-      <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
-      <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ</p>
-      <div class="alert alert-danger text-start small mx-auto" style="max-width: 400px;">
-        <b>⚠️ คำเตือน:</b><br>เมื่อกดเริ่มทำข้อสอบแล้ว ระบบจะเริ่มจับเวลาทันที และคุณจะไม่สามารถออกจากหน้านี้ได้จนกว่าจะส่งคำตอบ
-      </div>
-      <button class="btn btn-lg btn-success mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">เริ่มทำข้อสอบ</button>
-    </div>
-  `;
-}
-
-function startExamTimer() {
-  let contentArea = document.getElementById("examContentArea");
-  let btnSubmit = document.getElementById("btnSubmitExam");
-  let timerBadge = document.getElementById("examTimerBadge");
-  let questions = globalExamData.questions;
-
-  let html = '';
-  questions.forEach((q, index) => {
-    html += `
-      <div class="mb-4 p-4 border rounded-4 bg-light exam-question shadow-sm">
-        <p class="fw-bold mb-3 fs-5">${index + 1}. ${q.question}</p>
-        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="A" id="q_${q.id}_A"> <label class="form-check-label" for="q_${q.id}_A">ก. ${q.options.A}</label></div>
-        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="B" id="q_${q.id}_B"> <label class="form-check-label" for="q_${q.id}_B">ข. ${q.options.B}</label></div>
-        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="C" id="q_${q.id}_C"> <label class="form-check-label" for="q_${q.id}_C">ค. ${q.options.C}</label></div>
-        <div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="D" id="q_${q.id}_D"> <label class="form-check-label" for="q_${q.id}_D">ง. ${q.options.D}</label></div>
-      </div>
-    `;
-  });
-  contentArea.innerHTML = html;
-  
-  btnSubmit.classList.remove("d-none");
-  timerBadge.classList.remove("d-none");
-  
-  // ตั้งเวลา 30 นาที
-  let timeRemaining = 30 * 60; 
-  let display = document.getElementById("examTimeDisplay");
-
-  examCountdown = setInterval(() => {
-    let minutes = parseInt(timeRemaining / 60, 10);
-    let seconds = parseInt(timeRemaining % 60, 10);
-    minutes = minutes < 10 ? "0" + minutes : minutes;
-    seconds = seconds < 10 ? "0" + seconds : seconds;
-
-    display.textContent = minutes + ":" + seconds;
-
-    if (--timeRemaining < 0) {
-      clearInterval(examCountdown);
-      Swal.fire('หมดเวลา!', 'ระบบจะทำการส่งคำตอบของคุณอัตโนมัติ', 'warning').then(() => { submitRealExam(); });
-    }
-  }, 1000);
-}
-
-async function submitRealExam() {
-  // ถามเพื่อความแน่ใจก่อนส่ง
-  const confirmSubmit = await Swal.fire({
-    title: 'ยืนยันการส่งคำตอบ?',
-    text: "หากกดส่งแล้วจะไม่สามารถแก้ไขได้",
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#ffc107',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: '<span class="text-dark fw-bold">ใช่, ส่งคำตอบ</span>',
-    cancelButtonText: 'กลับไปตรวจทาน'
-  });
-
-  if (!confirmSubmit.isConfirmed) return;
-
-  clearInterval(examCountdown); // หยุดเวลา
-
-  // ตรวจคำตอบ
-  let questions = globalExamData.questions;
-  let score = 0;
-  let maxScore = questions.length;
-
-  questions.forEach(q => {
-    let selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
-    if (selected && selected.value === q.answer) score++;
-  });
-
-  let userId = localStorage.getItem("tms_personal_id");
-  let payloadData = {
-    log_id: 'TEST-' + Date.now(),
-    personal_id: userId,
-    test_type: globalExamData.activeExam.type,
-    score: score,
-    max_score: maxScore
-  };
-
-  Swal.fire({ title: 'กำลังตรวจข้อสอบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-  try {
-    let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitExam', payload: payloadData }) });
-    let result = await response.json();
-
-    if (result.status === 'success') {
-      Swal.fire({
-        icon: 'success',
-        title: 'ส่งคำตอบสำเร็จ!',
-        html: `<h4 class="mt-2">คุณได้คะแนน: <b class="text-success fs-2">${score} / ${maxScore}</b></h4>`,
-        confirmButtonText: 'กลับเมนูหลัก',
-        confirmButtonColor: '#0d6efd'
-      }).then(() => {
-        document.getElementById("examTimerBadge").classList.add("d-none");
-        backToDashboard('examSection');
+        
+        if (canRetake && res.isConfirmed) {
+          openExamForm(); // โหลดหน้าสอบใหม่ทันที
+        } else {
+          backToDashboard('examSection');
+        }
       });
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
