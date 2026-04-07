@@ -121,7 +121,28 @@ async function openExamForm() {
 
 function renderExamStartScreen() {
   let contentArea = document.getElementById("examContentArea");
-  contentArea.innerHTML = `<div class="text-center my-5 p-4 bg-light rounded-4 border"><h4>พร้อมทำแบบทดสอบหรือไม่?</h4><p class="text-muted">ระบบจะจับเวลา 30 นาที</p><button class="btn btn-lg btn-success mt-3 fw-bold rounded-pill" onclick="startExamTimer()">เริ่มทำข้อสอบ</button></div>`;
+  let exam = globalExamData.activeExam;
+  let qCount = globalExamData.questions.length;
+  document.getElementById("examTitleLabel").innerText = exam.type + " TEST";
+
+  let retakeMessage = ''; let btnLabel = 'เริ่มทำข้อสอบ'; let btnColor = 'btn-success';
+
+  if (exam.isRetake) {
+    let percent = ((exam.previousScore / exam.fullScore) * 100).toFixed(2);
+    retakeMessage = `<div class="alert alert-warning mb-3 text-start"><b class="text-danger">⚠️ คุณสอบไม่ผ่านในครั้งแรก</b><br>คะแนนครั้งที่ 1: <b>${exam.previousScore}/${exam.fullScore}</b> (${percent}%)<br>เกณฑ์ผ่านคือ: <b>${exam.passingPercent}%</b><br><i class="text-dark">คุณมีสิทธิ์สอบแก้ตัว (รอบที่ 2) ได้อีก 1 ครั้ง</i></div>`;
+    btnLabel = 'เริ่มสอบซ่อม (ครั้งที่ 2)'; btnColor = 'btn-warning text-dark';
+  }
+
+  contentArea.innerHTML = `
+    <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
+      <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>${retakeMessage}
+      <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ (ข้อละ 2 คะแนน)</p>
+      <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
+        <ul class="mb-0"><li>⏱️ ระบบเริ่มจับเวลาทันทีที่กดปุ่ม</li><li>💾 มีระบบ Auto-Save กันเน็ตหลุด</li><li>🚫 ห้ามสลับแท็บหรือสลับหน้าจอ</li></ul>
+      </div>
+      <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">${btnLabel}</button>
+    </div>
+  `;
 }
 
 function startExamTimer() {
