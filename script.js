@@ -1,9 +1,7 @@
 /**
- * VERSION: 7.0 (Legacy Re-Master)
- * FEATURES: 
- * - แสดงวันที่/เวลา หลังลงเวลาสำเร็จ
- * - แผงปุ่มกดรายชื่อวิทยากร (Speaker Grid)
- * - Anti-Cheat, Timer, Auto-Save
+ * VERSION: 10.0 (Master Blueprint)
+ * [COMMENT: TAGS FOR NAVIGATION: 
+ * #AUTH, #ATTENDANCE, #EXAM, #SURVEY ]
  */
 
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzsKRuMkwiBflXOpO9Reh_PJM9JiZG1PIKSddDnbemp8zamumYpAAX-dec5lNtRdchMyg/exec';
@@ -15,9 +13,7 @@ let selectedSpeakerId = null;
 let examCountdown = null;
 let isExamActive = false;
 
-// ==========================================
-// 1. ระบบยืนยันตัวตน & นำทาง
-// ==========================================
+// [COMMENT: #AUTH - ระบบยืนยันตัวตน]
 document.addEventListener("DOMContentLoaded", () => {
   let savedId = localStorage.getItem("tms_personal_id");
   if (savedId) { document.getElementById("personalId").value = savedId; showDashboard(); }
@@ -25,61 +21,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function login() {
   let id = document.getElementById("personalId").value.trim().toUpperCase();
-  if (!id) { Swal.fire('แจ้งเตือน', 'กรุณากรอกรหัสประจำตัวก่อนครับ', 'warning'); return; }
+  if (!id) { Swal.fire('เตือน', 'กรุณากรอกรหัสประจำตัว', 'warning'); return; }
   localStorage.setItem("tms_personal_id", id);
   showDashboard();
 }
 
 function logout() { localStorage.removeItem("tms_personal_id"); location.reload(); }
 function showDashboard() { document.getElementById("loginSection").classList.add("d-none"); document.getElementById("dashboardSection").classList.remove("d-none"); }
-function backToDashboard(id) { document.getElementById(id).classList.add("d-none"); document.getElementById("dashboardSection").classList.remove("d-none"); isExamActive = false; clearInterval(examCountdown); }
+function backToDashboard(id) { document.getElementById(id).classList.add("d-none"); document.getElementById("dashboardSection").classList.remove("d-none"); clearInterval(examCountdown); isExamActive = false; }
 
-// ==========================================
-// 2. ระบบลงเวลา (V7.0 - โชว์ประวัติ วันที่/เวลา)
-// ==========================================
+// [COMMENT: #ATTENDANCE - ระบบลงเวลาโชว์ประวัติย้อนหลัง]
 async function openAttendanceForm() {
   document.getElementById("dashboardSection").classList.add("d-none");
   document.getElementById("attendanceSection").classList.remove("d-none");
   let container = document.getElementById("attendanceButtonsContainer");
-  container.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-info"></div><p class="small mt-2">ตรวจสอบรอบ...</p></div>';
-
+  container.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-info"></div></div>';
+  
   try {
     let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: localStorage.getItem("tms_personal_id") } }) });
     let result = await res.json();
     if (result.status === 'success') {
       container.innerHTML = '';
+      const uiMap = { 'Morning': { c: 'morning', i: '🌅' }, 'Afternoon': { c: 'afternoon', i: '☀️' }, 'Evening': { c: 'evening', i: '🌙' } };
+
       result.schedule.forEach(slot => {
-        let logKey = slot.day_no + '_' + slot.slot_id;
-        let loggedTime = result.userLogs[logKey];
-        
+        let key = slot.day_no + '_' + slot.slot_id;
+        let loggedTime = result.userLogs[key];
+        let ui = uiMap[slot.slot_id] || { c: 'morning', i: '📌' };
+
         if (loggedTime) {
-          // 🟢 กรณีลงเวลาแล้ว: เปลี่ยนปุ่มเป็นสีเทา และโชว์ วันที่/เวลา บันทึกสำเร็จ
+          // [COMMENT: ปุ่มเทาโชว์ประวัติ]
           container.innerHTML += `
-            <div class="card mb-3 p-3 bg-light border-0 rounded-4 text-center">
-              <div class="fw-bold text-secondary">✔️ ${slot.slot_label} บันทึกแล้ว</div>
-              <small class="text-muted" style="font-size: 11px;">บันทึกเมื่อ: ${loggedTime}</small>
+            <div class="att-card opacity-75" style="background:#f8f9fa; border:1px solid #ddd; cursor:default;">
+              <div class="att-bar bg-secondary"></div>
+              <div class="att-content">
+                <div class="fw-bold text-secondary">✔️ ลงเวลา${slot.slot_label}แล้ว</div>
+                <small class="text-muted">บันทึกเมื่อ: ${loggedTime}</small>
+              </div>
             </div>`;
         } else {
-          // 🔴 ยังไม่ได้ลงเวลา
-          container.innerHTML += `<button class="btn btn-success w-100 mb-3 py-3 rounded-4 fw-bold shadow-sm" onclick="submitAttendance('${slot.day_no}', '${slot.slot_id}')">📌 ลงเวลา: ${slot.slot_label}</button>`;
+          // [COMMENT: ปุ่มสีตามรอบ]
+          container.innerHTML += `
+            <div class="att-card" onclick="submitAttendance('${slot.day_no}','${slot.slot_id}')">
+              <div class="att-bar bg-${ui.c}"></div>
+              <div class="att-content d-flex align-items-center">
+                <div class="att-icon">${ui.i}</div>
+                <div>
+                  <div class="fw-bold text-${ui.c}">ลงเวลา: ${slot.slot_label}</div>
+                  <small class="text-muted">${slot.start_time} - ${slot.end_time}</small>
+                </div>
+              </div>
+            </div>`;
         }
       });
     }
-  } catch (e) { container.innerHTML = '<div class="alert alert-danger">การเชื่อมต่อผิดพลาด</div>'; }
+  } catch (e) { container.innerHTML = 'ขาดการเชื่อมต่อข้อมูล'; }
 }
 
 async function submitAttendance(day, slot) {
-  Swal.fire({ title: 'กำลังบันทึกเวลา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-  await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAttendance', payload: { personal_id: localStorage.getItem("tms_personal_id"), day_no: day, time_slot: slot, note: '[V7.0]' } }) });
-  Swal.fire('สำเร็จ', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => openAttendanceForm());
+  Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAttendance', payload: { personal_id: localStorage.getItem("tms_personal_id"), day_no: day, time_slot: slot, note: '[V10.0]' } }) });
+  Swal.fire('สำเร็จ', 'บันทึกเวลาแล้ว', 'success').then(() => openAttendanceForm());
 }
 
-// ==========================================
-// 3. ระบบสอบ (ครบเครื่องตามโครงสร้างพี่บาบู)
-// ==========================================
+// [COMMENT: #EXAM - ระบบสอบป้องกันทุจริต]
 document.addEventListener('visibilitychange', () => {
   if (isExamActive && document.visibilityState === 'hidden') {
-    Swal.fire({ icon: 'warning', title: 'คำเตือน!', text: 'ห้ามสลับหน้าจอขณะทำข้อสอบ ระบบบันทึกพฤติกรรมนี้ไว้แล้วครับ', confirmButtonColor: '#d33' });
+    Swal.fire({ icon: 'warning', title: 'ตรวจพบการสลับหน้าจอ!', text: 'ระบบกำลังบันทึกพฤติกรรมนี้ กรุณากลับมาทำข้อสอบทันที', confirmButtonColor: '#d33' });
   }
 });
 
@@ -91,39 +99,22 @@ async function openExamForm() {
   
   let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getExamData', payload: { personal_id: localStorage.getItem("tms_personal_id") } }) });
   globalExamData = await res.json();
-  if (globalExamData.status === 'success') { renderExamStart(); } else { area.innerHTML = `<div class="alert alert-info text-center">${globalExamData.message}</div>`; }
+  if (globalExamData.status === 'success') {
+    document.getElementById("examTitleLabel").innerText = globalExamData.activeExam.type + " TEST";
+    area.innerHTML = `<div class="text-center p-5 bg-light rounded-4"><h5>แบบทดสอบ ${globalExamData.activeExam.type}</h5><p class="small text-muted">เวลา 30 นาที | ห้ามสลับหน้าจอ</p><button class="btn btn-warning btn-lg rounded-pill px-5 mt-2 fw-bold shadow" onclick="startExam()">เริ่มทำข้อสอบ</button></div>`;
+  } else { area.innerHTML = `<div class="alert alert-info text-center">${globalExamData.message}</div>`; }
 }
 
-function renderExamStart() {
-  let exam = globalExamData.activeExam;
-  document.getElementById("examTitleLabel").innerText = exam.type + " TEST";
-  document.getElementById("examContentArea").innerHTML = `
-    <div class="text-center p-5 bg-light rounded-4 border">
-      <h4>พร้อมทำแบบทดสอบ ${exam.type} หรือไม่?</h4>
-      <p class="text-muted">เมื่อกดเริ่มแล้ว ระบบจะเริ่มจับเวลา 30 นาทีทันที</p>
-      <button class="btn btn-success btn-lg rounded-pill px-5 mt-3 fw-bold" onclick="startExam()">เริ่มทำข้อสอบ</button>
-    </div>`;
-}
-
-function startExam() {
-  isExamActive = true; 
-  document.getElementById("btnSubmitExam").classList.remove("d-none");
-  document.getElementById("examTimerBadge").classList.remove("d-none");
-  renderExamQuestions();
-  startTimer(30 * 60);
-}
+function startExam() { isExamActive = true; renderExamQuestions(); startTimer(30 * 60); document.getElementById("btnSubmitExam").classList.remove("d-none"); document.getElementById("examTimerBadge").classList.remove("d-none"); }
 
 function renderExamQuestions() {
-  let html = ''; const labels = ['ก.', 'ข.', 'ค.', 'ง.'];
+  let html = ''; const lbl = ['ก.', 'ข.', 'ค.', 'ง.'];
   globalExamData.questions.forEach((q, i) => {
-    html += `<div class="card mb-3 p-4 border rounded-4 text-start shadow-sm">
-      <p class="fw-bold fs-5">${i+1}. ${q.question}</p>
-      ${['A','B','C','D'].map((opt, idx) => `
-        <div class="form-check mb-2">
-          <input class="form-check-input" type="radio" name="q_${q.id}" value="${opt}" id="q_${q.id}_${opt}">
-          <label class="form-check-label w-100" for="q_${q.id}_${opt}" style="cursor:pointer;"><b class="text-primary">${labels[idx]}</b> ${globalExamData.questions[i].options[opt]}</label>
-        </div>`).join('')}
-    </div>`;
+    html += `<div class="card mb-3 p-4 border-0 shadow-sm rounded-4"><p class="fw-bold">${i+1}. ${q.question}</p>`;
+    ['A','B','C','D'].forEach((opt, idx) => {
+      html += `<div class="form-check mb-2"><input class="form-check-input" type="radio" name="q_${q.id}" value="${opt}" id="q_${q.id}_${opt}"><label class="form-check-label w-100" for="q_${q.id}_${opt}" style="cursor:pointer;"><b class="text-primary">${lbl[idx]}</b> ${globalExamData.questions[i].options[opt]}</label></div>`;
+    });
+    html += `</div>`;
   });
   document.getElementById("examContentArea").innerHTML = html;
 }
@@ -132,7 +123,7 @@ function startTimer(sec) {
   examCountdown = setInterval(() => {
     let m = Math.floor(sec / 60), s = sec % 60;
     document.getElementById("examTimeDisplay").innerText = `${m}:${s < 10 ? '0'+s : s}`;
-    if (sec === 300) { Swal.fire({ toast: true, position: 'top', icon: 'warning', title: 'เหลือเวลา 5 นาที!', showConfirmButton: false, timer: 5000 }); }
+    if (sec === 300) { Swal.fire({ toast: true, position: 'top', icon: 'warning', title: 'เหลือเวลา 5 นาที!', showConfirmButton: false, timer: 4000 }); }
     if (--sec < 0) { clearInterval(examCountdown); submitRealExam(); }
   }, 1000);
 }
@@ -144,51 +135,46 @@ async function submitRealExam() {
     let sel = document.querySelector(`input[name="q_${q.id}"]:checked`);
     if (sel && sel.value === q.answer) score += 2;
   });
-  Swal.fire({ title: 'กำลังบันทึกคะแนน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  Swal.fire({ title: 'บันทึกคะแนน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
   await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitExam', payload: { personal_id: localStorage.getItem("tms_personal_id"), test_type: globalExamData.activeExam.type, score: score, max_score: globalExamData.questions.length * 2 } }) });
-  Swal.fire('เรียบร้อย', `คะแนนของคุณคือ ${score} คะแนน`, 'success').then(() => backToDashboard('examSection'));
+  Swal.fire('สำเร็จ', `คะแนนของคุณคือ ${score}`, 'success').then(() => backToDashboard('examSection'));
 }
 
-// ==========================================
-// 4. ระบบประเมิน (V7.0 - แผงเลือกวิทยากรตาม Config)
-// ==========================================
+// [COMMENT: #SURVEY - ระบบประเมินวิทยากรดึงข้อมูลตามเวลาจริง]
 async function openSurveyForm(type) {
   currentSurveyType = type; selectedSpeakerId = null;
   document.getElementById("dashboardSection").classList.add("d-none");
   document.getElementById("surveySection").classList.remove("d-none");
-  let area = document.getElementById("surveyContentArea");
-  let speakerArea = document.getElementById("speakerSelectionArea");
-  document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินภาพรวมโครงการ' : 'ประเมินวิทยากร';
-  area.innerHTML = '<p class="text-center p-5">กำลังโหลดแบบประเมิน...</p>';
+  document.getElementById("surveyContentArea").innerHTML = '<div class="text-center p-5"><div class="spinner-border text-success"></div></div>';
   document.getElementById("btnSubmitSurvey").classList.add("d-none");
 
   let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type } }) });
   globalSurveyData = await res.json();
+  document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินภาพรวมโครงการ' : 'ประเมินวิทยากร';
 
   if (type === 'SPEAKER_SURVEY') {
     renderSpeakerGrid();
-    area.innerHTML = '<p class="text-center text-muted p-4">โปรดเลือกวิทยากรด้านบนเพื่อเริ่มการประเมิน</p>';
+    document.getElementById("surveyContentArea").innerHTML = '<p class="text-center text-muted p-5">โปรดเลือกวิทยากรเพื่อแสดงแบบประเมิน</p>';
   } else {
-    speakerArea.classList.add("d-none");
+    document.getElementById("speakerSelectionArea").classList.add("d-none");
     renderSurveyQuestions();
     document.getElementById("btnSubmitSurvey").classList.remove("d-none");
   }
 }
 
 function renderSpeakerGrid() {
-  let grid = document.getElementById("speakerButtonsGrid");
-  grid.innerHTML = '';
+  let grid = document.getElementById("speakerButtonsGrid"); grid.innerHTML = '';
   if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
-    document.getElementById("surveyContentArea").innerHTML = '<div class="alert alert-warning text-center">ไม่มีวิทยากรเปิดประเมินในขณะนี้ครับ</div>';
+    document.getElementById("surveyContentArea").innerHTML = '<div class="alert alert-warning text-center">ไม่มีวิทยากรเปิดประเมินตามวันและเวลาในขณะนี้</div>';
     return;
   }
   globalSurveyData.speakers.forEach(spk => {
     grid.innerHTML += `
-      <div class="col-6 col-md-4">
-        <button class="btn btn-outline-primary w-100 h-100 p-3 rounded-4 shadow-sm speaker-btn-v7" id="spk_btn_${spk.id}" onclick="selectSpeaker('${spk.id}')">
-          <div class="fw-bold">${spk.name}</div>
-          <div class="small opacity-75 mt-1" style="font-size: 10px;">${spk.topic}</div>
-        </button>
+      <div class="col-12 col-md-6">
+        <div class="card p-3 shadow-sm rounded-4 spk-card h-100 text-center" id="spk_${spk.id}" onclick="selectSpeaker('${spk.id}')">
+          <h6 class="fw-bold text-primary mb-1">${spk.name}</h6>
+          <small class="text-muted small">${spk.topic}</small>
+        </div>
       </div>`;
   });
   document.getElementById("speakerSelectionArea").classList.remove("d-none");
@@ -196,26 +182,21 @@ function renderSpeakerGrid() {
 
 function selectSpeaker(id) {
   selectedSpeakerId = id;
-  document.querySelectorAll('.speaker-btn-v7').forEach(b => b.classList.replace('btn-primary', 'btn-outline-primary'));
-  document.getElementById(`spk_btn_${id}`).classList.replace('btn-outline-primary', 'btn-primary');
+  document.querySelectorAll('.spk-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`spk_${id}`).classList.add('active');
   renderSurveyQuestions();
   document.getElementById("btnSubmitSurvey").classList.remove("d-none");
-  document.getElementById("surveyContentArea").scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderSurveyQuestions() {
-  if (!globalSurveyData || !globalSurveyData.questions) return;
   let html = ''; let grouped = {};
   globalSurveyData.questions.forEach(q => { if(!grouped[q.category]) grouped[q.category] = []; grouped[q.category].push(q); });
-
   Object.keys(grouped).forEach(cat => {
     html += `<h6 class="fw-bold text-primary mt-4 mb-3 border-bottom pb-2">${cat}</h6>`;
     grouped[cat].forEach(q => {
       let opts = '';
-      q.options.forEach(opt => {
-        opts += `<div class="form-check mb-2 ms-2"><input class="form-check-input" type="radio" name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}"><label class="form-check-label w-100" for="sq_${q.id}_${opt}" style="cursor:pointer;">${opt}</label></div>`;
-      });
-      html += `<div class="card p-4 mb-3 border-0 shadow-sm rounded-4 border-start border-4 border-info"><p class="fw-bold mb-3 fs-5">${q.question}</p>${opts}</div>`;
+      q.options.forEach(opt => { opts += `<div class="form-check mb-2 ms-2"><input class="form-check-input" type="radio" name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}"><label class="form-check-label w-100" for="sq_${q.id}_${opt}" style="cursor:pointer;">${opt}</label></div>`; });
+      html += `<div class="card p-3 mb-2 border-0 shadow-sm rounded-4 border-start border-4 border-info"><p class="small fw-bold mb-2">${q.question}</p>${opts}</div>`;
     });
   });
   document.getElementById("surveyContentArea").innerHTML = html;
@@ -227,12 +208,9 @@ async function submitRealSurvey() {
     let sel = document.querySelector(`input[name="sq_${q.id}"]:checked`);
     if(sel) answers[q.id] = sel.value; else complete = false;
   });
-  if(!complete) { Swal.fire('แจ้งเตือน', 'กรุณาตอบให้ครบทุกข้อครับ', 'warning'); return; }
-
-  Swal.fire({ title: 'บันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  if(!complete) { Swal.fire('เตือน', 'ตอบให้ครบทุกข้อครับ', 'warning'); return; }
   let payload = { personal_id: localStorage.getItem("tms_personal_id"), answers: answers };
   if(currentSurveyType === 'SPEAKER_SURVEY') payload.target_id = selectedSpeakerId;
-  
   let action = currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval';
   await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: action, payload: payload }) });
   Swal.fire('สำเร็จ', 'ขอบคุณสำหรับข้อมูลครับ', 'success').then(() => backToDashboard('surveySection'));
