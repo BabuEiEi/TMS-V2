@@ -313,44 +313,29 @@ function renderSurveyScreen(surveyType) {
 
   let html = '';
   Object.keys(groupedQ).forEach(category => {
+    // หัวข้อหมวดหมู่
     html += `<h5 class="fw-bold mt-4 mb-3 text-primary border-bottom pb-2 border-3">${category}</h5>`;
     
     groupedQ[category].forEach((q) => {
       let optionsHtml = '';
       
-      // 🟢 ลอจิกใหม่: ถ้าเจอคำว่า TEXT ให้โชว์ช่องพิมพ์ (TextArea)
-      if (q.options[0] === 'TEXT') {
-        optionsHtml = `<textarea class="form-control border-secondary" name="sq_${q.id}" rows="3" placeholder="พิมพ์ข้อเสนอแนะที่นี่..."></textarea>`;
-      } 
-      // 🔵 ลอจิกใหม่: ถ้าเจอตัวเลือกเป็นตัวเลข (Rating Scale) ให้ทำเป็นปุ่มวงกลมสวยๆ
-      else if (!isNaN(q.options[0])) {
-        optionsHtml = `<div class="d-flex justify-content-between text-center mt-2 px-md-5">`;
-        const labels = { "5": "มากที่สุด", "4": "มาก", "3": "ปานกลาง", "2": "น้อย", "1": "น้อยที่สุด" };
-        q.options.forEach(opt => {
-          optionsHtml += `
-            <div class="rating-item">
-              <input type="radio" class="btn-check" name="sq_${q.id}" id="sq_${q.id}_${opt}" value="${opt}" autocomplete="off">
-              <label class="btn btn-outline-primary rounded-circle fw-bold shadow-sm" for="sq_${q.id}_${opt}" style="width: 45px; height: 45px; line-height: 30px;">${opt}</label>
-              <div class="small mt-1 text-muted d-none d-md-block" style="font-size: 10px;">${labels[opt] || ""}</div>
-            </div>`;
-        });
-        optionsHtml += `</div>`;
-      }
-      // 🟡 ตัวเลือกปกติ (เพศ, อายุ, ฯลฯ)
-      else {
-        q.options.forEach((opt) => {
-          optionsHtml += `
-            <div class="form-check mb-2">
-              <input class="form-check-input border-secondary" type="radio" name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}"> 
-              <label class="form-check-label w-100" for="sq_${q.id}_${opt}" style="cursor: pointer;">${opt}</label>
-            </div>`;
-        });
-      }
+      // 🟢 ปรับใหม่: แสดงผลเป็น Bullet (Radio Button) มาตรฐานสำหรับทุกข้อ
+      q.options.forEach((opt) => {
+        optionsHtml += `
+          <div class="form-check mb-2 ms-2">
+            <input class="form-check-input border-secondary" type="radio" name="sq_${q.id}" value="${opt}" id="sq_${q.id}_${opt}"> 
+            <label class="form-check-label w-100" for="sq_${q.id}_${opt}" style="cursor: pointer;">
+              ${opt}
+            </label>
+          </div>`;
+      });
 
       html += `
         <div class="mb-4 p-4 border-0 rounded-4 bg-white shadow-sm survey-question border-start border-4 border-info">
           <p class="fw-bold mb-3 text-dark fs-5">${q.question}</p>
-          ${optionsHtml}
+          <div class="options-container">
+            ${optionsHtml}
+          </div>
         </div>
       `;
     });
