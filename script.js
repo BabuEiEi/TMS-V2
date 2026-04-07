@@ -144,11 +144,29 @@ function renderAttendanceButtons(schedule, userLogs) {
 }
 
 async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
+  // 1. สร้าง Pop-up ถามหมายเหตุก่อน (ถ้าไม่กรอกก็กดบันทึกได้เลย)
+  const { value: userNote, isDismissed } = await Swal.fire({
+    title: 'หมายเหตุการลงเวลา',
+    text: 'ระบุหมายเหตุเพิ่มเติม (ถ้ามี)',
+    input: 'text',
+    inputPlaceholder: 'เช่น ลากิจ, ลาป่วย (เว้นว่างได้)',
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกเวลา',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#0dcaf0',
+    cancelButtonColor: '#6c757d'
+  });
+
+  // 2. ถ้าผู้ใช้กดยกเลิก หรือคลิกปิด Pop-up ให้หยุดการทำงานทันที
+  if (isDismissed) {
+    return; 
+  }
+
+  // 3. เริ่มกระบวนการส่งข้อมูล
   let userId = localStorage.getItem("tms_personal_id");
-  let userNote = document.getElementById("attNote").value.trim();
   
-  // แนบคำว่า "สาย" ไปในช่องหมายเหตุแบบอัตโนมัติ (ถ้ามีพิมพ์มาด้วยก็ต่อท้ายกัน)
-  let finalNote = userNote ? `[${timeStatus}] ${userNote}` : `[${timeStatus}]`;
+  // แนบสถานะ (สาย/ตรงเวลา) ไปด้วยอัตโนมัติ 
+  let finalNote = userNote.trim() ? `[${timeStatus}] ${userNote.trim()}` : `[${timeStatus}]`;
 
   let payloadData = {
     log_id: 'ATT-' + Date.now(),
@@ -158,7 +176,11 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
     note: finalNote
   };
 
-  Swal.fire({ title: 'กำลังบันทึกเวลา...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+  Swal.fire({ 
+    title: 'กำลังบันทึกเวลา...', 
+    allowOutsideClick: false, 
+    didOpen: () => { Swal.showLoading(); }
+  });
 
   try {
     let response = await fetch(GAS_API_URL, {
@@ -169,8 +191,8 @@ async function submitRealAttendance(dayNo, timeSlot, timeStatus) {
 
     if (result.status === 'success') {
       Swal.fire('สำเร็จ!', 'บันทึกเวลาเรียบร้อยแล้ว', 'success').then(() => {
-        document.getElementById("attNote").value = ""; 
-        openAttendanceForm(); // โหลดหน้าปุ่มใหม่เพื่อเปลี่ยนสีปุ่มเป็นสีเทา!
+        // โหลดหน้าปุ่มใหม่ เพื่อให้ปุ่มเปลี่ยนเป็นสีเทา (ลงเวลาแล้ว)
+        openAttendanceForm(); 
       });
     } else {
       Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
