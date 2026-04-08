@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 28.0 (The Exam Fix Edition)
+ * VERSION: 29.0 (Smart Attendance Perfected)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: กู้คืนลอจิก "ตรวจสอบการสอบซ่อม" ในหน้าพร้อมสอบให้กลับมาสมบูรณ์
+ * DESCRIPTION: ปรับปรุงลอจิกระบบลงเวลา (Attendance) ให้ตรงตามเงื่อนไข 3 ข้อของพี่บาบู
  * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด (ห้ามยุบย่อ ห้ามลดบรรทัด)
  * [COMMENT: TAGS FOR SEARCH: #NAV_LOGIC, #ATT_LOGIC, #EXAM_LOGIC, #SURVEY_LOGIC]
  */
@@ -16,13 +16,20 @@ let selectedSpeakerId = null;
 let examCountdown = null;
 let isExamActive = false;
 
-// [COMMENT: ฟังก์ชันช่วยแปลงวันที่เป็นรูปแบบไทย]
+// [COMMENT: ฟังก์ชันแปลงวันที่ให้อยู่ในรูปแบบ "8 เม.ย. 2569"]
 function formatThaiDate(dateStr) {
     const months = [
         "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", 
         "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
     ];
+    // กรณี dateStr มาเป็น Format YYYY-MM-DD หรือ ISO string
     const dateObj = new Date(dateStr);
+    
+    // ตรวจสอบว่าวันที่ถูกต้องหรือไม่
+    if (isNaN(dateObj.getTime())) {
+        return dateStr; // ถ้าแปลงไม่ได้ให้คืนค่าเดิม
+    }
+
     const day = dateObj.getDate();
     const month = months[dateObj.getMonth()];
     const year = dateObj.getFullYear() + 543;
@@ -61,8 +68,7 @@ function login() {
     
     Swal.fire({ 
         icon: 'success', 
-        title: 'สำเร็จ', 
-        text: 'เข้าสู่ระบบ TMS เรียบร้อยแล้ว',
+        title: 'เข้าสู่ระบบสำเร็จ', 
         timer: 1500, 
         showConfirmButton: false 
     });
@@ -88,7 +94,7 @@ function backToDashboard(currentId) {
 
 
 // ============================================================
-// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ (เช็คสาย/ระบุวันที่/เวลา)
+// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ (อัปเดตตาม 3 เงื่อนไขของพี่บาบู)
 // ============================================================
 
 async function openAttendanceForm() {
@@ -101,7 +107,7 @@ async function openAttendanceForm() {
     btnContainer.innerHTML = `
         <div class="text-center my-5">
             <div class="spinner-border text-info"></div>
-            <p class="mt-2 text-muted">กำลังตรวจสอบสถานะรอบเวลาจากฐานข้อมูล...</p>
+            <p class="mt-2 text-muted">กำลังตรวจสอบสถานะการลงเวลา...</p>
         </div>`;
 
     try {
@@ -116,11 +122,16 @@ async function openAttendanceForm() {
 
         if (result.status === 'success') {
             renderAttendanceButtons(result.schedule, result.userLogs);
+        } else {
+            btnContainer.innerHTML = `
+                <div class="alert alert-warning text-center rounded-4 shadow-sm p-4">
+                    ${result.message || "ไม่พบข้อมูลรอบการลงเวลา"}
+                </div>`;
         }
     } catch (error) {
         btnContainer.innerHTML = `
-            <div class="alert alert-danger text-center rounded-4 p-4 shadow-sm">
-                ไม่สามารถดึงตารางเวลาได้ กรุณาตรวจสอบอินเทอร์เน็ตครับ
+            <div class="alert alert-danger text-center rounded-4 shadow-sm p-4">
+                ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ต
             </div>`;
     }
 }
@@ -128,71 +139,110 @@ async function openAttendanceForm() {
 function renderAttendanceButtons(schedule, userLogs) {
     let btnContainer = document.getElementById("attendanceButtonsContainer");
     btnContainer.innerHTML = ''; 
+    
+    // เวลาปัจจุบันของเครื่องผู้ใช้งาน
     const now = new Date();
+
+    if (!schedule || schedule.length === 0) {
+        btnContainer.innerHTML = `
+            <div class="alert alert-info text-center rounded-4 shadow-sm p-4">
+                ไม่มีรอบการลงเวลาที่เปิดใช้งานในขณะนี้ครับ
+            </div>`;
+        return;
+    }
 
     schedule.forEach(slot => {
         let key = slot.day_no + '_' + slot.slot_id;
-        let loggedData = userLogs[key]; 
+        let loggedData = userLogs[key]; // Timestamp ที่ส่งมาจาก Backend (ถ้ามีการลงเวลาแล้ว)
         
+        // 1. จัดรูปแบบข้อความแสดงผล: "วันที่ 1 | 8 เม.ย. 2569 (01:30 - 08:30)"
         let thaiDate = formatThaiDate(slot.date);
-        let timeRange = "(" + slot.start_time + " - " + slot.end_time + ")";
-        let baseDisplay = "วันที่ " + slot.day_no + " | " + thaiDate + " " + timeRange;
+        let timeRange = `(${slot.start_time} - ${slot.end_time})`;
+        let displayTitle = `วันที่ ${slot.day_no} | ${thaiDate} ${timeRange}`;
         
-        let endDateTime = new Date(slot.date + "T" + slot.end_time + ":00");
+        // สร้าง Object ของเวลาสิ้นสุด เพื่อนำมาเปรียบเทียบว่า "สาย" หรือไม่
+        // สมมติว่า slot.date เป็น YYYY-MM-DD และ slot.end_time เป็น HH:MM
+        let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
 
         if (loggedData) {
+            // [กรณีที่ 1]: บันทึกเวลาไปแล้ว (แสดงเป็นกล่องสีเทา)
             let logTime = new Date(loggedData);
-            let logTimeString = logTime.getHours().toString().padStart(2, '0') + ':' + 
-                               logTime.getMinutes().toString().padStart(2, '0');
             
+            // จัดรูปแบบเวลาที่ลงจริง เช่น "06:45"
+            let hours = logTime.getHours().toString().padStart(2, '0');
+            let minutes = logTime.getMinutes().toString().padStart(2, '0');
+            let logTimeString = `${hours}:${minutes}`;
+            
+            // เช็คว่าเวลาที่ลงจริงนั้น เลยเวลาสิ้นสุด (endDateTime) หรือไม่
             let isLogLate = logTime > endDateTime;
-            let lateMark = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
+            let lateText = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
 
+            // รูปแบบที่ต้องการ: "วันที่ 1 | 8 เม.ย. 2569 (01:30 - 08:30) | 06:45 (สาย)"
             btnContainer.innerHTML += `
                 <div class="card mb-3 p-4 bg-light border-0 rounded-4 text-center shadow-sm opacity-75">
-                    <div class="fw-bold text-secondary fs-5">
-                        ${baseDisplay} | ${logTimeString}${lateMark}
+                    <div class="fw-bold text-secondary mb-2" style="font-size: 1.1rem;">
+                        ✔️ ${slot.slot_label} บันทึกสำเร็จ
                     </div>
-                    <small class="text-muted">บันทึกข้อมูลเข้าระบบเรียบร้อยแล้วครับ</small>
+                    <div class="text-dark fw-semibold">
+                        ${displayTitle} | <span class="text-primary">${logTimeString}</span>${lateText}
+                    </div>
                 </div>`;
+                
         } else {
+            // [กรณีที่ 2]: ยังไม่ได้ลงเวลา (แสดงเป็นปุ่มให้กด)
+            
+            // เช็คว่า "เวลาปัจจุบัน" เลยเวลาสิ้นสุด (endDateTime) ไปแล้วหรือยัง
             let isCurrentlyLate = now > endDateTime;
-            let btnClass = isCurrentlyLate ? 'btn-warning text-dark' : 'btn-success';
+            
+            // ถ้าสาย -> ปุ่มสีเหลือง (btn-warning) / ถ้ายังไม่สาย -> ปุ่มสีเขียว (btn-success)
+            let btnClass = isCurrentlyLate ? 'btn-warning text-dark' : 'btn-success text-white';
+            
+            // ถ้าสาย ให้เติมคำว่า "(สาย)" ต่อท้ายชื่อรอบ
             let statusSuffix = isCurrentlyLate ? ' (สาย)' : '';
+            
+            // ตัวแปรที่จะส่งไปพร้อมกับการกดปุ่ม เพื่อบันทึกลงฐานข้อมูล
+            let currentStatus = isCurrentlyLate ? 'สาย' : 'ตรงเวลา';
 
             btnContainer.innerHTML += `
-                <button class="btn ${btnClass} w-100 mb-3 p-4 fw-bold rounded-4 shadow shadow-sm" 
-                        style="font-size: 1.15rem;"
-                        onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${isCurrentlyLate ? 'สาย' : 'ตรงเวลา'}')">
-                    📌 ลงเวลา: ${slot.slot_label}${statusSuffix}<br>
-                    <small class="fw-normal opacity-75">${baseDisplay}</small>
+                <button class="btn ${btnClass} w-100 mb-3 p-3 fw-bold rounded-4 shadow shadow-sm" 
+                        onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${currentStatus}')">
+                    <span style="font-size: 1.2rem;">📌 ลงเวลา: ${slot.slot_label}${statusSuffix}</span><br>
+                    <small class="fw-normal" style="font-size: 0.95rem; opacity: 0.9;">${displayTitle}</small>
                 </button>`;
         }
     });
 }
 
+// 3. ฟังก์ชันบันทึกเวลา พร้อม Pop-up กรอกหมายเหตุตามโค้ดที่พี่ให้มาเป๊ะๆ
 async function submitRealAttendance(day, slot, status) {
+    // Pop-up ถามหมายเหตุ
     const swalResult = await Swal.fire({
-        title: 'ยืนยันการลงเวลา',
-        text: 'ท่านสามารถระบุหมายเหตุเพิ่มเติมได้ (ถ้ามี)',
-        icon: 'question',
+        title: 'หมายเหตุการลงเวลา',
+        text: 'ระบุหมายเหตุเพิ่มเติม (ถ้ามี)',
         input: 'text',
         inputPlaceholder: 'เช่น ลากิจ, ลาป่วย (เว้นว่างได้)',
         showCancelButton: true,
         confirmButtonText: 'บันทึกเวลา',
         cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#0dcaf0'
+        confirmButtonColor: '#0dcaf0',
+        cancelButtonColor: '#6c757d'
     });
 
+    // ถ้ากด "ยกเลิก" ให้หยุดการทำงาน
     if (!swalResult.isConfirmed) {
         return;
     }
 
+    // นำหมายเหตุที่ผู้ใช้กรอก มาจัดรูปแบบรวมกับสถานะ (สาย/ตรงเวลา)
     let userNote = swalResult.value ? swalResult.value.trim() : "";
-    let finalNote = userNote !== "" ? "[" + status + "] " + userNote : "[" + status + "]";
+    let finalNote = `[${status}]`;
+    if (userNote !== "") {
+        finalNote += ` ${userNote}`; // เช่น "[สาย] รถติดมาก"
+    }
 
+    // แสดง Pop-up โหลด
     Swal.fire({ 
-        title: 'กำลังบันทึก...', 
+        title: 'กำลังบันทึกข้อมูล...', 
         allowOutsideClick: false, 
         didOpen: () => { 
             Swal.showLoading(); 
@@ -212,16 +262,17 @@ async function submitRealAttendance(day, slot, status) {
             body: JSON.stringify({ action: 'submitAttendance', payload: payload }) 
         });
         
+        // เมื่อบันทึกเสร็จ ให้โหลดหน้า Attendance ใหม่เพื่ออัปเดตปุ่มเป็นสีเทา
         openAttendanceForm();
         Swal.close();
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้งครับ', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง', 'error');
     }
 }
 
 
 // ============================================================
-// [#EXAM_LOGIC]: ระบบข้อสอบและหน้าเตรียมพร้อม 
+// [#EXAM_LOGIC]: ระบบข้อสอบและหน้าเตรียมพร้อม (รักษาบรรทัดดั้งเดิม)
 // ============================================================
 
 document.addEventListener('visibilitychange', () => {
@@ -246,7 +297,7 @@ async function openExamForm() {
     contentArea.innerHTML = `
         <div class="text-center p-5">
             <div class="spinner-border text-warning"></div>
-            <p class="mt-2 text-muted">กำลังเตรียมชุดข้อสอบล่าสุด...</p>
+            <p class="mt-2 text-muted">กำลังเตรียมชุดข้อสอบ...</p>
         </div>`;
 
     try {
@@ -271,11 +322,10 @@ async function openExamForm() {
                 </div>`;
         }
     } catch (error) {
-        contentArea.innerHTML = '<div class="alert alert-danger text-center">โหลดไม่สำเร็จ</div>';
+        contentArea.innerHTML = '<div class="alert alert-danger text-center">ดึงข้อมูลไม่สำเร็จ</div>';
     }
 }
 
-// [COMMENT: UPDATE V28.0 - กู้คืนลอจิกแจ้งเตือนสถานะการ "สอบซ่อม"]
 function renderExamStartScreen() {
     let contentArea = document.getElementById("examContentArea");
     let exam = globalExamData.activeExam;
@@ -285,11 +335,10 @@ function renderExamStartScreen() {
     let btnLabel = 'เริ่มทำแบบทดสอบเดี๋ยวนี้';
     let btnColor = 'btn-success';
 
-    // เช็คว่าเคยสอบไปแล้วหรือไม่ (อิงตัวแปร attempts จากหลังบ้าน)
     if (globalExamData.attempts > 0 && exam.type === 'POST') {
         retakeMessage = `
             <div class="alert alert-warning mb-4 text-start shadow-sm rounded-4">
-                ⚠️ ท่านเคยทำแบบทดสอบนี้แล้ว ระบบให้สิทธิ์สอบซ่อม (ครั้งที่ 2) ได้อีกหนึ่งครั้งครับ
+                ⚠️ ท่านเคยทำแบบทดสอบนี้แล้ว ระบบให้สิทธิ์สอบซ่อม (ครั้งที่ 2) ได้อีกหนึ่งครั้ง
             </div>`;
         btnLabel = 'เริ่มสอบซ่อม (ครั้งที่ 2)';
         btnColor = 'btn-warning text-dark';
@@ -297,7 +346,7 @@ function renderExamStartScreen() {
     
     contentArea.innerHTML = `
         <div class="text-center my-5 p-5 bg-light rounded-5 border shadow-sm fade-in">
-            <h4 class="text-primary fw-bold mb-3">คุณพร้อมที่จะทำแบบทดสอบหรือไม่?</h4>
+            <h4 class="text-primary fw-bold mb-3">ท่านพร้อมที่จะทำแบบทดสอบหรือไม่?</h4>
             <p class="text-muted fs-5">จำนวนข้อสอบทั้งหมด <b class="text-dark">${qCount}</b> ข้อ</p>
             
             ${retakeMessage}
@@ -307,7 +356,7 @@ function renderExamStartScreen() {
                 <ul class="mb-0">
                     <li>⏱️ ระบบเริ่มจับเวลา 30 นาทีทันทีหลังกดเริ่ม</li>
                     <li>💾 มีระบบ Auto-Save คำตอบแบบเรียลไทม์</li>
-                    <li>🚫 ห้ามสลับหน้าจอขณะทำข้อสอบ ระบบจะแจ้งเตือน</li>
+                    <li>🚫 ห้ามสลับหน้าจอขณะทำข้อสอบ ระบบจะแจ้งเตือนพฤติกรรม</li>
                 </ul>
             </div>
             
@@ -368,7 +417,7 @@ function startTimer(sec) {
             clearInterval(examCountdown); 
             Swal.fire({
                 title: 'หมดเวลา!',
-                text: 'ระบบกำลังดำเนินการส่งคำตอบให้อัตโนมัติครับ',
+                text: 'ระบบกำลังดำเนินการส่งคำตอบให้อัตโนมัติ',
                 icon: 'warning',
                 allowOutsideClick: false
             }).then(() => {
@@ -403,7 +452,7 @@ async function submitRealExam(isAuto = false) {
         }
     });
 
-    Swal.fire({ title: 'กำลังประมวลผลคะแนน...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
     let payload = {
         personal_id: localStorage.getItem("tms_personal_id"),
@@ -420,13 +469,13 @@ async function submitRealExam(isAuto = false) {
         
         Swal.fire({
             icon: 'success',
-            title: 'ส่งสำเร็จ',
+            title: 'ส่งคะแนนสำเร็จ',
             text: `คุณทำคะแนนได้ ${score} คะแนน`
         }).then(() => {
             backToDashboard('examSection');
         });
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'ส่งคะแนนไม่สำเร็จ', 'error');
+        Swal.fire('ผิดพลาด', 'ส่งคะแนนไม่สำเร็จ กรุณาแจ้งเจ้าหน้าที่', 'error');
     }
 }
 
@@ -446,7 +495,7 @@ async function openSurveyForm(type) {
     contentArea.innerHTML = `
         <div class="text-center p-5 my-5">
             <div class="spinner-border text-success"></div>
-            <p class="mt-2 text-muted">กำลังเตรียมข้อมูลแบบประเมินพรีเมียม...</p>
+            <p class="mt-2 text-muted">กำลังเตรียมข้อมูลแบบประเมิน...</p>
         </div>`;
     
     document.getElementById("btnSubmitSurvey").classList.add("d-none");
@@ -506,6 +555,7 @@ function renderSurveyQuestions() {
         grouped[cat].forEach(q => {
             let optionsHtml = '';
             
+            // 🟢 ตอนที่ 2: ปุ่มวงกลมพรีเมียม แนวนอน 5 ไปหา 1
             if (cat.includes("ตอนที่ 2")) {
                 optionsHtml += `
                     <div class="horizontal-rating-wrapper">
@@ -533,6 +583,7 @@ function renderSurveyQuestions() {
                         </div>
                     </div>`;
             } 
+            // 🔵 ตอนที่ 1: Radio Bullet มาตรฐาน เรียงแนวดิ่ง
             else if (cat.includes("ตอนที่ 1")) {
                 q.options.forEach(opt => {
                     optionsHtml += `
@@ -545,11 +596,12 @@ function renderSurveyQuestions() {
                         </div>`;
                 });
             }
+            // 📝 TEXT AREA
             else if (q.options[0] === 'TEXT') {
                 optionsHtml = `
                     <textarea class="form-control rounded-4 shadow-sm" 
                               name="sq_${q.id}" rows="3" 
-                              placeholder="ระบุข้อเสนอแนะเพิ่มเติมของท่าน..."></textarea>`;
+                              placeholder="ระบุข้อเสนอแนะเพิ่มเติม..."></textarea>`;
             }
 
             html += `
@@ -579,27 +631,50 @@ async function submitRealSurvey() {
     });
 
     if (!complete) { 
-        Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณาตอบให้ครบทุกข้อก่อนครับ' }); 
+        Swal.fire({
+            icon: 'warning',
+            title: 'ข้อมูลไม่ครบ',
+            text: 'กรุณาประเมินให้ครบทุกข้อก่อนส่งข้อมูลครับ'
+        }); 
         return; 
     }
     
     let target = currentSurveyType === 'PROJECT_SURVEY' ? 'PROJECT' : document.getElementById("speakerSelect").value;
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    
+    Swal.fire({ 
+        title: 'กำลังบันทึกผล...', 
+        allowOutsideClick: false, 
+        didOpen: () => { 
+            Swal.showLoading(); 
+        }
+    });
     
     try {
         let action = currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval';
+        
         let res = await fetch(GAS_API_URL, { 
             method: 'POST', 
             body: JSON.stringify({ 
                 action: action, 
-                payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target } 
+                payload: { 
+                    personal_id: localStorage.getItem("tms_personal_id"), 
+                    answers: answers, 
+                    target_id: target 
+                } 
             }) 
         });
+        let result = await res.json();
         
-        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'ขอบคุณสำหรับข้อมูลครับ' }).then(() => {
-            backToDashboard('surveySection');
-        });
+        if (result.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'บันทึกสำเร็จ',
+                text: 'ขอบคุณสำหรับข้อมูลประเมินที่มีคุณค่าครับ'
+            }).then(() => {
+                backToDashboard('surveySection');
+            });
+        }
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
+        Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้ในขณะนี้', 'error');
     }
 }
