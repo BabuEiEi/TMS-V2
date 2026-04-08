@@ -1,239 +1,234 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบบริหารจัดการการอบรม (TMS) - V24.0</title>
-  
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <link rel="stylesheet" href="style.css">
-
-  <style>
-    /* [CORE-STYLE: บรรทัดขยายตัวมาตรฐาน] */
-    body { 
-      font-family: 'Niramit', sans-serif; 
-      background-color: #f4f7f9; 
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการการอบรม (TMS) - V28.0</title>
     
-    .fade-in { 
-      animation: fadeIn 0.4s ease-out; 
-    }
-    
-    @keyframes fadeIn { 
-      from { 
-        opacity: 0; 
-        transform: translateY(5px); 
-      } 
-      to { 
-        opacity: 1; 
-        transform: translateY(0); 
-      } 
-    }
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="style.css">
 
-    .menu-card { 
-      cursor: pointer; 
-      transition: 0.3s; 
-      border: none; 
-    }
+    <style>
+        /* [CORE-STYLE: ยึดโครงสร้างบรรทัดแบบขยายพิกัด] */
+        body { 
+            font-family: 'Niramit', sans-serif; 
+            background-color: #f4f7f9; 
+        }
+        
+        .fade-in { 
+            animation: fadeIn 0.4s ease-out; 
+        }
+        
+        @keyframes fadeIn { 
+            from { 
+                opacity: 0; 
+                transform: translateY(5px); 
+            } 
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            } 
+        }
 
-    .menu-card:hover { 
-      transform: translateY(-5px); 
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; 
-    }
-    
-    /* [#SURVEY_CSS: แยกสไตล์ตอนที่ 1 และ ตอนที่ 2] */
-    .horizontal-rating-wrapper { 
-      margin-top: 15px;
-      margin-bottom: 15px; 
-    }
+        .menu-card { 
+            cursor: pointer; 
+            transition: 0.3s; 
+            border: none; 
+        }
 
-    .horizontal-rating-container { 
-      display: flex; 
-      flex-direction: row;
-      justify-content: space-between; 
-      max-width: 500px; 
-      margin-bottom: 8px;
-    }
+        .menu-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; 
+        }
 
-    .rating-btn-item { 
-      flex: 1;
-      text-align: center;
-      position: relative; 
-    }
+        /* [#SURVEY_UI_PREMIUM: สไตล์ปุ่มวงกลมแนวนอน] */
+        .horizontal-rating-wrapper { 
+            margin-top: 20px;
+            margin-bottom: 20px; 
+        }
 
-    .rating-btn-item input { 
-      position: absolute; 
-      opacity: 0; 
-      cursor: pointer; 
-      width: 100%;
-      height: 100%;
-      left: 0;
-      top: 0;
-      z-index: 2;
-    }
+        .horizontal-rating-container { 
+            display: flex; 
+            flex-direction: row;
+            justify-content: space-between; 
+            max-width: 500px; 
+            margin-bottom: 12px;
+        }
 
-    .rating-btn-label { 
-      display: flex; 
-      align-items: center; 
-      justify-content: center;
-      width: 48px; 
-      height: 48px; 
-      margin: 0 auto;
-      border: 2px solid #dee2e6; 
-      border-radius: 50%; 
-      cursor: pointer; 
-      transition: 0.2s; 
-      font-weight: bold;
-      background-color: #fff;
-      position: relative;
-      z-index: 1;
-    }
+        .rating-btn-item { 
+            flex: 1;
+            text-align: center;
+            position: relative; 
+        }
 
-    .rating-btn-item input:checked + .rating-btn-label { 
-      background-color: #0d6efd; 
-      color: white; 
-      border-color: #0d6efd; 
-      box-shadow: 0 4px 10px rgba(13,110,253,0.3);
-      transform: scale(1.1);
-    }
+        .rating-btn-item input { 
+            position: absolute; 
+            opacity: 0; 
+            cursor: pointer; 
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            z-index: 2;
+        }
 
-    .rating-desc-text {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-      max-width: 500px;
-      padding-left: 5px;
-      padding-right: 5px;
-    }
+        .rating-btn-label { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            width: 50px; 
+            height: 50px; 
+            margin: 0 auto;
+            border: 2px solid #dee2e6; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            font-weight: bold;
+            background-color: #fff;
+            position: relative;
+            z-index: 1;
+        }
 
-    .rating-desc-text span {
-      font-size: 13px;
-      color: #0d6efd;
-      font-weight: 600;
-    }
+        .rating-btn-item input:checked + .rating-btn-label { 
+            background-color: #0d6efd; 
+            color: white; 
+            border-color: #0d6efd; 
+            box-shadow: 0 4px 12px rgba(13,110,253,0.3);
+            transform: scale(1.15);
+        }
 
-    /* สไตล์แนวตั้งสำหรับตอนที่ 1 */
-    .vertical-bullet-item {
-      margin-bottom: 12px;
-      padding-left: 15px;
-      display: block;
-    }
-  </style>
+        .rating-desc-text {
+            display: flex;
+            justify-content: space-between;
+            max-width: 500px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .rating-desc-text span {
+            font-size: 14px;
+            color: #0d6efd;
+            font-weight: 600;
+        }
+
+        /* [QUESTION-CARD: สไตล์พรีเมียม] */
+        .survey-card {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-left: 7px solid #0dcaf0;
+            margin-bottom: 25px;
+            padding: 30px;
+            background-color: #fff;
+            transition: 0.3s ease;
+        }
+
+        .vertical-form-check {
+            margin-bottom: 15px;
+            padding-left: 40px;
+            font-size: 1.05rem;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="container mt-5 mb-5">
-    
-    <div id="loginSection" class="row justify-content-center fade-in">
-      <div class="col-md-6 col-lg-4">
-        <div class="card shadow-sm text-center p-4 border-0 rounded-4">
-          <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
-          <p class="text-muted small">โครงการประเมินและทดสอบ PISA (Version 24.0)</p>
-          <input type="text" id="personalId" class="form-control text-center mb-3 p-2" placeholder="กรอกรหัสประจำตัว (เช่น SV001)">
-          <button class="btn btn-primary w-100 fw-bold p-2 rounded-pill shadow-sm" onclick="login()">
-            เข้าสู่ระบบ
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="dashboardSection" class="d-none fade-in">
-      <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border-start border-4 border-primary">
-        <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
-        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm" onclick="logout()">
-          ออกจากระบบ
-        </button>
-      </div>
-      
-      <div class="row g-3">
-        <div class="col-6 col-md-3">
-          <div class="card menu-card bg-info text-white text-center p-3 h-100 border-0 rounded-4 shadow-sm" onclick="openAttendanceForm()">
-            <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
-            <small class="opacity-75">เช็คอินเข้าอบรม</small>
-          </div>
-        </div>
+    <div class="container mt-5 mb-5">
         
-        <div class="col-6 col-md-3">
-          <div class="card menu-card bg-warning text-dark text-center p-3 h-100 border-0 rounded-4 shadow-sm" onclick="openExamForm()">
-            <h5 class="fw-bold mt-2">📝 ทำข้อสอบ</h5>
-            <small class="opacity-75">Pre / Post Test</small>
-          </div>
+        <div id="loginSection" class="row justify-content-center fade-in">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow-lg text-center p-5 border-0 rounded-5">
+                    <div class="mb-4">
+                        <span class="display-3">🏫</span>
+                    </div>
+                    <h4 class="mb-3 text-primary fw-bold">เข้าสู่ระบบ TMS</h4>
+                    <p class="text-muted small mb-4">Version 28.0 (The Exam Fix Edition)</p>
+                    <input type="text" id="personalId" class="form-control text-center mb-3 p-3 rounded-4 shadow-sm" placeholder="กรอกรหัสประจำตัว">
+                    <button class="btn btn-primary w-100 fw-bold p-3 rounded-pill shadow" onclick="login()">
+                        เข้าสู่ระบบ
+                    </button>
+                </div>
+            </div>
         </div>
-        
-        <div class="col-6 col-md-3">
-          <div class="card menu-card bg-success text-white text-center p-3 h-100 border-0 rounded-4 shadow-sm" onclick="openSurveyForm('PROJECT_SURVEY')">
-            <h5 class="fw-bold mt-2">📊 ประเมิน</h5>
-            <small class="opacity-75">ภาพรวมโครงการ</small>
-          </div>
+
+        <div id="dashboardSection" class="d-none fade-in">
+            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded-4 shadow-sm border-start border-5 border-primary">
+                <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-4" onclick="logout()">ออกจากระบบ</button>
+            </div>
+            
+            <div class="row g-4 text-center">
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-info text-white p-4 h-100 rounded-5 shadow" onclick="openAttendanceForm()">
+                        <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-warning text-dark p-4 h-100 rounded-5 shadow" onclick="openExamForm()">
+                        <h5 class="fw-bold mt-2">📝 ทำข้อสอบ</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-success text-white p-4 h-100 rounded-5 shadow" onclick="openSurveyForm('PROJECT_SURVEY')">
+                        <h5 class="fw-bold mt-2">📊 ประเมินโครงการ</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-primary text-white p-4 h-100 rounded-5 shadow" onclick="openSurveyForm('SPEAKER_SURVEY')">
+                        <h5 class="fw-bold mt-2">🎤 ประเมินวิทยากร</h5>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <div class="col-6 col-md-3">
-          <div class="card menu-card bg-primary text-white text-center p-3 h-100 border-0 rounded-4 shadow-sm" onclick="openSurveyForm('SPEAKER_SURVEY')">
-            <h5 class="fw-bold mt-2">🎤 ประเมิน</h5>
-            <small class="opacity-75">วิทยากรรายบุคคล</small>
-          </div>
+
+        <div id="attendanceSection" class="d-none fade-in">
+            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 650px;">
+                <h4 class="mb-4 text-info fw-bold text-center border-bottom pb-3">⏱️ ลงเวลาเข้าอบรม</h4>
+                <div id="attendanceButtonsContainer" class="mb-4"></div>
+                <button class="btn btn-secondary px-4 w-100 rounded-pill shadow-sm" onclick="backToDashboard('attendanceSection')">
+                    กลับเมนูหลัก
+                </button>
+            </div>
         </div>
-      </div>
+
+        <div id="examSection" class="d-none fade-in">
+            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
+                    <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-4 shadow-sm">
+                        ⏳ <span id="examTimeDisplay">30:00</span>
+                    </div>
+                </div>
+                <div id="examContentArea"></div>
+                <div class="d-flex justify-content-between mt-5 border-top pt-4">
+                    <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('examSection')">กลับ</button>
+                    <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-5 d-none rounded-pill shadow" onclick="submitRealExam()">
+                        ส่งคำตอบ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="surveySection" class="d-none fade-in">
+            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
+                <h4 class="text-success fw-bold border-bottom pb-3 mb-4">📊 <span id="surveyTitleLabel"></span></h4>
+                <div id="speakerSelectionArea" class="mb-4 d-none p-4 bg-light rounded-4 border border-primary">
+                    <label class="form-label fw-bold text-primary mb-2">กรุณาเลือกวิทยากรที่ต้องการประเมิน:</label>
+                    <select id="speakerSelect" class="form-select border-primary rounded-pill p-2 text-dark fw-bold shadow-sm"></select>
+                </div>
+                <div id="surveyContentArea"></div>
+                <div class="d-flex justify-content-between mt-5 border-top pt-4">
+                    <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('surveySection')">กลับหน้าหลัก</button>
+                    <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-5 d-none rounded-pill shadow-lg" onclick="submitRealSurvey()">
+                        ส่งผลประเมิน
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <div id="attendanceSection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 500px;">
-        <h4 class="mb-4 text-info fw-bold text-center border-bottom pb-2">⏱️ ลงเวลาเข้าอบรม</h4>
-        <div id="attendanceButtonsContainer" class="mb-4"></div>
-        <div class="d-flex justify-content-center">
-          <button class="btn btn-secondary px-4 w-100 rounded-pill shadow-sm" onclick="backToDashboard('attendanceSection')">
-            กลับเมนูหลัก
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="examSection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 850px;">
-        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3">
-          <h4 class="text-warning fw-bold mb-0">📝 แบบทดสอบ: <span id="examTitleLabel" class="text-dark"></span></h4>
-          <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-3 shadow-sm">
-            ⏳ <span id="examTimeDisplay">30:00</span>
-          </div>
-        </div>
-        <div id="examContentArea" class="mt-3"></div>
-        <div class="d-flex justify-content-between mt-4 border-top pt-4">
-          <button id="btnCancelExam" class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('examSection')">
-            กลับเมนูหลัก
-          </button>
-          <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-4 d-none rounded-pill shadow-sm" onclick="submitRealExam()">
-            ส่งคำตอบเข้าสู่ระบบ
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="surveySection" class="d-none fade-in">
-      <div class="card shadow-sm p-4 mx-auto border-0 rounded-4" style="max-width: 850px;">
-        <h4 class="text-success fw-bold border-bottom pb-3 mb-4">📊 <span id="surveyTitleLabel"></span></h4>
-        
-        <div id="speakerSelectionArea" class="mb-4 d-none p-3 bg-light rounded-3 border border-primary">
-          <label class="form-label fw-bold text-primary">กรุณาเลือกวิทยากรที่ต้องการประเมิน:</label>
-          <select id="speakerSelect" class="form-select border-primary text-dark fw-bold shadow-sm"></select>
-        </div>
-
-        <div id="surveyContentArea" class="mt-3"></div>
-
-        <div class="d-flex justify-content-between mt-4 border-top pt-4">
-          <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('surveySection')">
-            กลับหน้าหลัก
-          </button>
-          <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-4 d-none rounded-pill shadow-sm" onclick="submitRealSurvey()">
-            ส่งผลประเมิน
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
