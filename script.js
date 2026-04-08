@@ -219,7 +219,18 @@ async function openExamForm() {
 
         if (result.status === 'success') {
             globalExamData = result;
-            document.getElementById("examTitleLabel").innerText = result.activeExam.type + " TEST";
+            // [แก้ไขใหม่]: เช็คประเภทข้อสอบเพื่อแปลงเป็นภาษาไทย
+            let thaiTitle = '';
+            if (result.activeExam.type === 'PRE') {
+                thaiTitle = 'แบบทดสอบก่อนการอบรม (Pre-Test)';
+            } else if (result.activeExam.type === 'POST') {
+                thaiTitle = 'แบบทดสอบหลังการอบรม (Post-Test)';
+            } else {
+                thaiTitle = 'แบบทดสอบ ' + result.activeExam.type;
+            }
+            // นำคำภาษาไทยไปแสดงผลที่ Lable
+            document.getElementById("examTitleLabel").innerText = thaiTitle;
+
             renderExamStartScreen(); 
         } else {
             contentArea.innerHTML = `
