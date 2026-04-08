@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 30.0 (The Ultimate Exam Edition)
+ * VERSION: 31.0 (Trainee View & Smart Survey Edition)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: จัดเต็มระบบสอบ 8 ข้อ (Shuffle, Split Logic, Auto-Save, Anti-Cheat, Retake)
+ * DESCRIPTION: เพิ่ม Smart Rendering Logic เพื่อวาดประเมินวิทยากรและโครงการได้อย่างแม่นยำ
  * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด (ห้ามยุบย่อ ห้ามลดบรรทัด)
  * [COMMENT: TAGS: #NAV_LOGIC, #ATT_LOGIC, #EXAM_LOGIC, #SURVEY_LOGIC]
  */
@@ -16,13 +16,22 @@ let selectedSpeakerId = null;
 let examCountdown = null;
 let isExamActive = false;
 
+// [COMMENT: ฟังก์ชันช่วยแปลงวันที่เป็นรูปแบบไทย]
 function formatThaiDate(dateStr) {
-    const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const months = [
+        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", 
+        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
     const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return dateStr;
+    
+    if (isNaN(dateObj.getTime())) {
+        return dateStr;
+    }
+
     const day = dateObj.getDate();
     const month = months[dateObj.getMonth()];
     const year = dateObj.getFullYear() + 543;
+    
     return day + " " + month + " " + year;
 }
 
@@ -32,6 +41,7 @@ function formatThaiDate(dateStr) {
 
 document.addEventListener("DOMContentLoaded", () => {
     let savedId = localStorage.getItem("tms_personal_id");
+    
     if (savedId) {
         document.getElementById("personalId").value = savedId;
         showDashboard();
@@ -41,12 +51,26 @@ document.addEventListener("DOMContentLoaded", () => {
 function login() {
     let idInput = document.getElementById("personalId");
     let id = idInput.value.trim().toUpperCase();
+    
     if (id === "") {
-        Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกรหัสประจำตัวก่อนครับ' });
+        Swal.fire({
+            icon: 'warning',
+            title: 'แจ้งเตือน',
+            text: 'กรุณากรอกรหัสประจำตัวก่อนครับ'
+        });
         return;
     }
+    
     localStorage.setItem("tms_personal_id", id);
     showDashboard();
+    
+    Swal.fire({ 
+        icon: 'success', 
+        title: 'สำเร็จ', 
+        text: 'ยินดีต้อนรับเข้าสู่ระบบผู้เข้ารับการอบรม',
+        timer: 1500, 
+        showConfirmButton: false 
+    });
 }
 
 function logout() {
@@ -62,33 +86,47 @@ function showDashboard() {
 function backToDashboard(currentId) {
     document.getElementById(currentId).classList.add("d-none");
     document.getElementById("dashboardSection").classList.remove("d-none");
+    
     isExamActive = false;
     clearInterval(examCountdown);
 }
 
 
 // ============================================================
-// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ (สมบูรณ์แบบจาก V29)
+// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ 
 // ============================================================
 
 async function openAttendanceForm() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("attendanceSection").classList.remove("d-none");
     
+    let userId = localStorage.getItem("tms_personal_id");
     let btnContainer = document.getElementById("attendanceButtonsContainer");
-    btnContainer.innerHTML = `<div class="text-center my-5"><div class="spinner-border text-info"></div></div>`;
+    
+    btnContainer.innerHTML = `
+        <div class="text-center my-5">
+            <div class="spinner-border text-info"></div>
+            <p class="mt-2 text-muted">กำลังตรวจสอบสถานะรอบเวลาจากฐานข้อมูล...</p>
+        </div>`;
 
     try {
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: localStorage.getItem("tms_personal_id") } })
+            body: JSON.stringify({ 
+                action: 'getAttendanceData', 
+                payload: { personal_id: userId } 
+            })
         });
         let result = await response.json();
+
         if (result.status === 'success') {
             renderAttendanceButtons(result.schedule, result.userLogs);
         }
     } catch (error) {
-        btnContainer.innerHTML = '<div class="alert alert-danger text-center">โหลดไม่สำเร็จ</div>';
+        btnContainer.innerHTML = `
+            <div class="alert alert-danger text-center rounded-4 p-4 shadow-sm">
+                ไม่สามารถดึงตารางเวลาได้ กรุณาตรวจสอบอินเทอร์เน็ตครับ
+            </div>`;
     }
 }
 
@@ -97,26 +135,40 @@ function renderAttendanceButtons(schedule, userLogs) {
     btnContainer.innerHTML = ''; 
     const now = new Date();
 
+    if (!schedule || schedule.length === 0) {
+        btnContainer.innerHTML = `
+            <div class="alert alert-info text-center rounded-4 shadow-sm p-4">
+                ไม่มีรอบการลงเวลาที่เปิดใช้งานในขณะนี้ครับ
+            </div>`;
+        return;
+    }
+
     schedule.forEach(slot => {
         let key = slot.day_no + '_' + slot.slot_id;
         let loggedData = userLogs[key]; 
         
         let thaiDate = formatThaiDate(slot.date);
-        let timeRange = `(${slot.start_time} - ${slot.end_time})`;
-        let displayTitle = `วันที่ ${slot.day_no} | ${thaiDate} ${timeRange}`;
-        let endDateTime = new Date(`${slot.date}T${slot.end_time}:00`);
+        let timeRange = "(" + slot.start_time + " - " + slot.end_time + ")";
+        let baseDisplay = "วันที่ " + slot.day_no + " | " + thaiDate + " " + timeRange;
+        
+        let endDateTime = new Date(slot.date + "T" + slot.end_time + ":00");
 
         if (loggedData) {
             let logTime = new Date(loggedData);
-            let hours = logTime.getHours().toString().padStart(2, '0');
-            let minutes = logTime.getMinutes().toString().padStart(2, '0');
+            let logTimeString = logTime.getHours().toString().padStart(2, '0') + ':' + 
+                               logTime.getMinutes().toString().padStart(2, '0');
+            
             let isLogLate = logTime > endDateTime;
-            let lateText = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
+            let lateMark = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
 
             btnContainer.innerHTML += `
                 <div class="card mb-3 p-4 bg-light border-0 rounded-4 text-center shadow-sm opacity-75">
-                    <div class="fw-bold text-secondary mb-2">✔️ ${slot.slot_label} บันทึกสำเร็จ</div>
-                    <div class="text-dark fw-semibold">${displayTitle} | <span class="text-primary">${hours}:${minutes}</span>${lateText}</div>
+                    <div class="fw-bold text-secondary mb-2" style="font-size: 1.1rem;">
+                        ✔️ ${slot.slot_label} บันทึกสำเร็จ
+                    </div>
+                    <div class="text-dark fw-semibold">
+                        ${baseDisplay} | <span class="text-primary">${logTimeString}</span>${lateMark}
+                    </div>
                 </div>`;
         } else {
             let isCurrentlyLate = now > endDateTime;
@@ -125,9 +177,10 @@ function renderAttendanceButtons(schedule, userLogs) {
             let currentStatus = isCurrentlyLate ? 'สาย' : 'ตรงเวลา';
 
             btnContainer.innerHTML += `
-                <button class="btn ${btnClass} w-100 mb-3 p-3 fw-bold rounded-4 shadow shadow-sm" onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${currentStatus}')">
+                <button class="btn ${btnClass} w-100 mb-3 p-4 fw-bold rounded-4 shadow shadow-sm" 
+                        onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${currentStatus}')">
                     <span style="font-size: 1.2rem;">📌 ลงเวลา: ${slot.slot_label}${statusSuffix}</span><br>
-                    <small class="fw-normal" style="font-size: 0.95rem; opacity: 0.9;">${displayTitle}</small>
+                    <small class="fw-normal" style="font-size: 0.95rem; opacity: 0.9;">${baseDisplay}</small>
                 </button>`;
         }
     });
@@ -137,6 +190,7 @@ async function submitRealAttendance(day, slot, status) {
     const swalResult = await Swal.fire({
         title: 'หมายเหตุการลงเวลา',
         text: 'ระบุหมายเหตุเพิ่มเติม (ถ้ามี)',
+        icon: 'question',
         input: 'text',
         inputPlaceholder: 'เช่น ลากิจ, ลาป่วย (เว้นว่างได้)',
         showCancelButton: true,
@@ -146,31 +200,46 @@ async function submitRealAttendance(day, slot, status) {
         cancelButtonColor: '#6c757d'
     });
 
-    if (!swalResult.isConfirmed) return;
+    if (!swalResult.isConfirmed) {
+        return;
+    }
 
     let userNote = swalResult.value ? swalResult.value.trim() : "";
-    let finalNote = userNote !== "" ? `[${status}] ${userNote}` : `[${status}]`;
+    let finalNote = userNote !== "" ? "[" + status + "] " + userNote : "[" + status + "]";
 
-    Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    Swal.fire({ 
+        title: 'กำลังบันทึก...', 
+        allowOutsideClick: false, 
+        didOpen: () => { 
+            Swal.showLoading(); 
+        } 
+    });
+
+    let payload = {
+        personal_id: localStorage.getItem("tms_personal_id"),
+        day_no: day,
+        time_slot: slot,
+        note: finalNote
+    };
 
     try {
         await fetch(GAS_API_URL, { 
             method: 'POST', 
-            body: JSON.stringify({ action: 'submitAttendance', payload: { personal_id: localStorage.getItem("tms_personal_id"), day_no: day, time_slot: slot, note: finalNote } }) 
+            body: JSON.stringify({ action: 'submitAttendance', payload: payload }) 
         });
+        
         openAttendanceForm();
         Swal.close();
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'ส่งข้อมูลไม่สำเร็จ', 'error');
+        Swal.fire('ผิดพลาด', 'ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้งครับ', 'error');
     }
 }
 
 
 // ============================================================
-// [#EXAM_LOGIC]: ระบบข้อสอบ (อัปเดต V30.0 ครบ 8 ข้อตามที่พี่บาบูสั่ง)
+// [#EXAM_LOGIC]: ระบบข้อสอบ
 // ============================================================
 
-// [1] Anti-Cheat แจ้งเตือนสลับหน้าจอ
 document.addEventListener('visibilitychange', () => {
     if (isExamActive && document.visibilityState === 'hidden') {
         Swal.fire({
@@ -182,7 +251,6 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// [2] ฟังก์ชัน Auto-Save คำตอบแบบ Real-time ลง LocalStorage
 function saveExamDraft(questionId, selectedValue) {
     let userId = localStorage.getItem("tms_personal_id");
     let testType = globalExamData.activeExam.type;
@@ -204,7 +272,7 @@ async function openExamForm() {
     contentArea.innerHTML = `
         <div class="text-center p-5">
             <div class="spinner-border text-warning"></div>
-            <p class="mt-2 text-muted">กำลังดึงข้อมูลข้อสอบ...</p>
+            <p class="mt-2 text-muted">กำลังเตรียมชุดข้อสอบล่าสุด...</p>
         </div>`;
 
     try {
@@ -219,7 +287,8 @@ async function openExamForm() {
 
         if (result.status === 'success') {
             globalExamData = result;
-            // [แก้ไขใหม่]: เช็คประเภทข้อสอบเพื่อแปลงเป็นภาษาไทย
+            
+            // [อัปเดตภาษาไทย]
             let thaiTitle = '';
             if (result.activeExam.type === 'PRE') {
                 thaiTitle = 'แบบทดสอบก่อนการอบรม (Pre-Test)';
@@ -228,15 +297,14 @@ async function openExamForm() {
             } else {
                 thaiTitle = 'แบบทดสอบ ' + result.activeExam.type;
             }
-            // นำคำภาษาไทยไปแสดงผลที่ Lable
+            
             document.getElementById("examTitleLabel").innerText = thaiTitle;
-
             renderExamStartScreen(); 
         } else {
             contentArea.innerHTML = `
                 <div class="alert alert-info text-center rounded-5 p-5 shadow-sm">
                     <h5 class="fw-bold">${result.message}</h5>
-                    <p class="mb-0 text-muted small">โปรดรอการเปิดระบบจากผู้ดูแล</p>
+                    <p class="mb-0 text-muted small">โปรดรอการเปิดระบบจากผู้จัดอบรม</p>
                 </div>`;
         }
     } catch (error) {
@@ -244,7 +312,6 @@ async function openExamForm() {
     }
 }
 
-// [3] หน้า Start Screen พร้อมระบบตรวจสอบสิทธิ์สอบ/สอบซ่อม
 function renderExamStartScreen() {
     let contentArea = document.getElementById("examContentArea");
     let exam = globalExamData.activeExam;
@@ -256,7 +323,6 @@ function renderExamStartScreen() {
     let btnLabel = 'เริ่มทำแบบทดสอบ';
     let btnColor = 'btn-success';
 
-    // กรณี PRE-TEST (ให้สิทธิ์ 1 ครั้งเท่านั้น)
     if (exam.type === 'PRE' && attempts >= 1) {
         contentArea.innerHTML = `
             <div class="alert alert-success text-center p-5 rounded-4 shadow-sm my-5">
@@ -266,7 +332,6 @@ function renderExamStartScreen() {
         return;
     }
 
-    // กรณี POST-TEST (ให้สิทธิ์ 2 ครั้ง + เช็คผ่านเกณฑ์)
     if (exam.type === 'POST' && attempts >= 1) {
         let bestScorePercent = (bestScore / (qCount * 2)) * 100;
         
@@ -289,7 +354,6 @@ function renderExamStartScreen() {
             return;
         } 
         else {
-            // ยังไม่ผ่าน และใช้สิทธิ์ไปแค่ 1 ครั้ง -> เปิดให้สอบซ่อม
             retakeMessage = `
                 <div class="alert alert-warning mb-4 text-start shadow-sm rounded-4">
                     ⚠️ ท่านยังไม่ผ่านเกณฑ์ (${exam.passing_percent}%) ระบบให้สิทธิ์สอบซ่อม (ครั้งที่ 2)
@@ -299,33 +363,31 @@ function renderExamStartScreen() {
         }
     }
 
-    // [4] นำเทมเพลต HTML ที่พี่บาบูให้มา ใส่ลงไปเป๊ะๆ
     contentArea.innerHTML = `
         <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
             <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
             ${retakeMessage}
             <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ (ข้อละ 2 คะแนน)</p>
             
-            <div class="alert alert-info text-start small mx-auto" style="max-width: 520px;">
-                <p class="fw-bold mb-2">📋 ข้อตกลงการทดสอบ:</p>
+            <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
                 <ul class="mb-0">
-                    <li>⏱️ ระบบเริ่มจับเวลา 30 นาทีทันที หลังกดปุ่มเริ่มทำแบบทดสอบ</li>
+                    <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม</li>
                     <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
                     <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะแจ้งเตือน</li>
                 </ul>
             </div>
             
-            <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">
+            <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" 
+                    onclick="startExamTimer()">
                 ${btnLabel}
             </button>
-        </div>
-    `;
+        </div>`;
 }
 
 function startExamTimer() {
     isExamActive = true; 
     renderExamQuestions(); 
-    startTimer(30 * 60); // 30 นาที
+    startTimer(30 * 60); 
     
     document.getElementById("btnSubmitExam").classList.remove("d-none");
     document.getElementById("examTimerBadge").classList.remove("d-none");
@@ -335,13 +397,11 @@ function renderExamQuestions() {
     let html = '';
     const labels = ['ก.', 'ข.', 'ค.', 'ง.'];
     
-    // ดึงข้อมูล Draft จาก LocalStorage มาแสดง (ถ้ามี)
     let userId = localStorage.getItem("tms_personal_id");
     let testType = globalExamData.activeExam.type;
     let draftKey = "tms_draft_" + userId + "_" + testType;
     let draftData = JSON.parse(localStorage.getItem(draftKey) || "{}");
     
-    // สลับข้อสอบ
     globalExamData.questions.sort(() => {
         return Math.random() - 0.5;
     });
@@ -351,7 +411,6 @@ function renderExamQuestions() {
             <div class="card mb-4 p-5 border-0 shadow-sm rounded-4 bg-white border-start border-5 border-warning fade-in">
                 <p class="fw-bold fs-5 mb-4">${i + 1}. ${q.question}</p>`;
         
-        // สลับตัวเลือก A, B, C, D
         let optionsKeys = ['A', 'B', 'C', 'D'];
         optionsKeys.sort(() => {
             return Math.random() - 0.5;
@@ -376,7 +435,6 @@ function renderExamQuestions() {
     document.getElementById("examContentArea").innerHTML = html;
 }
 
-// [5] ระบบจับเวลา และแจ้งเตือน 5 นาทีสุดท้าย
 function startTimer(sec) {
     let display = document.getElementById("examTimeDisplay");
     
@@ -386,7 +444,6 @@ function startTimer(sec) {
         
         display.innerText = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
         
-        // แจ้งเตือนเมื่อเหลือ 300 วินาที (5 นาทีสุดท้าย)
         if (sec === 300) {
             Swal.fire({
                 toast: true,
@@ -412,7 +469,6 @@ function startTimer(sec) {
     }, 1000);
 }
 
-// [6] ส่งข้อสอบและแยก Split Logic แจ้งเตือนผลลัพธ์
 async function submitRealExam(isAuto = false) {
     if (!isAuto) {
         const confirm = await Swal.fire({ 
@@ -431,9 +487,8 @@ async function submitRealExam(isAuto = false) {
     clearInterval(examCountdown);
     
     let score = 0;
-    let maxScore = globalExamData.questions.length * 2; // ข้อละ 2 คะแนน
+    let maxScore = globalExamData.questions.length * 2; 
 
-    // คำนวณคะแนน
     globalExamData.questions.forEach(q => {
         let sel = document.querySelector(`input[name="q_${q.id}"]:checked`);
         if (sel && sel.value === q.answer) {
@@ -456,16 +511,13 @@ async function submitRealExam(isAuto = false) {
             body: JSON.stringify({ action: 'submitExam', payload: payload }) 
         });
         
-        // เคลียร์ Draft ทิ้งเมื่อสอบเสร็จ
         let userId = localStorage.getItem("tms_personal_id");
         localStorage.removeItem("tms_draft_" + userId + "_" + globalExamData.activeExam.type);
         
-        // [7] SPLIT LOGIC แจ้งเตือนผลสอบ
         let percentage = (score / maxScore) * 100;
         let passPercent = globalExamData.activeExam.passing_percent;
         
         if (globalExamData.activeExam.type === 'PRE') {
-            // แบบที่ 1: PRE-TEST โชว์แค่คะแนนและคำชื่นชม (ไม่ตัดสินตก)
             Swal.fire({
                 icon: 'info',
                 title: 'บันทึกคะแนนพื้นฐานสำเร็จ!',
@@ -476,7 +528,6 @@ async function submitRealExam(isAuto = false) {
             });
         } 
         else {
-            // แบบที่ 2: POST-TEST ตัดสินผ่านเกณฑ์/สอบซ่อม
             if (percentage >= passPercent) {
                 Swal.fire({
                     icon: 'success',
@@ -487,7 +538,7 @@ async function submitRealExam(isAuto = false) {
                     backToDashboard('examSection');
                 });
             } else {
-                let currentAttempt = globalExamData.attempts + 1; // นับรอบที่เพิ่งส่งไป
+                let currentAttempt = globalExamData.attempts + 1;
                 if (currentAttempt < 2) {
                     Swal.fire({
                         icon: 'warning',
@@ -509,7 +560,6 @@ async function submitRealExam(isAuto = false) {
                 }
             }
         }
-        
     } catch (e) {
         Swal.fire('ผิดพลาด', 'ส่งคะแนนไม่สำเร็จ กรุณาแจ้งเจ้าหน้าที่', 'error');
     }
@@ -517,7 +567,7 @@ async function submitRealExam(isAuto = false) {
 
 
 // ============================================================
-// [#SURVEY_LOGIC]: ระบบประเมินผล (สมบูรณ์ 100% จาก V26)
+// [#SURVEY_LOGIC]: ระบบประเมิน (Smart Rendering Logic)
 // ============================================================
 
 async function openSurveyForm(type) {
@@ -526,11 +576,14 @@ async function openSurveyForm(type) {
     document.getElementById("surveySection").classList.remove("d-none");
     
     let contentArea = document.getElementById("surveyContentArea");
-    document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
+    
+    // ตั้งชื่อให้ตรงกับเมนูที่กด
+    document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินภาพรวมโครงการ' : 'ประเมินวิทยากร';
     
     contentArea.innerHTML = `
         <div class="text-center p-5 my-5">
             <div class="spinner-border text-success"></div>
+            <p class="mt-2 text-muted">กำลังเตรียมข้อมูลแบบประเมิน...</p>
         </div>`;
     
     document.getElementById("btnSubmitSurvey").classList.add("d-none");
@@ -545,8 +598,8 @@ async function openSurveyForm(type) {
         if (type === 'SPEAKER_SURVEY') { 
             renderSpeakerSelect(); 
             contentArea.innerHTML = `
-                <div class="text-center text-muted p-5 bg-white rounded-5 border border-dashed">
-                    กรุณาเลือกวิทยากรที่ช่องด้านบน
+                <div class="text-center text-muted p-5 bg-white rounded-5 border border-dashed shadow-sm">
+                    กรุณาเลือกรายชื่อวิทยากรที่ช่องด้านบน เพื่อเริ่มทำแบบประเมินครับ
                 </div>`;
         } else { 
             document.getElementById("speakerSelectionArea").classList.add("d-none");
@@ -554,16 +607,23 @@ async function openSurveyForm(type) {
             document.getElementById("btnSubmitSurvey").classList.remove("d-none"); 
         }
     } catch (e) {
-        contentArea.innerHTML = '<div class="alert alert-danger text-center">โหลดล้มเหลว</div>';
+        contentArea.innerHTML = '<div class="alert alert-danger text-center">ดาวน์โหลดข้อมูลล้มเหลว</div>';
     }
 }
 
+// ดึงวิทยากรมาแสดงใน Dropdown (อิงจาก is_active = TRUE)
 function renderSpeakerSelect() {
     let select = document.getElementById("speakerSelect");
     select.innerHTML = '<option value="" disabled selected>-- คลิกเพื่อเลือกวิทยากร --</option>';
     
+    if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>ไม่มีวิทยากรที่เปิดประเมินในขณะนี้</option>';
+        return;
+    }
+
     globalSurveyData.speakers.forEach(spk => {
-        select.innerHTML += `<option value="${spk.id}">${spk.name}</option>`;
+        // นำหัวข้อ (topic) มาแสดงคู่กับชื่อ เพื่อให้คนประเมินเลือกง่ายขึ้น
+        select.innerHTML += `<option value="${spk.id}">${spk.name} (หัวข้อ: ${spk.topic})</option>`;
     });
     
     document.getElementById("speakerSelectionArea").classList.remove("d-none");
@@ -573,6 +633,7 @@ function renderSpeakerSelect() {
     };
 }
 
+// [COMMENT: UPDATE V31.0 - Smart Rendering ตรวจจับประเภทตัวเลือกอัตโนมัติ]
 function renderSurveyQuestions() {
     let html = '';
     let grouped = {};
@@ -590,11 +651,16 @@ function renderSurveyQuestions() {
         grouped[cat].forEach(q => {
             let optionsHtml = '';
             
-            if (cat.includes("ตอนที่ 2")) {
+            // เช็คว่าตัวเลือกทั้งหมดในข้อนี้ เป็นตัวเลข (เช่น 5, 4, 3, 2, 1) หรือไม่
+            let isNumericRating = q.options.every(opt => !isNaN(opt) && opt.trim() !== "");
+            
+            // 🟢 แบบที่ 1: เป็นตัวเลข -> สร้างปุ่มวงกลมแนวนอน
+            if (isNumericRating) {
                 optionsHtml += `
                     <div class="horizontal-rating-wrapper">
                         <div class="horizontal-rating-container">`;
                 
+                // บังคับเรียงจาก 5 ไป 1 (มากไปน้อย)
                 const sortedRatings = [...q.options].sort((a, b) => {
                     return b - a;
                 });
@@ -617,7 +683,15 @@ function renderSurveyQuestions() {
                         </div>
                     </div>`;
             } 
-            else if (cat.includes("ตอนที่ 1")) {
+            // 🔵 แบบที่ 2: เป็นคำว่า TEXT -> สร้างกล่องข้อความ
+            else if (q.options[0] === 'TEXT') {
+                optionsHtml = `
+                    <textarea class="form-control rounded-4 shadow-sm" 
+                              name="sq_${q.id}" rows="3" 
+                              placeholder="ระบุความคิดเห็นหรือข้อเสนอแนะเพิ่มเติม..."></textarea>`;
+            }
+            // 🟣 แบบที่ 3: เป็นข้อความทั่วไป (เช่น ชาย, หญิง) -> สร้าง Radio แนวดิ่ง
+            else {
                 q.options.forEach(opt => {
                     optionsHtml += `
                         <div class="form-check vertical-form-check">
@@ -628,12 +702,6 @@ function renderSurveyQuestions() {
                             </label>
                         </div>`;
                 });
-            }
-            else if (q.options[0] === 'TEXT') {
-                optionsHtml = `
-                    <textarea class="form-control rounded-4 shadow-sm" 
-                              name="sq_${q.id}" rows="3" 
-                              placeholder="ระบุข้อเสนอแนะ..."></textarea>`;
             }
 
             html += `
@@ -663,27 +731,50 @@ async function submitRealSurvey() {
     });
 
     if (!complete) { 
-        Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'ตอบให้ครบทุกข้อก่อนครับ' }); 
+        Swal.fire({
+            icon: 'warning',
+            title: 'ข้อมูลไม่ครบ',
+            text: 'กรุณาตอบแบบประเมินให้ครบทุกข้อก่อนส่งข้อมูลครับ'
+        }); 
         return; 
     }
     
     let target = currentSurveyType === 'PROJECT_SURVEY' ? 'PROJECT' : document.getElementById("speakerSelect").value;
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    
+    Swal.fire({ 
+        title: 'กำลังบันทึกผล...', 
+        allowOutsideClick: false, 
+        didOpen: () => { 
+            Swal.showLoading(); 
+        }
+    });
     
     try {
         let action = currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval';
-        await fetch(GAS_API_URL, { 
+        
+        let res = await fetch(GAS_API_URL, { 
             method: 'POST', 
             body: JSON.stringify({ 
                 action: action, 
-                payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target } 
+                payload: { 
+                    personal_id: localStorage.getItem("tms_personal_id"), 
+                    answers: answers, 
+                    target_id: target 
+                } 
             }) 
         });
+        let result = await res.json();
         
-        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', text: 'ขอบคุณครับ' }).then(() => {
-            backToDashboard('surveySection');
-        });
+        if (result.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'บันทึกสำเร็จ',
+                text: 'ขอบคุณสำหรับข้อมูลประเมินที่มีคุณค่าครับ'
+            }).then(() => {
+                backToDashboard('surveySection');
+            });
+        }
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'บันทึกไม่ได้', 'error');
+        Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้ในขณะนี้', 'error');
     }
 }
