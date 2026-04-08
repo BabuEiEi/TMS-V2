@@ -295,7 +295,8 @@ function renderExamStartScreen() {
             ${retakeMessage}
             <p class="text-muted fs-5">แบบทดสอบนี้มีทั้งหมด <b class="text-dark">${qCount}</b> ข้อ (ข้อละ 2 คะแนน)</p>
             
-            <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
+            <div class="alert alert-info text-start small mx-auto" style="max-width: 520px;">
+                <p class="fw-bold mb-2">📋 ข้อตกลงการทดสอบ:</p>
                 <ul class="mb-0">
                     <li>⏱️ ระบบเริ่มจับเวลา 30 นาทีทันที หลังกดปุ่มเริ่มทำแบบทดสอบ</li>
                     <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
