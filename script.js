@@ -297,7 +297,7 @@ function renderExamStartScreen() {
             
             <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
                 <ul class="mb-0">
-                    <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม โดยเวลาสอบคือ 30 นาที</li>
+                    <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม <b>โดยเวลาสอบคือ</b> <b>${exam.duration} นาที</b></li>
                     <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
                     <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะแจ้งเตือน</li>
                 </ul>
