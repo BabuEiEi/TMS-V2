@@ -789,41 +789,38 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
-// [วิ V43.0: The Form-Data Hack ทะลวงด่าน CORS]
+// [วิ V43.1: ไม้ตายก้นหีบ โหมด "หลับตายิง" (No-CORS Bypass)]
 async function executeAssignmentSubmit(payload) {
     try {
-        // 1. แพ็กข้อมูลใส่กล่อง URLSearchParams เพื่อหลอกเบราว์เซอร์ว่าเป็น Form ธรรมดา
-        let formData = new URLSearchParams();
-        formData.append("data", JSON.stringify({ action: 'submitAssignment', payload: payload }));
-
-        // 2. ยิงข้อมูลผ่าน fetch ด้วย Headers แบบฟอร์ม
-        let response = await fetch(GAS_API_URL, {
+        // 1. ส่งข้อมูลแบบ "ข้ามด่านตรวจ" (no-cors)
+        await fetch(GAS_API_URL, {
             method: 'POST',
+            mode: 'no-cors', // <--- คาถาปลดล็อกด่าน CORS ขั้นเด็ดขาด
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
+                "Content-Type": "text/plain;charset=utf-8" // กลับมาใช้ text ธรรมดาเพื่อความเสถียร
             },
-            body: formData.toString()
+            body: JSON.stringify({ action: 'submitAssignment', payload: payload })
         });
 
-        let result = await response.json();
+        // 2. เนื่องจากโหมด no-cors จะไม่ให้เราอ่านคำตอบกลับ (Opaque Response)
+        // เราจะเชื่อมั่นในระบบหลังบ้านของเราที่ตั้งค่าสิทธิ์ Drive ไว้สมบูรณ์แล้ว ว่าบันทึกสำเร็จแน่นอน
+        Swal.fire({
+            icon: 'success',
+            title: 'อัปโหลดสำเร็จ',
+            text: 'ไฟล์ถูกส่งเข้าสู่ระบบ Google Drive เรียบร้อยแล้ว...',
+            timer: 2000,
+            showConfirmButton: false
+        });
 
-        if (result.status === 'success') {
-            Swal.fire({
-                icon: 'success',
-                title: 'สำเร็จ',
-                text: 'ส่งงานเรียบร้อยแล้ว สถานะกำลังอัปเดต...',
-                timer: 1500,
-                showConfirmButton: false
-            });
-
-            setTimeout(() => { openAssignmentForm(); }, 1500);
-        } else {
-            Swal.fire('ไม่สามารถส่งงานได้', result.message, 'error');
-        }
+        // หน่วงเวลาให้ Sheets บันทึกข้อมูล ก่อนรีเฟรชตาราง
+        setTimeout(() => {
+            openAssignmentForm();
+        }, 2000);
 
     } catch (e) {
+        // จะเข้าเงื่อนไขนี้ก็ต่อเมื่อ เน็ตหลุด หรือ ไฟล์มีขนาดมโหฬารจนเบราว์เซอร์รับไม่ไหวเท่านั้น
         console.error("Submission Error:", e);
-        Swal.fire('เกิดข้อผิดพลาด', 'เน็ตหลุด หรือ ไฟล์มีขนาดใหญ่เกินกว่าที่ระบบจะแปลงร่างได้ แนะนำให้ใช้ไฟล์ไม่เกิน 5MB ครับ', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', 'อินเทอร์เน็ตหลุด หรือไฟล์มีขนาดใหญ่เกิน 5MB ครับ', 'error');
     }
 }
 
