@@ -643,46 +643,21 @@ function renderAssignmentDashboard() {
     `;
 }
 
-// [วิ V42.3: Bypass SweetAlert File Object Serialization Issue]
+// [วิ V45.0: The Holy Grail (Native Blob + Iframe Bypass)]
 async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
-    let inputHtml = '';
-
-    // 1. วิสร้างตัวแปรดักรอไฟล์และลิงก์ไว้ข้างนอก (รอดพ้นจากการบิดเบือนของ Pop-up)
-    let fileToSubmit = null;
-    let linkToSubmit = '';
+    let inputHtml = '', fileToSubmit = null, linkToSubmit = '';
 
     if (subType === 'LINK') {
-        inputHtml = `
-            <div class="text-start mt-3">
-                <label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label>
-                <input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://...">
-            </div>
-        `;
+        inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label><input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://..."></div>`;
     } else {
-        inputHtml = `
-            <div class="text-start mt-3">
-                <label class="form-label fw-bold text-primary">เลือกไฟล์จากเครื่องของท่าน</label>
-                <input type="file" id="swal-input-file" class="form-control rounded-4 p-2">
-                <small class="text-danger mt-1 d-block">*ระบบแนะนำให้ส่งไฟล์ขนาดไม่เกิน 5MB</small>
-            </div>
-        `;
+        inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">เลือกไฟล์จากเครื่องของท่าน</label><input type="file" id="swal-input-file" class="form-control rounded-4 p-2"><small class="text-danger mt-1 d-block">*ระบบจะส่งไฟล์ตรงเข้า Drive (รับประกันความเสถียร)</small></div>`;
     }
 
     const { isConfirmed } = await Swal.fire({
         title: 'ส่งภาระงาน',
-        html: `
-            <div class="alert alert-light border text-start mb-0 shadow-sm">
-                <p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p>
-                <hr class="my-2 text-secondary">
-                <div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div>
-            </div>
-            ${inputHtml}
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'ถัดไป (Preview)',
-        cancelButtonText: 'ยกเลิก',
+        html: `<div class="alert alert-light border text-start mb-0 shadow-sm"><p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p><hr class="my-2 text-secondary"><div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div></div>${inputHtml}`,
+        focusConfirm: false, showCancelButton: true, confirmButtonText: 'ถัดไป (Preview)', cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             if (subType === 'LINK') {
                 linkToSubmit = document.getElementById('swal-input-link').value;
@@ -691,7 +666,6 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
             } else {
                 let fileInput = document.getElementById('swal-input-file');
                 if (!fileInput.files.length) { Swal.showValidationMessage('กรุณาเลือกไฟล์ครับ'); return false; }
-                // 2. ดักจับ Object ไฟล์ใส่ตัวแปรไว้ตรงนี้เลย
                 fileToSubmit = fileInput.files[0];
                 return true;
             }
@@ -701,139 +675,89 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     if (!isConfirmed) return;
 
     let previewDataHtml = '';
-
     if (subType === 'LINK') {
         let iframeUrl = linkToSubmit;
-        if (linkToSubmit.includes('drive.google.com/file/d/')) {
-            iframeUrl = linkToSubmit.replace(/\/view.*/, '/preview');
-        }
-        previewDataHtml = `
-            <div class="mb-3 text-center border rounded-3 overflow-hidden shadow-sm bg-light" style="height: 250px; position: relative;">
-                <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-            <p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${linkToSubmit}" target="_blank">${linkToSubmit}</a></p>
-        `;
+        if (linkToSubmit.includes('drive.google.com/file/d/')) { iframeUrl = linkToSubmit.replace(/\/view.*/, '/preview'); }
+        previewDataHtml = `<div class="mb-3 text-center border rounded-3 overflow-hidden shadow-sm bg-light" style="height: 250px; position: relative;"><iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe></div><p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${linkToSubmit}" target="_blank">${linkToSubmit}</a></p>`;
     } else {
-        // 3. ใช้ไฟล์ของจริงที่ถูกดักไว้มาทำงานต่อ
-        let fileType = fileToSubmit.type || '';
-        let fileName = fileToSubmit.name || 'ไม่ทราบชื่อไฟล์';
-        let fileSize = fileToSubmit.size ? (fileToSubmit.size / 1024).toFixed(2) : '0.00';
-
-        let fileUrl = URL.createObjectURL(fileToSubmit);
-        let previewElement = '';
-
-        if (fileType.startsWith('image/')) {
-            previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`;
-        } else if (fileType === 'application/pdf') {
-            previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`;
-        } else {
-            previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ (ไม่รองรับการพรีวิวสด)</p></div></div>`;
-        }
-
-        previewDataHtml = `
-            <div class="mb-3 text-center border rounded-3 p-2 bg-light shadow-sm">
-                ${previewElement}
-            </div>
-            <p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${fileName} <br>ขนาด: ${fileSize} KB</p>
-        `;
+        let fileType = fileToSubmit.type || '', fileName = fileToSubmit.name || 'ไม่ทราบชื่อไฟล์', fileSize = fileToSubmit.size ? (fileToSubmit.size / 1024).toFixed(2) : '0.00';
+        let fileUrl = URL.createObjectURL(fileToSubmit), previewElement = '';
+        if (fileType.startsWith('image/')) { previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`; }
+        else if (fileType === 'application/pdf') { previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`; }
+        else { previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ</p></div></div>`; }
+        previewDataHtml = `<div class="mb-3 text-center border rounded-3 p-2 bg-light shadow-sm">${previewElement}</div><p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${fileName} <br>ขนาด: ${fileSize} KB</p>`;
     }
 
     const confirmSubmit = await Swal.fire({
-        icon: 'question',
-        title: 'คุณยืนยันที่จะส่งงานนี้ใช่หรือไม่?',
-        width: '600px',
-        html: `
-            <div class="text-start mt-2">
-                <label class="fw-bold mb-2">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>
-                ${previewDataHtml}
-                <div class="alert alert-danger mt-3 small">
-                    <b>คำเตือน:</b> ท่านสามารถส่งงานได้เพียงครั้งเดียวเท่านั้น<br>
-                    (ท่านสามารถกดยกเลิกเองได้ หาก Mentor ยังไม่ได้ลงคะแนน)
-                </div>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยันการส่งงาน',
-        cancelButtonText: 'กลับไปแก้ไข',
-        confirmButtonColor: '#198754'
+        icon: 'question', title: 'ยืนยันที่จะส่งงานนี้?', width: '600px',
+        html: `<div class="text-start mt-2"><label class="fw-bold mb-2">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>${previewDataHtml}</div>`,
+        showCancelButton: true, confirmButtonText: 'ยืนยันการส่งงาน', confirmButtonColor: '#198754'
     });
 
     if (!confirmSubmit.isConfirmed) return;
 
-    Swal.fire({ title: 'กำลังอัปโหลดและบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-    let payload = {
-        personal_id: localStorage.getItem("tms_personal_id"),
-        assign_id: assignId,
-        submission_type: subType,
-        target_folder_id: asnConfig.target_folder_id,
-        is_late: isLate
-    };
+    let payload = { personal_id: localStorage.getItem("tms_personal_id"), assign_id: assignId, submission_type: subType, target_folder_id: asnConfig.target_folder_id, is_late: isLate };
 
     if (subType === 'LINK') {
         payload.file_link = linkToSubmit;
         executeAssignmentSubmit(payload);
     } else {
-        let reader = new FileReader();
-        reader.readAsDataURL(fileToSubmit);
-        reader.onload = function () {
-            let base64Data = reader.result.split(',')[1];
-            payload.base64Data = base64Data;
-            payload.fileName = fileName;
-            payload.mimeType = fileType;
-            executeAssignmentSubmit(payload);
-        };
-        reader.onerror = function (error) {
-            Swal.fire('ผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้', 'error');
-        };
+        // ส่งไฟล์ดิบๆ (Object) เข้าสู่ฟังก์ชันประหารเลย!
+        executeAssignmentSubmit(payload, fileToSubmit);
     }
 }
 
-// [วิ V44.0: The Hidden Iframe Bypass (ทะลวง CORS 100%)]
-function executeAssignmentSubmit(payload) {
-    // 1. สร้างหน้าต่างล่องหน (Iframe)
-    let iframeName = "hidden_upload_iframe_" + new Date().getTime();
-    let iframe = document.createElement("iframe");
-    iframe.setAttribute("name", iframeName);
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+async function executeAssignmentSubmit(payload, fileObj = null) {
+    Swal.fire({ title: 'กำลังอัปโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    // 2. สร้างฟอร์มจำแลงชี้เป้าไปที่ Google
-    let form = document.createElement("form");
-    form.setAttribute("method", "POST");
-    form.setAttribute("action", GAS_API_URL);
-    form.setAttribute("target", iframeName); // ยิงไฟล์เข้า Iframe ล่องหน
-    form.style.display = "none";
+    if (payload.submission_type === 'LINK') {
+        try {
+            let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAssignment', payload: payload }) });
+            let result = await response.json();
+            if (result.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'สำเร็จ', timer: 1500, showConfirmButton: false });
+                setTimeout(() => openAssignmentForm(), 1500);
+            } else { Swal.fire('ข้อผิดพลาด', result.message, 'error'); }
+        } catch (e) { Swal.fire('ข้อผิดพลาด', 'เน็ตหลุด', 'error'); }
+    } else {
+        // [หัวใจหลัก] สร้างฟอร์มส่งไฟล์แนบ ข้ามด่านพี่ยาม Google
+        let iframeName = "upload_iframe_" + new Date().getTime();
+        let iframe = document.createElement("iframe");
+        iframe.name = iframeName; iframe.style.display = "none";
+        document.body.appendChild(iframe);
 
-    // 3. แพ็กข้อมูลใส่กล่อง (Input)
-    let input = document.createElement("input");
-    input.setAttribute("type", "hidden");
-    input.setAttribute("name", "data");
-    input.value = JSON.stringify({ action: 'submitAssignment', payload: payload });
+        let form = document.createElement("form");
+        form.action = GAS_API_URL; form.method = "POST";
+        form.enctype = "multipart/form-data"; // คาถาสำคัญ: ให้กอดไฟล์ข้ามโดเมน
+        form.target = iframeName; form.style.display = "none";
 
-    form.appendChild(input);
-    document.body.appendChild(form);
+        // ย้ายไฟล์เข้าฟอร์ม
+        let dt = new DataTransfer(); dt.items.add(fileObj);
+        let fileInput = document.createElement("input");
+        fileInput.type = "file"; fileInput.name = "file"; fileInput.files = dt.files;
+        form.appendChild(fileInput);
 
-    // 4. ตั้งตารอให้ Iframe โหลดเสร็จ (แปลว่า Google เซฟลง Drive เสร็จแล้วจริงๆ)
-    iframe.onload = function () {
-        Swal.fire({
-            icon: 'success',
-            title: 'สำเร็จ!',
-            text: 'ส่งงานและอัปโหลดไฟล์เข้า Google Drive เรียบร้อยแล้ว',
-            timer: 2000,
-            showConfirmButton: false
-        });
+        // แพ็กข้อมูลออเดอร์
+        let params = { action: 'submitAssignmentFILE', personal_id: payload.personal_id, assign_id: payload.assign_id, target_folder_id: payload.target_folder_id, is_late: payload.is_late };
+        for (let key in params) {
+            let hidden = document.createElement("input");
+            hidden.type = "hidden"; hidden.name = key; hidden.value = params[key];
+            form.appendChild(hidden);
+        }
 
-        // ลบฟอร์มล่องหนทิ้ง และอัปเดตหน้าจอ
-        setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-            openAssignmentForm();
-        }, 2000);
-    };
+        document.body.appendChild(form);
 
-    // 5. กดปุ่มส่งฟอร์ม!
-    form.submit();
+        // รอเสียงสวรรค์จากหลังบ้าน
+        iframe.onload = function () {
+            Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์เข้า Drive เรียบร้อยแล้ว', timer: 2000, showConfirmButton: false });
+            setTimeout(() => {
+                document.body.removeChild(form); document.body.removeChild(iframe);
+                openAssignmentForm();
+            }, 2000);
+        };
+
+        form.submit();
+    }
 }
 
 async function cancelAssignment(assignId) {
