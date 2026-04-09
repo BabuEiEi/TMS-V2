@@ -643,10 +643,14 @@ function renderAssignmentDashboard() {
     `;
 }
 
-// [วิรวมฮิต V42.2: สมบูรณ์ทั้ง UX เว้นบรรทัด, ระบบ Smart Preview และกันไฟล์หล่นหาย]
+// [วิ V42.3: Bypass SweetAlert File Object Serialization Issue]
 async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
     let inputHtml = '';
+
+    // 1. วิสร้างตัวแปรดักรอไฟล์และลิงก์ไว้ข้างนอก (รอดพ้นจากการบิดเบือนของ Pop-up)
+    let fileToSubmit = null;
+    let linkToSubmit = '';
 
     if (subType === 'LINK') {
         inputHtml = `
@@ -665,7 +669,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
         `;
     }
 
-    const { value: formValues, isConfirmed } = await Swal.fire({
+    const { isConfirmed } = await Swal.fire({
         title: 'ส่งภาระงาน',
         html: `
             <div class="alert alert-light border text-start mb-0 shadow-sm">
@@ -681,14 +685,15 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
         cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             if (subType === 'LINK') {
-                let link = document.getElementById('swal-input-link').value;
-                if (!link) { Swal.showValidationMessage('กรุณาวางลิงก์ผลงานครับ'); return false; }
-                return { type: 'LINK', link: link };
+                linkToSubmit = document.getElementById('swal-input-link').value;
+                if (!linkToSubmit) { Swal.showValidationMessage('กรุณาวางลิงก์ผลงานครับ'); return false; }
+                return true;
             } else {
                 let fileInput = document.getElementById('swal-input-file');
                 if (!fileInput.files.length) { Swal.showValidationMessage('กรุณาเลือกไฟล์ครับ'); return false; }
-                // [จุดสำคัญ] ต้องแน่ใจว่าส่ง Object ไฟล์ไป ไม่ใช่แค่ข้อความ
-                return { type: 'FILE', file: fileInput.files[0] };
+                // 2. ดักจับ Object ไฟล์ใส่ตัวแปรไว้ตรงนี้เลย
+                fileToSubmit = fileInput.files[0];
+                return true;
             }
         }
     });
@@ -697,29 +702,29 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
 
     let previewDataHtml = '';
 
-    // -- ระบบ Smart Preview --
-    if (formValues.type === 'LINK') {
-        let rawUrl = formValues.link;
-        let iframeUrl = rawUrl;
-
-        if (rawUrl.includes('drive.google.com/file/d/')) {
-            iframeUrl = rawUrl.replace(/\/view.*/, '/preview');
+    if (subType === 'LINK') {
+        let iframeUrl = linkToSubmit;
+        if (linkToSubmit.includes('drive.google.com/file/d/')) {
+            iframeUrl = linkToSubmit.replace(/\/view.*/, '/preview');
         }
-
         previewDataHtml = `
             <div class="mb-3 text-center border rounded-3 overflow-hidden shadow-sm bg-light" style="height: 250px; position: relative;">
                 <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
-            <p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${rawUrl}" target="_blank">${rawUrl}</a></p>
+            <p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${linkToSubmit}" target="_blank">${linkToSubmit}</a></p>
         `;
     } else {
-        let file = formValues.file;
-        let fileUrl = URL.createObjectURL(file);
+        // 3. ใช้ไฟล์ของจริงที่ถูกดักไว้มาทำงานต่อ
+        let fileType = fileToSubmit.type || '';
+        let fileName = fileToSubmit.name || 'ไม่ทราบชื่อไฟล์';
+        let fileSize = fileToSubmit.size ? (fileToSubmit.size / 1024).toFixed(2) : '0.00';
+
+        let fileUrl = URL.createObjectURL(fileToSubmit);
         let previewElement = '';
 
-        if (file.type.startsWith('image/')) {
+        if (fileType.startsWith('image/')) {
             previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`;
-        } else if (file.type === 'application/pdf') {
+        } else if (fileType === 'application/pdf') {
             previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`;
         } else {
             previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ (ไม่รองรับการพรีวิวสด)</p></div></div>`;
@@ -729,7 +734,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
             <div class="mb-3 text-center border rounded-3 p-2 bg-light shadow-sm">
                 ${previewElement}
             </div>
-            <p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${file.name} <br>ขนาด: ${(file.size / 1024).toFixed(2)} KB</p>
+            <p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${fileName} <br>ขนาด: ${fileSize} KB</p>
         `;
     }
 
@@ -766,18 +771,17 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     };
 
     if (subType === 'LINK') {
-        payload.file_link = formValues.link;
+        payload.file_link = linkToSubmit;
         executeAssignmentSubmit(payload);
-    }
-    else {
+    } else {
         let reader = new FileReader();
-        reader.readAsDataURL(formValues.file);
+        reader.readAsDataURL(fileToSubmit);
         reader.onload = function () {
             let base64Data = reader.result.split(',')[1];
             payload.base64Data = base64Data;
-            payload.fileName = formValues.file.name;
-            payload.mimeType = formValues.file.type;
-            executeAssignmentSubmit(payload); // ส่งข้อมูลไฟล์เข้าสู่ Backend
+            payload.fileName = fileName;
+            payload.mimeType = fileType;
+            executeAssignmentSubmit(payload);
         };
         reader.onerror = function (error) {
             Swal.fire('ผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้', 'error');
