@@ -786,16 +786,41 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
+// [วิ V42.1: อัปเดตระบบตรวจสอบ Response และหน่วงเวลาแก้ปัญหา State Sync]
 async function executeAssignmentSubmit(payload) {
     try {
-        await fetch(GAS_API_URL, {
+        let response = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'submitAssignment', payload: payload })
         });
-        Swal.fire('สำเร็จ', 'ส่งงานเรียบร้อยแล้ว สถานะเปลี่ยนเป็น "รอตรวจ"', 'success');
-        openAssignmentForm();
+
+        // 1. แกะกล่องเช็กคำตอบจาก Backend ว่าบันทึกสำเร็จจริงหรือไม่
+        let result = await response.json();
+
+        if (result.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'สำเร็จ',
+                text: 'ส่งงานเรียบร้อยแล้ว สถานะกำลังอัปเดต...',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+            // 2. [จุดสำคัญ] หน่วงเวลา 1.5 วินาที ให้ Google Sheets บันทึกข้อมูลลงเซลล์ให้เสร็จ
+            // ก่อนที่จะดึงข้อมูลใหม่มาวาดตาราง เพื่อป้องกันการดึงข้อมูลเก่า (Stale Data)
+            setTimeout(() => {
+                openAssignmentForm();
+            }, 1500);
+
+        } else {
+            // กรณี Backend แจ้งว่าพัง (เช่น บันทึกไม่ได้)
+            Swal.fire('ไม่สามารถส่งงานได้', result.message || 'เกิดข้อผิดพลาดจากระบบหลังบ้าน', 'error');
+        }
+
     } catch (e) {
-        Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+        // กรณี Network หลุด หรือ Backend คืนค่า Error กลับมาเพราะไฟล์ใหญ่เกินไป
+        console.error("Submission Error:", e);
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบหลังบ้านได้ (ไฟล์อาจมีขนาดใหญ่เกินไป)', 'error');
     }
 }
 
