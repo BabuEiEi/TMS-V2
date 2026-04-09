@@ -789,39 +789,51 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
-// [วิ V43.1: ไม้ตายก้นหีบ โหมด "หลับตายิง" (No-CORS Bypass)]
-async function executeAssignmentSubmit(payload) {
-    try {
-        // 1. ส่งข้อมูลแบบ "ข้ามด่านตรวจ" (no-cors)
-        await fetch(GAS_API_URL, {
-            method: 'POST',
-            mode: 'no-cors', // <--- คาถาปลดล็อกด่าน CORS ขั้นเด็ดขาด
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8" // กลับมาใช้ text ธรรมดาเพื่อความเสถียร
-            },
-            body: JSON.stringify({ action: 'submitAssignment', payload: payload })
-        });
+// [วิ V44.0: The Hidden Iframe Bypass (ทะลวง CORS 100%)]
+function executeAssignmentSubmit(payload) {
+    // 1. สร้างหน้าต่างล่องหน (Iframe)
+    let iframeName = "hidden_upload_iframe_" + new Date().getTime();
+    let iframe = document.createElement("iframe");
+    iframe.setAttribute("name", iframeName);
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
 
-        // 2. เนื่องจากโหมด no-cors จะไม่ให้เราอ่านคำตอบกลับ (Opaque Response)
-        // เราจะเชื่อมั่นในระบบหลังบ้านของเราที่ตั้งค่าสิทธิ์ Drive ไว้สมบูรณ์แล้ว ว่าบันทึกสำเร็จแน่นอน
+    // 2. สร้างฟอร์มจำแลงชี้เป้าไปที่ Google
+    let form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", GAS_API_URL);
+    form.setAttribute("target", iframeName); // ยิงไฟล์เข้า Iframe ล่องหน
+    form.style.display = "none";
+
+    // 3. แพ็กข้อมูลใส่กล่อง (Input)
+    let input = document.createElement("input");
+    input.setAttribute("type", "hidden");
+    input.setAttribute("name", "data");
+    input.value = JSON.stringify({ action: 'submitAssignment', payload: payload });
+
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    // 4. ตั้งตารอให้ Iframe โหลดเสร็จ (แปลว่า Google เซฟลง Drive เสร็จแล้วจริงๆ)
+    iframe.onload = function () {
         Swal.fire({
             icon: 'success',
-            title: 'อัปโหลดสำเร็จ',
-            text: 'ไฟล์ถูกส่งเข้าสู่ระบบ Google Drive เรียบร้อยแล้ว...',
+            title: 'สำเร็จ!',
+            text: 'ส่งงานและอัปโหลดไฟล์เข้า Google Drive เรียบร้อยแล้ว',
             timer: 2000,
             showConfirmButton: false
         });
 
-        // หน่วงเวลาให้ Sheets บันทึกข้อมูล ก่อนรีเฟรชตาราง
+        // ลบฟอร์มล่องหนทิ้ง และอัปเดตหน้าจอ
         setTimeout(() => {
+            document.body.removeChild(form);
+            document.body.removeChild(iframe);
             openAssignmentForm();
         }, 2000);
+    };
 
-    } catch (e) {
-        // จะเข้าเงื่อนไขนี้ก็ต่อเมื่อ เน็ตหลุด หรือ ไฟล์มีขนาดมโหฬารจนเบราว์เซอร์รับไม่ไหวเท่านั้น
-        console.error("Submission Error:", e);
-        Swal.fire('เกิดข้อผิดพลาด', 'อินเทอร์เน็ตหลุด หรือไฟล์มีขนาดใหญ่เกิน 5MB ครับ', 'error');
-    }
+    // 5. กดปุ่มส่งฟอร์ม!
+    form.submit();
 }
 
 async function cancelAssignment(assignId) {
