@@ -700,50 +700,42 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     executeAssignmentSubmit(payload, subType === 'LINK' ? linkToSubmit : fileToSubmit);
 }
 
-async function executeAssignmentSubmit(payload, dataObj) {
-    Swal.fire({ title: 'กำลังอัปโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+async function executeAssignmentSubmit(payload, fileObj = null) {
+    Swal.fire({ title: 'กำลังเตรียมข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    if (payload.submission_type === 'LINK') {
-        payload.file_link = dataObj;
-        try {
-            let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAssignment', payload: payload }) });
-            let result = await response.json();
-            if (result.status === 'success') {
-                Swal.fire({ icon: 'success', title: 'สำเร็จ', timer: 1500, showConfirmButton: false });
-                setTimeout(() => openAssignmentForm(), 1500);
-            } else { Swal.fire('ข้อผิดพลาด', result.message, 'error'); }
-        } catch (e) { Swal.fire('ข้อผิดพลาด', 'เน็ตหลุด', 'error'); }
-    } else {
-        // [หัวใจหลัก]: ส่งไฟล์ดิบแบบ Form-Data ผ่าน Iframe ล่องหน
-        let iframeName = "upload_iframe_" + new Date().getTime();
-        let iframe = document.createElement("iframe");
-        iframe.name = iframeName; iframe.style.display = "none";
-        document.body.appendChild(iframe);
-
-        let form = document.createElement("form");
-        form.action = GAS_API_URL; form.method = "POST";
-        form.enctype = "multipart/form-data"; // คาถาข้ามด่าน CORS
-        form.target = iframeName; form.style.display = "none";
-
-        let dt = new DataTransfer(); dt.items.add(dataObj);
-        let fileInput = document.createElement("input");
-        fileInput.type = "file"; fileInput.name = "file"; fileInput.files = dt.files;
-        form.appendChild(fileInput);
-
-        let params = { action: 'submitAssignmentFILE_Multipart', personal_id: payload.personal_id, assign_id: payload.assign_id, target_folder_id: payload.target_folder_id, is_late: payload.is_late, fileName: dataObj.name, mimeType: dataObj.type };
-        for (let key in params) {
-            let hidden = document.createElement("input");
-            hidden.type = "hidden"; hidden.name = key; hidden.value = params[key];
-            form.appendChild(hidden);
-        }
-
-        document.body.appendChild(form);
-
-        iframe.onload = function() {
-            Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์ของท่านเข้าสู่ Drive อย่างสมบูรณ์แล้ว', timer: 2000, showConfirmButton: false });
-            setTimeout(() => { document.body.removeChild(form); document.body.removeChild(iframe); openAssignmentForm(); }, 2000);
+    if (payload.submission_type === 'FILE' && fileObj) {
+        // แปลงไฟล์เป็น Base64 ก่อนส่ง (วิธีที่เสถียรที่สุดสำหรับ JSON Fetch)
+        const reader = new FileReader();
+        reader.readAsDataURL(fileObj);
+        reader.onload = async () => {
+            payload.base64Data = reader.result.split(',')[1];
+            payload.fileName = fileObj.name;
+            payload.mimeType = fileObj.type;
+            await sendToGAS(payload);
         };
-        form.submit();
+    } else {
+        await sendToGAS(payload);
+    }
+}
+
+async function sendToGAS(payload) {
+    try {
+        const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'cors', // บังคับโหมด Cors เพื่อเช็กสถานะตอบกลับ
+            body: JSON.stringify({ action: 'submitAssignment', payload: payload })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', timer: 2000, showConfirmButton: false });
+            setTimeout(() => openAssignmentForm(), 2000);
+        } else {
+            Swal.fire('ล้มเหลว', result.message, 'error');
+        }
+    } catch (e) {
+        Swal.fire('Error', 'ไม่สามารถส่งข้อมูลได้ (เน็ตหลุด หรือไฟล์มีขนาดใหญ่เกิน 5MB จนโดนบล็อก)', 'error');
     }
 }
 
