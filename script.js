@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 40.0 (The Final LMS Integration)
+ * VERSION: 41.0 (UI Refinement & LMS Layout Update)
  * AUTHOR: วิ (AI Assistant)
  * DESCRIPTION: รวมระบบลงเวลา ระบบข้อสอบ (ความกว้าง 520px) ระบบประเมิน และระบบส่งงาน
  * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด
@@ -248,7 +248,6 @@ function renderExamStartScreen() {
         }
     }
 
-    // [กว้าง 520px ตาม V38.0]
     contentArea.innerHTML = `
         <div class="text-center my-5 p-4 bg-light rounded-4 border shadow-sm">
             <h4 class="text-primary fw-bold mb-3">คุณพร้อมหรือไม่?</h4>
@@ -565,10 +564,11 @@ function renderAssignmentDashboard() {
         let showLateWarning = sub ? (sub.is_late === 'TRUE' || sub.is_late === true) : isLateDeadline;
         let lateBadge = showLateWarning ? `<span class="badge bg-danger ms-2">ส่งงานช้า</span>` : '';
 
+        // [จุดแก้ไขที่ 3: เพิ่ม pre-wrap ที่ div ของ description เพื่อให้ขึ้นบรรทัดใหม่ตาม Database]
         let taskInfo = `
             <div class="fw-bold text-dark fs-6">${asn.title} ${lateBadge}</div>
-            <div class="text-muted small my-1">${asn.description}</div>
-            <div class="text-danger fw-bold small">⏰ กำหนดส่ง: ${formatThaiDate(asn.end_datetime)} เวลา ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')} น.</div>
+            <div class="text-muted small my-1" style="white-space: pre-wrap; word-break: break-word;">${asn.description}</div>
+            <div class="text-danger fw-bold small mt-2">⏰ กำหนดส่ง: ${formatThaiDate(asn.end_datetime)} เวลา ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')} น.</div>
         `;
 
         let statusBadge = '';
@@ -595,13 +595,14 @@ function renderAssignmentDashboard() {
             actionBtn = `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-success w-100 rounded-pill">ดูงานที่ส่ง</a>`;
         }
 
+        // [จุดแก้ไขที่ 2: เพิ่ม class align-top ที่แถวตาราง (tr) และปรับข้อความ taskInfo ให้ชิดซ้าย (text-start)]
         tbodyHtml += `
-            <tr>
+            <tr class="align-top">
                 <td class="text-center fw-bold">${index + 1}</td>
-                <td>${taskInfo}</td>
+                <td class="text-start">${taskInfo}</td>
                 <td class="text-center">${actionBtn}</td>
                 <td class="text-center">${statusBadge}</td>
-                <td class="text-muted small">${feedbackText}</td>
+                <td class="text-muted small text-start">${feedbackText}</td>
             </tr>
         `;
     });
@@ -614,6 +615,7 @@ function renderAssignmentDashboard() {
 
     let progressPercent = totalAssignments > 0 ? Math.round((submittedCount / totalAssignments) * 100) : 0;
 
+    // [จุดแก้ไขที่ 1: เปลี่ยนสีพื้นความก้าวหน้าจากการ์ดสีดำ เป็นสีกรมท่าอมเทา (#34495e) เพื่อความซอฟต์และสวยงาม]
     document.getElementById("assignmentDashboardSummary").innerHTML = `
         <div class="col-md-4">
             <div class="card bg-primary text-white border-0 rounded-4 shadow-sm p-3 h-100">
@@ -628,11 +630,11 @@ function renderAssignmentDashboard() {
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card bg-dark text-white border-0 rounded-4 shadow-sm p-3 h-100">
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100" style="background-color: #34495e;">
                 <h6 class="fw-bold mb-1">ความก้าวหน้า (Progress)</h6>
                 <div class="d-flex align-items-center">
                     <h2 class="mb-0 fw-bold me-3">${progressPercent}%</h2>
-                    <div class="progress flex-grow-1" style="height: 10px;">
+                    <div class="progress flex-grow-1" style="height: 10px; background-color: rgba(255,255,255,0.2);">
                         <div class="progress-bar bg-info" role="progressbar" style="width: ${progressPercent}%;"></div>
                     </div>
                 </div>
