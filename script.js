@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 36.0 (Refined Exam UI Edition)
+ * VERSION: 38.0 (Exam UI Refined Width)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: อัปเดตข้อความเงื่อนไขก่อนเริ่มทำข้อสอบให้ชัดเจนขึ้นตามความต้องการ
+ * DESCRIPTION: ปรับความกว้างของกล่องคำแนะนำก่อนสอบเป็น 520px และเน้นข้อความให้ชัดเจนขึ้น
  * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด (ห้ามยุบย่อ ห้ามลดบรรทัด)
  * [COMMENT: TAGS: #NAV_LOGIC, #ATT_LOGIC, #EXAM_LOGIC, #SURVEY_LOGIC]
  */
@@ -310,7 +310,7 @@ async function openExamForm() {
     }
 }
 
-// [UPDATE V36.0: ปรับแก้ข้อความกติกาและเวลาให้ชัดเจน ตามที่พี่บาบูสั่งครับ]
+// [UPDATE V38.0: ปรับความกว้างกล่องแจ้งเตือนเป็น 520px และอัปเดตข้อความตามที่ระบุ]
 function renderExamStartScreen() {
     let contentArea = document.getElementById("examContentArea");
     let exam = globalExamData.activeExam;
