@@ -789,16 +789,20 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
-// [วิ V42.4: โหมดพรางตัวทะลุด่าน CORS (Stealth Hack)]
+// [วิ V43.0: The Form-Data Hack ทะลวงด่าน CORS]
 async function executeAssignmentSubmit(payload) {
     try {
-        // แฮ็กที่ 1: เพิ่ม Headers ปลอมตัวเป็นข้อความธรรมดา (text/plain) เพื่อข้ามการตรวจ Preflight
+        // 1. แพ็กข้อมูลใส่กล่อง URLSearchParams เพื่อหลอกเบราว์เซอร์ว่าเป็น Form ธรรมดา
+        let formData = new URLSearchParams();
+        formData.append("data", JSON.stringify({ action: 'submitAssignment', payload: payload }));
+
+        // 2. ยิงข้อมูลผ่าน fetch ด้วย Headers แบบฟอร์ม
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
             headers: {
-                "Content-Type": "text/plain;charset=utf-8",
+                "Content-Type": "application/x-www-form-urlencoded"
             },
-            body: JSON.stringify({ action: 'submitAssignment', payload: payload })
+            body: formData.toString()
         });
 
         let result = await response.json();
@@ -812,18 +816,14 @@ async function executeAssignmentSubmit(payload) {
                 showConfirmButton: false
             });
 
-            // หน่วงเวลาให้ Google Sheets บันทึกข้อมูลทัน
-            setTimeout(() => {
-                openAssignmentForm();
-            }, 1500);
-
+            setTimeout(() => { openAssignmentForm(); }, 1500);
         } else {
-            Swal.fire('ไม่สามารถส่งงานได้', result.message || 'เกิดข้อผิดพลาดจากระบบหลังบ้าน', 'error');
+            Swal.fire('ไม่สามารถส่งงานได้', result.message, 'error');
         }
 
     } catch (e) {
         console.error("Submission Error:", e);
-        Swal.fire('เกิดข้อผิดพลาด', 'สะพานเชื่อมต่อถูกตัดขาด (เน็ตหลุด หรือไฟล์อาจมีขนาดใหญ่เกินกว่าที่โหมดพรางตัวจะรับไหว)', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', 'เน็ตหลุด หรือ ไฟล์มีขนาดใหญ่เกินกว่าที่ระบบจะแปลงร่างได้ แนะนำให้ใช้ไฟล์ไม่เกิน 5MB ครับ', 'error');
     }
 }
 
