@@ -707,6 +707,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
+// [วิ V46.0: The Perfect Fusion (รับประกันไฟล์ไม่พัง และทะลุ CORS)]
 async function executeAssignmentSubmit(payload, fileObj = null) {
     Swal.fire({ title: 'กำลังอัปโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
@@ -720,43 +721,57 @@ async function executeAssignmentSubmit(payload, fileObj = null) {
             } else { Swal.fire('ข้อผิดพลาด', result.message, 'error'); }
         } catch (e) { Swal.fire('ข้อผิดพลาด', 'เน็ตหลุด', 'error'); }
     } else {
-        // [หัวใจหลัก] สร้างฟอร์มส่งไฟล์แนบ ข้ามด่านพี่ยาม Google
-        let iframeName = "upload_iframe_" + new Date().getTime();
-        let iframe = document.createElement("iframe");
-        iframe.name = iframeName; iframe.style.display = "none";
-        document.body.appendChild(iframe);
+        // 1. นำไฟล์มาเข้ารหัส (กันไฟล์พังระหว่างเดินทาง)
+        let reader = new FileReader();
+        reader.readAsDataURL(fileObj);
+        reader.onload = function () {
+            let base64Data = reader.result.split(',')[1];
+            
+            // 2. สร้างกรอบหน้าต่างล่องหน (กัน CORS Block)
+            let iframeName = "upload_iframe_" + new Date().getTime();
+            let iframe = document.createElement("iframe");
+            iframe.name = iframeName; iframe.style.display = "none";
+            document.body.appendChild(iframe);
 
-        let form = document.createElement("form");
-        form.action = GAS_API_URL; form.method = "POST";
-        form.enctype = "multipart/form-data"; // คาถาสำคัญ: ให้กอดไฟล์ข้ามโดเมน
-        form.target = iframeName; form.style.display = "none";
+            let form = document.createElement("form");
+            form.action = GAS_API_URL; form.method = "POST";
+            form.target = iframeName; form.style.display = "none";
 
-        // ย้ายไฟล์เข้าฟอร์ม
-        let dt = new DataTransfer(); dt.items.add(fileObj);
-        let fileInput = document.createElement("input");
-        fileInput.type = "file"; fileInput.name = "file"; fileInput.files = dt.files;
-        form.appendChild(fileInput);
+            // 3. แพ็กข้อมูลทั้งหมด รวมถึงชื่อและนามสกุลไฟล์ ให้ Google รู้จัก
+            let params = { 
+                action: 'submitAssignmentFILE_Base64', 
+                personal_id: payload.personal_id, 
+                assign_id: payload.assign_id, 
+                target_folder_id: payload.target_folder_id, 
+                is_late: payload.is_late,
+                fileName: fileObj.name,
+                mimeType: fileObj.type,
+                base64Data: base64Data
+            };
 
-        // แพ็กข้อมูลออเดอร์
-        let params = { action: 'submitAssignmentFILE', personal_id: payload.personal_id, assign_id: payload.assign_id, target_folder_id: payload.target_folder_id, is_late: payload.is_late };
-        for (let key in params) {
-            let hidden = document.createElement("input");
-            hidden.type = "hidden"; hidden.name = key; hidden.value = params[key];
-            form.appendChild(hidden);
-        }
+            for (let key in params) {
+                let hidden = document.createElement("input");
+                hidden.type = "hidden"; hidden.name = key; hidden.value = params[key];
+                form.appendChild(hidden);
+            }
 
-        document.body.appendChild(form);
+            document.body.appendChild(form);
 
-        // รอเสียงสวรรค์จากหลังบ้าน
-        iframe.onload = function () {
-            Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์เข้า Drive เรียบร้อยแล้ว', timer: 2000, showConfirmButton: false });
-            setTimeout(() => {
-                document.body.removeChild(form); document.body.removeChild(iframe);
-                openAssignmentForm();
-            }, 2000);
+            // 4. รอเสียงตอบรับจากหน้าต่างล่องหน
+            iframe.onload = function() {
+                Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์ของท่านเข้าสู่ Drive อย่างสมบูรณ์แล้ว', timer: 2000, showConfirmButton: false });
+                setTimeout(() => {
+                    document.body.removeChild(form); document.body.removeChild(iframe);
+                    openAssignmentForm();
+                }, 2000);
+            };
+
+            form.submit();
         };
-
-        form.submit();
+        
+        reader.onerror = function() {
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้ กรุณาลองใหม่', 'error');
+        };
     }
 }
 
