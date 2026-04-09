@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 31.0 (Trainee View & Smart Survey Edition)
+ * VERSION: 36.0 (Refined Exam UI Edition)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: เพิ่ม Smart Rendering Logic เพื่อวาดประเมินวิทยากรและโครงการได้อย่างแม่นยำ
+ * DESCRIPTION: อัปเดตข้อความเงื่อนไขก่อนเริ่มทำข้อสอบให้ชัดเจนขึ้นตามความต้องการ
  * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด (ห้ามยุบย่อ ห้ามลดบรรทัด)
  * [COMMENT: TAGS: #NAV_LOGIC, #ATT_LOGIC, #EXAM_LOGIC, #SURVEY_LOGIC]
  */
@@ -16,7 +16,6 @@ let selectedSpeakerId = null;
 let examCountdown = null;
 let isExamActive = false;
 
-// [COMMENT: ฟังก์ชันช่วยแปลงวันที่เป็นรูปแบบไทย]
 function formatThaiDate(dateStr) {
     const months = [
         "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", 
@@ -93,7 +92,7 @@ function backToDashboard(currentId) {
 
 
 // ============================================================
-// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ 
+// [#ATT_LOGIC]: ระบบลงเวลาอัจฉริยะ
 // ============================================================
 
 async function openAttendanceForm() {
@@ -272,7 +271,7 @@ async function openExamForm() {
     contentArea.innerHTML = `
         <div class="text-center p-5">
             <div class="spinner-border text-warning"></div>
-            <p class="mt-2 text-muted">กำลังเตรียมชุดข้อสอบล่าสุด...</p>
+            <p class="mt-2 text-muted">กำลังดึงข้อมูลข้อสอบ...</p>
         </div>`;
 
     try {
@@ -288,7 +287,6 @@ async function openExamForm() {
         if (result.status === 'success') {
             globalExamData = result;
             
-            // [อัปเดตภาษาไทย]
             let thaiTitle = '';
             if (result.activeExam.type === 'PRE') {
                 thaiTitle = 'แบบทดสอบก่อนการอบรม (Pre-Test)';
@@ -304,7 +302,7 @@ async function openExamForm() {
             contentArea.innerHTML = `
                 <div class="alert alert-info text-center rounded-5 p-5 shadow-sm">
                     <h5 class="fw-bold">${result.message}</h5>
-                    <p class="mb-0 text-muted small">โปรดรอการเปิดระบบจากผู้จัดอบรม</p>
+                    <p class="mb-0 text-muted small">โปรดรอการเปิดระบบจากผู้ดูแล</p>
                 </div>`;
         }
     } catch (error) {
@@ -312,6 +310,7 @@ async function openExamForm() {
     }
 }
 
+// [UPDATE V36.0: ปรับแก้ข้อความกติกาและเวลาให้ชัดเจน ตามที่พี่บาบูสั่งครับ]
 function renderExamStartScreen() {
     let contentArea = document.getElementById("examContentArea");
     let exam = globalExamData.activeExam;
@@ -371,17 +370,17 @@ function renderExamStartScreen() {
             
             <div class="alert alert-info text-start small mx-auto" style="max-width: 450px;">
                 <ul class="mb-0">
-                    <li>⏱️ ระบบจะเริ่มจับเวลาทันทีที่กดปุ่ม</li>
+                    <li>⏱️ ระบบจะเริ่มจับเวลา <b>30 นาที</b> ทันทีเมื่อกดปุ่ม<b> เริ่มทำแบบทดสอบ</b></li>
                     <li>💾 มีระบบ <b>Auto-Save</b> กันเน็ตหลุด</li>
                     <li>🚫 <b>ห้ามสลับแท็บหรือสลับหน้าจอ</b> ระบบจะแจ้งเตือน</li>
                 </ul>
             </div>
             
-            <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" 
-                    onclick="startExamTimer()">
+            <button class="btn btn-lg ${btnColor} mt-3 fw-bold px-5 rounded-pill shadow-sm" onclick="startExamTimer()">
                 ${btnLabel}
             </button>
-        </div>`;
+        </div>
+    `;
 }
 
 function startExamTimer() {
@@ -567,26 +566,37 @@ async function submitRealExam(isAuto = false) {
 
 
 // ============================================================
-// [#SURVEY_LOGIC]: ระบบประเมิน (Smart Rendering Logic)
+// [#SURVEY_LOGIC]: ระบบประเมินวิทยากรและโครงการ
 // ============================================================
 
 async function openSurveyForm(type) {
     currentSurveyType = type;
+    selectedSpeakerId = null; 
+    
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("surveySection").classList.remove("d-none");
     
     let contentArea = document.getElementById("surveyContentArea");
+    document.getElementById("surveyContentArea").innerHTML = ''; 
     
-    // ตั้งชื่อให้ตรงกับเมนูที่กด
     document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินภาพรวมโครงการ' : 'ประเมินวิทยากร';
-    
-    contentArea.innerHTML = `
-        <div class="text-center p-5 my-5">
-            <div class="spinner-border text-success"></div>
-            <p class="mt-2 text-muted">กำลังเตรียมข้อมูลแบบประเมิน...</p>
-        </div>`;
-    
     document.getElementById("btnSubmitSurvey").classList.add("d-none");
+
+    if (type === 'PROJECT_SURVEY') {
+        document.getElementById("speakerSelectionArea").classList.add("d-none");
+        contentArea.innerHTML = `
+            <div class="text-center p-5 my-5">
+                <div class="spinner-border text-success"></div>
+            </div>`;
+    } else {
+        let selectionArea = document.getElementById("speakerSelectionArea");
+        selectionArea.classList.remove("d-none");
+        selectionArea.innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2 text-muted">กำลังดึงรายชื่อวิทยากร...</p>
+            </div>`;
+    }
 
     try {
         let response = await fetch(GAS_API_URL, { 
@@ -596,13 +606,12 @@ async function openSurveyForm(type) {
         globalSurveyData = await response.json();
         
         if (type === 'SPEAKER_SURVEY') { 
-            renderSpeakerSelect(); 
+            renderSpeakerCards(); 
             contentArea.innerHTML = `
-                <div class="text-center text-muted p-5 bg-white rounded-5 border border-dashed shadow-sm">
-                    กรุณาเลือกรายชื่อวิทยากรที่ช่องด้านบน เพื่อเริ่มทำแบบประเมินครับ
+                <div id="speakerPromptPlaceholder" class="text-center text-muted p-5 bg-white rounded-5 border border-dashed shadow-sm fade-in">
+                    กรุณาคลิกเลือกการ์ดรายชื่อวิทยากรด้านบน เพื่อเริ่มทำแบบประเมินครับ
                 </div>`;
         } else { 
-            document.getElementById("speakerSelectionArea").classList.add("d-none");
             renderSurveyQuestions(); 
             document.getElementById("btnSubmitSurvey").classList.remove("d-none"); 
         }
@@ -611,29 +620,65 @@ async function openSurveyForm(type) {
     }
 }
 
-// ดึงวิทยากรมาแสดงใน Dropdown (อิงจาก is_active = TRUE)
-function renderSpeakerSelect() {
-    let select = document.getElementById("speakerSelect");
-    select.innerHTML = '<option value="" disabled selected>-- คลิกเพื่อเลือกวิทยากร --</option>';
+function renderSpeakerCards() {
+    let selectionArea = document.getElementById("speakerSelectionArea");
     
     if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
-        select.innerHTML = '<option value="" disabled selected>ไม่มีวิทยากรที่เปิดประเมินในขณะนี้</option>';
+        selectionArea.innerHTML = `
+            <div class="alert alert-warning text-center rounded-4 shadow-sm mb-0">
+                ไม่มีวิทยากรที่เปิดระบบประเมินในขณะนี้ครับ
+            </div>`;
         return;
     }
 
+    let html = `
+        <label class="form-label fw-bold text-primary mb-3 fs-5">
+            กรุณาคลิกเลือกวิทยากรที่ต้องการประเมิน:
+        </label>
+        <div class="row g-3">`;
+    
     globalSurveyData.speakers.forEach(spk => {
-        // นำหัวข้อ (topic) มาแสดงคู่กับชื่อ เพื่อให้คนประเมินเลือกง่ายขึ้น
-        select.innerHTML += `<option value="${spk.id}">${spk.name} (หัวข้อ: ${spk.topic})</option>`;
+        html += `
+            <div class="col-md-6">
+                <div class="card h-100 border border-2 border-transparent shadow-sm rounded-4 speaker-card" 
+                     id="spk_card_${spk.id}"
+                     onclick="selectSpeaker('${spk.id}')">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-dark mb-2">🎤 ${spk.name}</h5>
+                        <p class="text-muted small mb-0">หัวข้อ: ${spk.topic}</p>
+                    </div>
+                </div>
+            </div>`;
     });
     
-    document.getElementById("speakerSelectionArea").classList.remove("d-none");
-    select.onchange = () => { 
-        renderSurveyQuestions(); 
-        document.getElementById("btnSubmitSurvey").classList.remove("d-none"); 
-    };
+    html += `</div>`;
+    selectionArea.innerHTML = html;
 }
 
-// [COMMENT: UPDATE V31.0 - Smart Rendering ตรวจจับประเภทตัวเลือกอัตโนมัติ]
+function selectSpeaker(spkId) {
+    selectedSpeakerId = spkId;
+    
+    let allCards = document.querySelectorAll('.speaker-card');
+    allCards.forEach(card => {
+        card.classList.remove('border-primary', 'bg-primary-subtle');
+        card.classList.add('border-transparent');
+    });
+    
+    let selectedCard = document.getElementById('spk_card_' + spkId);
+    if (selectedCard) {
+        selectedCard.classList.remove('border-transparent');
+        selectedCard.classList.add('border-primary', 'bg-primary-subtle');
+    }
+    
+    let placeholder = document.getElementById("speakerPromptPlaceholder");
+    if (placeholder) {
+        placeholder.classList.add("d-none");
+    }
+    
+    renderSurveyQuestions(); 
+    document.getElementById("btnSubmitSurvey").classList.remove("d-none");
+}
+
 function renderSurveyQuestions() {
     let html = '';
     let grouped = {};
@@ -650,17 +695,13 @@ function renderSurveyQuestions() {
             
         grouped[cat].forEach(q => {
             let optionsHtml = '';
-            
-            // เช็คว่าตัวเลือกทั้งหมดในข้อนี้ เป็นตัวเลข (เช่น 5, 4, 3, 2, 1) หรือไม่
             let isNumericRating = q.options.every(opt => !isNaN(opt) && opt.trim() !== "");
             
-            // 🟢 แบบที่ 1: เป็นตัวเลข -> สร้างปุ่มวงกลมแนวนอน
             if (isNumericRating) {
                 optionsHtml += `
                     <div class="horizontal-rating-wrapper">
                         <div class="horizontal-rating-container">`;
                 
-                // บังคับเรียงจาก 5 ไป 1 (มากไปน้อย)
                 const sortedRatings = [...q.options].sort((a, b) => {
                     return b - a;
                 });
@@ -683,14 +724,12 @@ function renderSurveyQuestions() {
                         </div>
                     </div>`;
             } 
-            // 🔵 แบบที่ 2: เป็นคำว่า TEXT -> สร้างกล่องข้อความ
             else if (q.options[0] === 'TEXT') {
                 optionsHtml = `
                     <textarea class="form-control rounded-4 shadow-sm" 
                               name="sq_${q.id}" rows="3" 
                               placeholder="ระบุความคิดเห็นหรือข้อเสนอแนะเพิ่มเติม..."></textarea>`;
             }
-            // 🟣 แบบที่ 3: เป็นข้อความทั่วไป (เช่น ชาย, หญิง) -> สร้าง Radio แนวดิ่ง
             else {
                 q.options.forEach(opt => {
                     optionsHtml += `
@@ -739,7 +778,16 @@ async function submitRealSurvey() {
         return; 
     }
     
-    let target = currentSurveyType === 'PROJECT_SURVEY' ? 'PROJECT' : document.getElementById("speakerSelect").value;
+    let target = currentSurveyType === 'PROJECT_SURVEY' ? 'PROJECT' : selectedSpeakerId;
+    
+    if (currentSurveyType === 'SPEAKER_SURVEY' && !target) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'ยังไม่ได้เลือกวิทยากร',
+            text: 'กรุณาคลิกเลือกวิทยากรจากรายชื่อด้านบนก่อนครับ'
+        });
+        return;
+    }
     
     Swal.fire({ 
         title: 'กำลังบันทึกผล...', 
