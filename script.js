@@ -643,21 +643,46 @@ function renderAssignmentDashboard() {
     `;
 }
 
-// [วิ V46.0: The Perfect Fusion (บังคับอัปเดต)]
+// [วิ V48.0: คืนชีพหน้าต่าง Preview + ทะลวง CORS สมบูรณ์แบบ]
 async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
-    let inputHtml = '', fileToSubmit = null, linkToSubmit = '';
+    let inputHtml = '';
+    
+    // ตัวแปรดักไฟล์ (สำคัญมาก ห้ามให้ SweetAlert ทำลาย Object)
+    let fileToSubmit = null;
+    let linkToSubmit = '';
 
     if (subType === 'LINK') {
-        inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label><input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://..."></div>`;
+        inputHtml = `
+            <div class="text-start mt-3">
+                <label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label>
+                <input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://...">
+            </div>
+        `;
     } else {
-        inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">เลือกไฟล์จากเครื่องของท่าน</label><input type="file" id="swal-input-file" class="form-control rounded-4 p-2"><small class="text-danger mt-1 d-block">*ระบบจะเข้ารหัสไฟล์เพื่อความปลอดภัยสูงสุด</small></div>`;
+        inputHtml = `
+            <div class="text-start mt-3">
+                <label class="form-label fw-bold text-primary">เลือกไฟล์จากเครื่องของท่าน</label>
+                <input type="file" id="swal-input-file" class="form-control rounded-4 p-2">
+                <small class="text-danger mt-1 d-block">*ระบบแนะนำให้ส่งไฟล์ขนาดไม่เกิน 5MB</small>
+            </div>
+        `;
     }
 
     const { isConfirmed } = await Swal.fire({
         title: 'ส่งภาระงาน',
-        html: `<div class="alert alert-light border text-start mb-0 shadow-sm"><p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p><hr class="my-2 text-secondary"><div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div></div>${inputHtml}`,
-        focusConfirm: false, showCancelButton: true, confirmButtonText: 'ถัดไป (Preview)', cancelButtonText: 'ยกเลิก',
+        html: `
+            <div class="alert alert-light border text-start mb-0 shadow-sm">
+                <p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p>
+                <hr class="my-2 text-secondary">
+                <div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div>
+            </div>
+            ${inputHtml}
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'ถัดไป (Preview)',
+        cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             if (subType === 'LINK') {
                 linkToSubmit = document.getElementById('swal-input-link').value;
@@ -674,7 +699,73 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
 
     if (!isConfirmed) return;
 
-    let payload = { personal_id: localStorage.getItem("tms_personal_id"), assign_id: assignId, submission_type: subType, target_folder_id: asnConfig.target_folder_id, is_late: isLate };
+    // --- 🔮 คืนชีพหน้าต่าง Preview ที่วิเผลอลบทิ้งไป ---
+    let previewDataHtml = '';
+    
+    if (subType === 'LINK') {
+        let iframeUrl = linkToSubmit;
+        if (linkToSubmit.includes('drive.google.com/file/d/')) {
+            iframeUrl = linkToSubmit.replace(/\/view.*/, '/preview');
+        }
+        previewDataHtml = `
+            <div class="mb-3 text-center border rounded-3 overflow-hidden shadow-sm bg-light" style="height: 250px; position: relative;">
+                <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${linkToSubmit}" target="_blank">${linkToSubmit}</a></p>
+        `;
+    } else {
+        let fileType = fileToSubmit.type || '';
+        let fileName = fileToSubmit.name || 'ไม่ทราบชื่อไฟล์';
+        let fileSize = fileToSubmit.size ? (fileToSubmit.size / 1024).toFixed(2) : '0.00';
+        
+        let fileUrl = URL.createObjectURL(fileToSubmit);
+        let previewElement = '';
+
+        if (fileType.startsWith('image/')) {
+            previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`;
+        } else if (fileType === 'application/pdf') {
+            previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`;
+        } else {
+            previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ (ไม่รองรับการพรีวิวสด)</p></div></div>`;
+        }
+
+        previewDataHtml = `
+            <div class="mb-3 text-center border rounded-3 p-2 bg-light shadow-sm">
+                ${previewElement}
+            </div>
+            <p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${fileName} <br>ขนาด: ${fileSize} KB</p>
+        `;
+    }
+
+    const confirmSubmit = await Swal.fire({
+        icon: 'question',
+        title: 'คุณยืนยันที่จะส่งงานนี้ใช่หรือไม่?',
+        width: '600px', 
+        html: `
+            <div class="text-start mt-2">
+                <label class="fw-bold mb-2">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>
+                ${previewDataHtml}
+                <div class="alert alert-danger mt-3 small">
+                    <b>คำเตือน:</b> ท่านสามารถส่งงานได้เพียงครั้งเดียวเท่านั้น<br>
+                    (ท่านสามารถกดยกเลิกเองได้ หาก Mentor ยังไม่ได้ลงคะแนน)
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันการส่งงาน',
+        cancelButtonText: 'กลับไปแก้ไข',
+        confirmButtonColor: '#198754'
+    });
+
+    if (!confirmSubmit.isConfirmed) return;
+
+    let payload = {
+        personal_id: localStorage.getItem("tms_personal_id"),
+        assign_id: assignId,
+        submission_type: subType,
+        target_folder_id: asnConfig.target_folder_id,
+        is_late: isLate
+    };
 
     if (subType === 'LINK') {
         payload.file_link = linkToSubmit;
@@ -684,7 +775,6 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
-// [วิ V47.0: No-Headers Fetch Bypass (ส่งตรง หลบด่านตรวจ)]
 async function executeAssignmentSubmit(payload, fileObj = null) {
     Swal.fire({ title: 'กำลังอัปโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
@@ -692,7 +782,6 @@ async function executeAssignmentSubmit(payload, fileObj = null) {
         try {
             let response = await fetch(GAS_API_URL, {
                 method: 'POST',
-                // ส่งเป็น JSON สดๆ ไม่ต้องใส่ Header เพื่อข้ามด่าน CORS
                 body: JSON.stringify({ action: 'submitAssignment', payload: payload })
             });
             let result = await response.json();
@@ -711,7 +800,7 @@ async function executeAssignmentSubmit(payload, fileObj = null) {
             payload.mimeType = fileObj.type;
 
             try {
-                // ส่งเป็น JSON สดๆ ข้ามด่านพี่ยาม Google
+                // ยิง JSON สดๆ ข้ามด่าน CORS
                 let response = await fetch(GAS_API_URL, {
                     method: 'POST',
                     body: JSON.stringify({ action: 'submitAssignment', payload: payload })
