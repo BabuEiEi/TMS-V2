@@ -789,15 +789,18 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
-// [วิ V42.1: อัปเดตระบบตรวจสอบ Response และหน่วงเวลาแก้ปัญหา State Sync]
+// [วิ V42.4: โหมดพรางตัวทะลุด่าน CORS (Stealth Hack)]
 async function executeAssignmentSubmit(payload) {
     try {
+        // แฮ็กที่ 1: เพิ่ม Headers ปลอมตัวเป็นข้อความธรรมดา (text/plain) เพื่อข้ามการตรวจ Preflight
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8",
+            },
             body: JSON.stringify({ action: 'submitAssignment', payload: payload })
         });
 
-        // 1. แกะกล่องเช็กคำตอบจาก Backend ว่าบันทึกสำเร็จจริงหรือไม่
         let result = await response.json();
 
         if (result.status === 'success') {
@@ -809,21 +812,18 @@ async function executeAssignmentSubmit(payload) {
                 showConfirmButton: false
             });
 
-            // 2. [จุดสำคัญ] หน่วงเวลา 1.5 วินาที ให้ Google Sheets บันทึกข้อมูลลงเซลล์ให้เสร็จ
-            // ก่อนที่จะดึงข้อมูลใหม่มาวาดตาราง เพื่อป้องกันการดึงข้อมูลเก่า (Stale Data)
+            // หน่วงเวลาให้ Google Sheets บันทึกข้อมูลทัน
             setTimeout(() => {
                 openAssignmentForm();
             }, 1500);
 
         } else {
-            // กรณี Backend แจ้งว่าพัง (เช่น บันทึกไม่ได้)
             Swal.fire('ไม่สามารถส่งงานได้', result.message || 'เกิดข้อผิดพลาดจากระบบหลังบ้าน', 'error');
         }
 
     } catch (e) {
-        // กรณี Network หลุด หรือ Backend คืนค่า Error กลับมาเพราะไฟล์ใหญ่เกินไป
         console.error("Submission Error:", e);
-        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบหลังบ้านได้ (ไฟล์อาจมีขนาดใหญ่เกินไป)', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', 'สะพานเชื่อมต่อถูกตัดขาด (เน็ตหลุด หรือไฟล์อาจมีขนาดใหญ่เกินกว่าที่โหมดพรางตัวจะรับไหว)', 'error');
     }
 }
 
