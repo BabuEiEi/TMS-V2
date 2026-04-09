@@ -643,6 +643,7 @@ function renderAssignmentDashboard() {
     `;
 }
 
+// [วิรวมฮิต V42.2: สมบูรณ์ทั้ง UX เว้นบรรทัด, ระบบ Smart Preview และกันไฟล์หล่นหาย]
 async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
     let inputHtml = '';
@@ -686,6 +687,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
             } else {
                 let fileInput = document.getElementById('swal-input-file');
                 if (!fileInput.files.length) { Swal.showValidationMessage('กรุณาเลือกไฟล์ครับ'); return false; }
+                // [จุดสำคัญ] ต้องแน่ใจว่าส่ง Object ไฟล์ไป ไม่ใช่แค่ข้อความ
                 return { type: 'FILE', file: fileInput.files[0] };
             }
         }
@@ -695,11 +697,11 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
 
     let previewDataHtml = '';
 
+    // -- ระบบ Smart Preview --
     if (formValues.type === 'LINK') {
         let rawUrl = formValues.link;
         let iframeUrl = rawUrl;
 
-        // ลอจิกแปลงลิงก์ Google Drive ให้เป็นโหมด Preview อัตโนมัติ
         if (rawUrl.includes('drive.google.com/file/d/')) {
             iframeUrl = rawUrl.replace(/\/view.*/, '/preview');
         }
@@ -715,13 +717,11 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
         let fileUrl = URL.createObjectURL(file);
         let previewElement = '';
 
-        // แยกประเภทไฟล์เพื่อการพรีวิวที่ถูกต้อง
         if (file.type.startsWith('image/')) {
             previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`;
         } else if (file.type === 'application/pdf') {
             previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`;
         } else {
-            // กรณีเป็นไฟล์ Word, Excel, PPT ที่เบราว์เซอร์ไม่รองรับการพรีวิวสด
             previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ (ไม่รองรับการพรีวิวสด)</p></div></div>`;
         }
 
@@ -736,7 +736,6 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     const confirmSubmit = await Swal.fire({
         icon: 'question',
         title: 'คุณยืนยันที่จะส่งงานนี้ใช่หรือไม่?',
-        // ปรับขนาดหน้าต่าง Pop-up ให้กว้างขึ้นเพื่อรองรับการพรีวิว
         width: '600px',
         html: `
             <div class="text-start mt-2">
@@ -744,7 +743,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
                 ${previewDataHtml}
                 <div class="alert alert-danger mt-3 small">
                     <b>คำเตือน:</b> ท่านสามารถส่งงานได้เพียงครั้งเดียวเท่านั้น<br>
-                    (ท่านสามารถกดยกเลิกเองได้ หากวิทยากรยังไม่ได้ลงคะแนน)
+                    (ท่านสามารถกดยกเลิกเองได้ หาก Mentor ยังไม่ได้ลงคะแนน)
                 </div>
             </div>
         `,
@@ -778,7 +777,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
             payload.base64Data = base64Data;
             payload.fileName = formValues.file.name;
             payload.mimeType = formValues.file.type;
-            executeAssignmentSubmit(payload);
+            executeAssignmentSubmit(payload); // ส่งข้อมูลไฟล์เข้าสู่ Backend
         };
         reader.onerror = function (error) {
             Swal.fire('ผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้', 'error');
