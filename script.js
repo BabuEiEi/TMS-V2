@@ -667,9 +667,10 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     const { value: formValues, isConfirmed } = await Swal.fire({
         title: 'ส่งภาระงาน',
         html: `
-            <div class="alert alert-light border text-start mb-0">
-                <p class="mb-1 fw-bold">ชื่องาน: ${asnConfig.title}</p>
-                <p class="mb-0 small text-muted">${asnConfig.description}</p>
+            <div class="alert alert-light border text-start mb-0 shadow-sm">
+                <p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p>
+                <hr class="my-2 text-secondary">
+                <div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div>
             </div>
             ${inputHtml}
         `,
@@ -693,22 +694,57 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     if (!isConfirmed) return;
 
     let previewDataHtml = '';
+
     if (formValues.type === 'LINK') {
-        previewDataHtml = `<p class="text-primary text-break border p-2 rounded-3 bg-light">${formValues.link}</p>`;
+        let rawUrl = formValues.link;
+        let iframeUrl = rawUrl;
+
+        // ลอจิกแปลงลิงก์ Google Drive ให้เป็นโหมด Preview อัตโนมัติ
+        if (rawUrl.includes('drive.google.com/file/d/')) {
+            iframeUrl = rawUrl.replace(/\/view.*/, '/preview');
+        }
+
+        previewDataHtml = `
+            <div class="mb-3 text-center border rounded-3 overflow-hidden shadow-sm bg-light" style="height: 250px; position: relative;">
+                <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <p class="text-primary text-break border p-2 rounded-3 bg-light small mb-0">🔗 ลิงก์: <a href="${rawUrl}" target="_blank">${rawUrl}</a></p>
+        `;
     } else {
-        previewDataHtml = `<p class="text-primary border p-2 rounded-3 bg-light">📄 ชื่อไฟล์: ${formValues.file.name} <br>ขนาด: ${(formValues.file.size / 1024).toFixed(2)} KB</p>`;
+        let file = formValues.file;
+        let fileUrl = URL.createObjectURL(file);
+        let previewElement = '';
+
+        // แยกประเภทไฟล์เพื่อการพรีวิวที่ถูกต้อง
+        if (file.type.startsWith('image/')) {
+            previewElement = `<img src="${fileUrl}" style="max-height: 230px; max-width: 100%; object-fit: contain;" class="rounded">`;
+        } else if (file.type === 'application/pdf') {
+            previewElement = `<iframe src="${fileUrl}" style="width: 100%; height: 230px; border: none;"></iframe>`;
+        } else {
+            // กรณีเป็นไฟล์ Word, Excel, PPT ที่เบราว์เซอร์ไม่รองรับการพรีวิวสด
+            previewElement = `<div class="d-flex align-items-center justify-content-center" style="height: 230px;"><div class="text-muted"><h1 class="mb-0 text-secondary">📁</h1><p class="small mt-2">แนบไฟล์สำเร็จ (ไม่รองรับการพรีวิวสด)</p></div></div>`;
+        }
+
+        previewDataHtml = `
+            <div class="mb-3 text-center border rounded-3 p-2 bg-light shadow-sm">
+                ${previewElement}
+            </div>
+            <p class="text-primary border p-2 rounded-3 bg-light small mb-0">📄 ชื่อไฟล์: ${file.name} <br>ขนาด: ${(file.size / 1024).toFixed(2)} KB</p>
+        `;
     }
 
     const confirmSubmit = await Swal.fire({
         icon: 'question',
         title: 'คุณยืนยันที่จะส่งงานนี้ใช่หรือไม่?',
+        // ปรับขนาดหน้าต่าง Pop-up ให้กว้างขึ้นเพื่อรองรับการพรีวิว
+        width: '600px',
         html: `
             <div class="text-start mt-2">
-                <label class="fw-bold">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>
+                <label class="fw-bold mb-2">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>
                 ${previewDataHtml}
                 <div class="alert alert-danger mt-3 small">
                     <b>คำเตือน:</b> ท่านสามารถส่งงานได้เพียงครั้งเดียวเท่านั้น<br>
-                    (ท่านสามารถกดยกเลิกเองได้ หาก Mentor ยังไม่ได้ลงคะแนน)
+                    (ท่านสามารถกดยกเลิกเองได้ หากวิทยากรยังไม่ได้ลงคะแนน)
                 </div>
             </div>
         `,
