@@ -684,65 +684,54 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 }
 
+// [วิ V47.0: No-Headers Fetch Bypass (ส่งตรง หลบด่านตรวจ)]
 async function executeAssignmentSubmit(payload, fileObj = null) {
     Swal.fire({ title: 'กำลังอัปโหลด...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     if (payload.submission_type === 'LINK') {
         try {
-            let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'submitAssignment', payload: payload }) });
+            let response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                // ส่งเป็น JSON สดๆ ไม่ต้องใส่ Header เพื่อข้ามด่าน CORS
+                body: JSON.stringify({ action: 'submitAssignment', payload: payload })
+            });
             let result = await response.json();
             if (result.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'สำเร็จ', timer: 1500, showConfirmButton: false });
                 setTimeout(() => openAssignmentForm(), 1500);
             } else { Swal.fire('ข้อผิดพลาด', result.message, 'error'); }
-        } catch (e) { Swal.fire('ข้อผิดพลาด', 'เน็ตหลุด', 'error'); }
+        } catch (e) { Swal.fire('ข้อผิดพลาด', 'เน็ตหลุด ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error'); }
     } else {
         let reader = new FileReader();
         reader.readAsDataURL(fileObj);
-        reader.onload = function () {
+        reader.onload = async function () {
             let base64Data = reader.result.split(',')[1];
-            
-            let iframeName = "upload_iframe_" + new Date().getTime();
-            let iframe = document.createElement("iframe");
-            iframe.name = iframeName; iframe.style.display = "none";
-            document.body.appendChild(iframe);
+            payload.base64Data = base64Data;
+            payload.fileName = fileObj.name;
+            payload.mimeType = fileObj.type;
 
-            let form = document.createElement("form");
-            form.action = GAS_API_URL; form.method = "POST";
-            form.target = iframeName; form.style.display = "none";
-
-            let params = { 
-                action: 'submitAssignmentFILE_Base64', 
-                personal_id: payload.personal_id, 
-                assign_id: payload.assign_id, 
-                target_folder_id: payload.target_folder_id, 
-                is_late: payload.is_late,
-                fileName: fileObj.name,
-                mimeType: fileObj.type,
-                base64Data: base64Data
-            };
-
-            for (let key in params) {
-                let hidden = document.createElement("input");
-                hidden.type = "hidden"; hidden.name = key; hidden.value = params[key];
-                form.appendChild(hidden);
+            try {
+                // ส่งเป็น JSON สดๆ ข้ามด่านพี่ยาม Google
+                let response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'submitAssignment', payload: payload })
+                });
+                
+                let result = await response.json();
+                
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์เข้า Drive เรียบร้อยแล้ว', timer: 2000, showConfirmButton: false });
+                    setTimeout(() => openAssignmentForm(), 2000);
+                } else {
+                    Swal.fire('ข้อผิดพลาดจากระบบ', result.message, 'error');
+                }
+            } catch (e) {
+                Swal.fire('เกิดข้อผิดพลาด', 'เน็ตหลุด หรือ ขนาดไฟล์อาจใหญ่เกินกว่าที่ระบบรับได้ (แนะนำไม่เกิน 5MB)', 'error');
             }
-
-            document.body.appendChild(form);
-
-            iframe.onload = function() {
-                Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', text: 'ไฟล์ของท่านเข้าสู่ Drive อย่างสมบูรณ์แล้ว', timer: 2000, showConfirmButton: false });
-                setTimeout(() => {
-                    document.body.removeChild(form); document.body.removeChild(iframe);
-                    openAssignmentForm();
-                }, 2000);
-            };
-
-            form.submit();
         };
         
         reader.onerror = function() {
-            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้ กรุณาลองใหม่', 'error');
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์จากเครื่องของท่านได้', 'error');
         };
     }
 }
