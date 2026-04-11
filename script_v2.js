@@ -644,7 +644,7 @@ function renderAssignmentDashboard() {
 
     document.getElementById("assignmentDashboardSummary").innerHTML = `
         <div class="col-md-4">
-            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #1A365D;">
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #1132ec;">
                 <h6 class="fw-bold mb-1">📁 ภาระงานทั้งหมด</h6>
                 <h2 class="mb-0 fw-bold">${totalAssignments} <span class="fs-6 fw-normal">งาน</span></h2>
             </div>
@@ -656,7 +656,7 @@ function renderAssignmentDashboard() {
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #34495e;">
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #e06309;">
                 <h6 class="fw-bold mb-1">📈 ความก้าวหน้า (Progress)</h6>
                 <div class="d-flex align-items-center justify-content-center mt-2">
                     <h2 class="mb-0 fw-bold me-3">${progressPercent}%</h2>
