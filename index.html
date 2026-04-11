@@ -14,7 +14,11 @@
     <style>
         body { 
             font-family: 'Niramit', sans-serif; 
-            background-color: #f4f7f9; 
+            background-color: #f4f7f9 !important; /* สีพื้นสว่าง */
+            background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px) !important;
+            background-size: 25px 25px !important; /* ขนาดช่องตาราง */
+            background-position: center center !important;
+            background-attachment: fixed !important; /* ล็อกพื้นหลังให้อยู่กับที่ */
         }
         
         .fade-in { 
@@ -89,24 +93,7 @@
             </div>
         </nav>
 
-        <style>
-            .login-grid-bg {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background-color: #f4f7f9;
-                /* สร้างลายจุดไข่ปลาเรียงเป็นตาราง (ปรับความเข้มจุดได้ที่เลข 0.12) */
-                background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
-                background-size: 25px 25px; /* ระยะห่างของช่องตาราง */
-                background-position: center center;
-                z-index: 2000; /* ดันให้อยู่บนสุดคลุมทุกอย่าง */
-                overflow-y: auto; /* ให้เลื่อนจอได้ถ้าเปิดในมือถือเครื่องเล็ก */
-            }
-        </style>
-
-        <div id="loginSection" class="app-view d-block login-grid-bg">
+        <div id="loginSection" class="app-view d-block">
             <div class="d-flex align-items-center justify-content-center w-100 px-3" style="min-height: 100vh; padding-top: 20px; padding-bottom: 20px;">
                 <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 550px; width: 100%;">
                     <div class="bg-primary text-white text-center py-5 px-3">
