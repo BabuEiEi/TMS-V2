@@ -81,12 +81,12 @@ async function openAttendanceForm() {
     btnContainer.innerHTML = `<div class="text-center my-5"><div class="spinner-border text-info"></div></div>`;
 
     try {
+        // 🔮 แก้ไขให้ถูกต้อง: ต้องเรียก getAttendanceData ไม่ใช่ getSurveyData ค่ะ!
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify({
-                action: 'getSurveyData',
+                action: 'getAttendanceData',
                 payload: {
-                    survey_type: type,
                     personal_id: localStorage.getItem("tms_personal_id")
                 }
             })
