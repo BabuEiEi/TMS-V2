@@ -642,10 +642,9 @@ function renderAssignmentDashboard() {
 
     let progressPercent = totalAssignments > 0 ? Math.round((submittedCount / totalAssignments) * 100) : 0;
 
-    // 🔮 โค้ดสร้างการ์ดสรุปผล (อัปเดตสีการ์ดภาระงานเป็น #09006B)
     document.getElementById("assignmentDashboardSummary").innerHTML = `
         <div class="col-md-4">
-            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #09006B;">
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #1A365D;">
                 <h6 class="fw-bold mb-1">📁 ภาระงานทั้งหมด</h6>
                 <h2 class="mb-0 fw-bold">${totalAssignments} <span class="fs-6 fw-normal">งาน</span></h2>
             </div>
