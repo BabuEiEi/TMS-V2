@@ -420,16 +420,36 @@ function renderSpeakerCards() {
     }
 
     let html = `<label class="form-label fw-bold">คลิกเลือกวิทยากร:</label><div class="row g-3">`;
+    let speakerHtml = '';
     globalSurveyData.speakers.forEach(spk => {
-        html += `
-            <div class="col-md-6">
-                <div class="card h-100 speaker-card" id="spk_card_${spk.id}" onclick="selectSpeaker('${spk.id}')">
-                    <div class="card-body p-4">
-                        <h5 class="fw-bold">🎤 ${spk.name}</h5>
-                        <p class="small mb-0">หัวข้อ: ${spk.topic}</p>
-                    </div>
+        // 🔮 ถ้าประเมินไปแล้ว (ให้ปุ่มเป็นสีเทา และกดไม่ได้)
+        if (spk.is_evaluated) {
+            speakerHtml += `
+            <div class="card mb-3 border-secondary shadow-sm" style="background-color: #f8f9fa;">
+                <div class="card-body text-start">
+                    <h6 class="text-secondary mb-1 fw-bold">วิทยากร: ${spk.name}</h6>
+                    <p class="small text-muted mb-3">หัวข้อ: ${spk.topic}</p>
+                    <button class="btn btn-secondary w-100 rounded-pill" disabled style="opacity: 0.8;">
+                        <i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรท่านนี้แล้ว
+                    </button>
                 </div>
-            </div>`;
+            </div>
+        `;
+        }
+        // 🔮 ถ้ายังไม่ได้ประเมิน (ปุ่มสีน้ำเงินปกติ กดได้)
+        else {
+            speakerHtml += `
+            <div class="card mb-3 border-primary shadow-sm">
+                <div class="card-body text-start">
+                    <h6 class="text-primary mb-1 fw-bold">วิทยากร: ${spk.name}</h6>
+                    <p class="small text-muted mb-3">หัวข้อ: ${spk.topic}</p>
+                    <button class="btn btn-primary w-100 rounded-pill" onclick="startSpeakerEval('${spk.id}')">
+                        ⭐ คลิกเพื่อประเมิน
+                    </button>
+                </div>
+            </div>
+        `;
+        }
     });
     html += `</div>`;
     selectionArea.innerHTML = html;
@@ -689,7 +709,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     }
 
     const confirmSubmit = await Swal.fire({
-        icon: 'question', title: 'ยืนยันที่จะส่งงานนี้ใช่หรือไม่?', width: '600px', 
+        icon: 'question', title: 'ยืนยันที่จะส่งงานนี้ใช่หรือไม่?', width: '600px',
         html: `<div class="text-start mt-2"><label class="fw-bold mb-2">ข้อมูลที่จะถูกส่งเข้าสู่ระบบ:</label>${previewDataHtml}</div>`,
         showCancelButton: true, confirmButtonText: 'ยืนยันการส่งงาน', confirmButtonColor: '#198754'
     });
@@ -725,9 +745,9 @@ async function sendToGAS(payload) {
             mode: 'cors', // บังคับโหมด Cors เพื่อเช็กสถานะตอบกลับ
             body: JSON.stringify({ action: 'submitAssignment', payload: payload })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', timer: 2000, showConfirmButton: false });
             setTimeout(() => openAssignmentForm(), 2000);
