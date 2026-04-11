@@ -90,19 +90,25 @@
         </nav>
 
         <style>
-            .login-geometric-bg {
-                background-color: #f4f7fa; /* สีพื้นหลังสว่างอมฟ้าอ่อนๆ ดูสบายตา */
-                background-image: 
-                    /* แสงสว่างส่องจากด้านบน */
-                    radial-gradient(circle at 50% 0%, rgba(9, 0, 107, 0.06) 0%, transparent 60%),
-                    /* ลวดลายเรขาคณิต (Hexagon) สีกรมท่าโปร่งใส */
-                    url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2309006b' fill-opacity='0.04'%3E%3Cpath d='M10 16l-6-3V7l6-3 6 3v6l-6 3zm11-11l-6-3V-5l6-3 6 3v6l-6 3zm26 0l-6-3V-5l6-3 6 3v6l-6 3zM36 16l-6-3V7l6-3 6 3v6l-6 3zm11 11l-6-3v-6l6-3 6 3v6l-6 3zm-26 0l-6-3v-6l6-3 6 3v6l-6 3z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            .login-grid-bg {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: #f4f7f9;
+                /* สร้างลายจุดไข่ปลาเรียงเป็นตาราง (ปรับความเข้มจุดได้ที่เลข 0.12) */
+                background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
+                background-size: 25px 25px; /* ระยะห่างของช่องตาราง */
+                background-position: center center;
+                z-index: 2000; /* ดันให้อยู่บนสุดคลุมทุกอย่าง */
+                overflow-y: auto; /* ให้เลื่อนจอได้ถ้าเปิดในมือถือเครื่องเล็ก */
             }
         </style>
 
-        <div id="loginSection" class="app-view d-block login-geometric-bg">
-            <div class="d-flex align-items-center justify-content-center" style="min-height: 85vh;">
-                <div class="card shadow border-0 rounded-3 overflow-hidden" style="max-width: 550px; width: 100%;">
+        <div id="loginSection" class="app-view d-block login-grid-bg">
+            <div class="d-flex align-items-center justify-content-center w-100 px-3" style="min-height: 100vh; padding-top: 20px; padding-bottom: 20px;">
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 550px; width: 100%;">
                     <div class="bg-primary text-white text-center py-5 px-3">
                         <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 110px;" class="mb-3">
                         <h5 class="mb-0 fw-bold" style="letter-spacing: 0.5px;">ระบบบริหารจัดการการฝึกอบรม (TMS)</h5>
