@@ -108,13 +108,19 @@
             </div>
         </div>
 
-        <div id="attendanceSection" class="d-none fade-in">
-            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 650px;">
-                <h4 class="mb-4 text-info fw-bold text-center border-bottom pb-3">⏱️ ลงเวลาเข้าอบรม</h4>
-                <div id="attendanceButtonsContainer" class="mb-4"></div>
-                <button class="btn btn-secondary px-4 w-100 rounded-pill shadow-sm" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
-            </div>
+        <div id="attendanceSection" class="container d-none mt-4 fade-in">
+        
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2">
+            <h3 class="mb-0 text-primary fw-bold">⏱️ ลงเวลาเข้าอบรม</h3>
+            <button class="btn btn-secondary rounded-pill px-4 shadow-sm" onclick="backToDashboard('attendanceSection')">
+                <i class="bi bi-arrow-left-circle me-1"></i> กลับเมนูหลัก
+            </button>
         </div>
+
+        <div id="attendanceButtonsContainer" class="mx-auto" style="max-width: 500px;">
+            </div>
+        
+    </div>
 
         <div id="examSection" class="d-none fade-in">
             <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
