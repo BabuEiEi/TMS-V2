@@ -396,7 +396,13 @@ async function openSurveyForm(type) {
     try {
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type } })
+            body: JSON.stringify({
+                action: 'getSurveyData',
+                payload: {
+                    survey_type: type,
+                    personal_id: localStorage.getItem("tms_personal_id") // 🔮 เติมบรรทัดนี้ลงไปเพื่อส่งรหัสให้หลังบ้านค่ะ
+                }
+            })
         });
         globalSurveyData = await response.json();
 
