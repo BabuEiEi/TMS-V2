@@ -1,11 +1,11 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 41.0 (UI Refinement & LMS Layout Update)
+ * VERSION: 53.0 (The Ultimate LMS Assembly)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: รวมระบบลงเวลา ระบบข้อสอบ (ความกว้าง 520px) ระบบประเมิน และระบบส่งงาน
- * RULE: ปฏิบัติตามกฎเหล็ก 6 ข้ออย่างเคร่งครัด
+ * DESCRIPTION: รวมระบบลงเวลา ระบบข้อสอบ ระบบประเมิน(บล็อกซ้ำ) และระบบอัปโหลดไฟล์ Base64 ฉบับสมบูรณ์
  */
 
+// 🚨 อย่าลืมเช็ก URL ตรงนี้ให้ตรงกับ Web App เวอร์ชันล่าสุดเสมอนะคะ
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzsKRuMkwiBflXOpO9Reh_PJM9JiZG1PIKSddDnbemp8zamumYpAAX-dec5lNtRdchMyg/exec';
 
 let globalExamData = null;
@@ -29,7 +29,7 @@ function formatThaiDate(dateStr) {
 }
 
 // ============================================================
-// [#NAV_LOGIC]
+// [#NAV_LOGIC]: ระบบล็อกอินและนำทาง
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -70,7 +70,7 @@ function backToDashboard(currentId) {
 }
 
 // ============================================================
-// [#ATT_LOGIC]
+// [#ATT_LOGIC]: ระบบลงเวลา (อัปเกรดแก้ Error getAttendanceData)
 // ============================================================
 
 async function openAttendanceForm() {
@@ -81,11 +81,10 @@ async function openAttendanceForm() {
     btnContainer.innerHTML = `<div class="text-center my-5"><div class="spinner-border text-info"></div></div>`;
 
     try {
-        // 🔮 แก้ไขให้ถูกต้อง: ต้องเรียก getAttendanceData ไม่ใช่ getSurveyData ค่ะ!
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify({
-                action: 'getAttendanceData',
+                action: 'getAttendanceData', // 🔮 ใช้คำสั่งที่ถูกต้องแล้ว
                 payload: {
                     personal_id: localStorage.getItem("tms_personal_id")
                 }
@@ -177,7 +176,7 @@ async function submitRealAttendance(day, slot, status) {
 }
 
 // ============================================================
-// [#EXAM_LOGIC]
+// [#EXAM_LOGIC]: ระบบข้อสอบ
 // ============================================================
 
 document.addEventListener('visibilitychange', () => {
@@ -376,7 +375,7 @@ async function submitRealExam(isAuto = false) {
 }
 
 // ============================================================
-// [#SURVEY_LOGIC]
+// [#SURVEY_LOGIC]: ระบบประเมิน (อัปเกรดปุ่มสีเทาบล็อกประเมินซ้ำ)
 // ============================================================
 
 async function openSurveyForm(type) {
@@ -406,7 +405,7 @@ async function openSurveyForm(type) {
                 action: 'getSurveyData',
                 payload: {
                     survey_type: type,
-                    personal_id: localStorage.getItem("tms_personal_id") // 🔮 เติมบรรทัดนี้ลงไปเพื่อส่งรหัสให้หลังบ้านค่ะ
+                    personal_id: localStorage.getItem("tms_personal_id") // 🔮 แนบรหัสประจำตัวเพื่อเช็กการประเมินซ้ำ
                 }
             })
         });
@@ -434,7 +433,7 @@ function renderSpeakerCards() {
     let html = `<label class="form-label fw-bold">คลิกเลือกวิทยากร:</label><div class="row g-3">`;
     let speakerHtml = '';
     globalSurveyData.speakers.forEach(spk => {
-        // 🔮 ถ้าประเมินไปแล้ว (ให้ปุ่มเป็นสีเทา และกดไม่ได้)
+        // 🔮 ถ้าประเมินไปแล้ว (ปุ่มสีเทา กดไม่ได้)
         if (spk.is_evaluated) {
             speakerHtml += `
             <div class="card mb-3 border-secondary shadow-sm" style="background-color: #f8f9fa;">
@@ -445,31 +444,29 @@ function renderSpeakerCards() {
                         <i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรท่านนี้แล้ว
                     </button>
                 </div>
-            </div>
-        `;
+            </div>`;
         }
-        // 🔮 ถ้ายังไม่ได้ประเมิน (ปุ่มสีน้ำเงินปกติ กดได้)
+        // 🔮 ถ้ายังไม่ได้ประเมิน (ปุ่มสีน้ำเงินปกติ กดเลือกได้)
         else {
             speakerHtml += `
-            <div class="card mb-3 border-primary shadow-sm">
+            <div class="card mb-3 border-primary shadow-sm" id="spk_card_${spk.id}">
                 <div class="card-body text-start">
                     <h6 class="text-primary mb-1 fw-bold">วิทยากร: ${spk.name}</h6>
                     <p class="small text-muted mb-3">หัวข้อ: ${spk.topic}</p>
-                    <button class="btn btn-primary w-100 rounded-pill" onclick="startSpeakerEval('${spk.id}')">
+                    <button class="btn btn-primary w-100 rounded-pill" onclick="selectSpeaker('${spk.id}')">
                         ⭐ คลิกเพื่อประเมิน
                     </button>
                 </div>
-            </div>
-        `;
+            </div>`;
         }
     });
-    html += `</div>`;
+    html += speakerHtml + `</div>`;
     selectionArea.innerHTML = html;
 }
 
 function selectSpeaker(spkId) {
     selectedSpeakerId = spkId;
-    document.querySelectorAll('.speaker-card').forEach(card => {
+    document.querySelectorAll('.speaker-card, .border-primary.bg-primary-subtle').forEach(card => {
         card.classList.remove('border-primary', 'bg-primary-subtle');
     });
     let selectedCard = document.getElementById('spk_card_' + spkId);
@@ -546,7 +543,7 @@ async function submitRealSurvey() {
 }
 
 // ============================================================
-// [#ASSIGNMENT_LOGIC]: ระบบส่งงาน (LMS Features)
+// [#ASSIGNMENT_LOGIC]: ระบบส่งงาน (อัปเกรด Base64 อัปโหลดไฟล์)
 // ============================================================
 
 async function openAssignmentForm() {
@@ -596,7 +593,6 @@ function renderAssignmentDashboard() {
         let showLateWarning = sub ? (sub.is_late === 'TRUE' || sub.is_late === true) : isLateDeadline;
         let lateBadge = showLateWarning ? `<span class="badge bg-danger ms-2">ส่งงานช้า</span>` : '';
 
-        // [จุดแก้ไขที่ 3: เพิ่ม pre-wrap ที่ div ของ description เพื่อให้ขึ้นบรรทัดใหม่ตาม Database]
         let taskInfo = `
             <div class="fw-bold text-dark fs-6">${asn.title} ${lateBadge}</div>
             <div class="text-muted small my-1" style="white-space: pre-wrap; word-break: break-word;">${asn.description}</div>
@@ -627,7 +623,6 @@ function renderAssignmentDashboard() {
             actionBtn = `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-success w-100 rounded-pill">ดูงานที่ส่ง</a>`;
         }
 
-        // [จุดแก้ไขที่ 2: เพิ่ม class align-top ที่แถวตาราง (tr) และปรับข้อความ taskInfo ให้ชิดซ้าย (text-start)]
         tbodyHtml += `
             <tr class="align-top">
                 <td class="text-center fw-bold">${index + 1}</td>
@@ -647,7 +642,6 @@ function renderAssignmentDashboard() {
 
     let progressPercent = totalAssignments > 0 ? Math.round((submittedCount / totalAssignments) * 100) : 0;
 
-    // [จุดแก้ไขที่ 1: เปลี่ยนสีพื้นความก้าวหน้าจากการ์ดสีดำ เป็นสีกรมท่าอมเทา (#34495e) เพื่อความซอฟต์และสวยงาม]
     document.getElementById("assignmentDashboardSummary").innerHTML = `
         <div class="col-md-4">
             <div class="card bg-primary text-white border-0 rounded-4 shadow-sm p-3 h-100">
@@ -675,7 +669,6 @@ function renderAssignmentDashboard() {
     `;
 }
 
-// [วิ V49.0: The Final Boss Beater (พรีวิวครบ + Iframe Multipart)]
 async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
     let inputHtml = '', fileToSubmit = null, linkToSubmit = '';
@@ -732,11 +725,11 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     executeAssignmentSubmit(payload, subType === 'LINK' ? linkToSubmit : fileToSubmit);
 }
 
+// 🔮 ระบบอัปโหลดไฟล์ที่เสถียรที่สุด (แปลงเป็น Base64 แบบฝังตัว)
 async function executeAssignmentSubmit(payload, fileObj = null) {
     Swal.fire({ title: 'กำลังเตรียมข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     if (payload.submission_type === 'FILE' && fileObj) {
-        // แปลงไฟล์เป็น Base64 ก่อนส่ง (วิธีที่เสถียรที่สุดสำหรับ JSON Fetch)
         const reader = new FileReader();
         reader.readAsDataURL(fileObj);
         reader.onload = async () => {
@@ -754,7 +747,7 @@ async function sendToGAS(payload) {
     try {
         const response = await fetch(GAS_API_URL, {
             method: 'POST',
-            mode: 'cors', // บังคับโหมด Cors เพื่อเช็กสถานะตอบกลับ
+            mode: 'cors',
             body: JSON.stringify({ action: 'submitAssignment', payload: payload })
         });
 
