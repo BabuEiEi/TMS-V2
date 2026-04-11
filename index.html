@@ -78,6 +78,12 @@
                 <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
                 <button class="btn btn-outline-danger btn-sm rounded-pill px-4" onclick="logout()">ออกจากระบบ</button>
             </div>
+
+            <div class="d-flex justify-content-end mb-3 px-3">
+            <button class="btn btn-outline-primary rounded-pill px-4 shadow-sm" onclick="location.reload()">
+                🔄 โหลดหน้าเว็บใหม่
+            </button>
+            </div>
             
             <div class="row g-4 text-center">
                 <div class="col-6 col-md-2">
@@ -112,11 +118,12 @@
 
         <div id="attendanceSection" class="container d-none mt-4 fade-in">
         
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
             <h3 class="mb-0 text-primary fw-bold">⏱️ ลงเวลาเข้าอบรม</h3>
-            <button class="btn btn-secondary rounded-pill px-4 shadow-sm" onclick="backToDashboard('attendanceSection')">
-                <i class="bi bi-arrow-left-circle me-1"></i> กลับเมนูหลัก
-            </button>
+            <div>
+                <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openAttendanceForm()">🔄 รีเฟรช</button>
+                <button class="btn btn-secondary rounded-pill px-4 shadow-sm" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
+            </div>
         </div>
 
         <div id="attendanceButtonsContainer" class="mx-auto" style="max-width: 500px;">
@@ -126,11 +133,19 @@
 
         <div id="examSection" class="d-none fade-in">
             <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
+                
                 <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                     <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
-                    <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-4 shadow-sm">⏳ <span id="examTimeDisplay">30:00</span></div>
+                    
+                    <div class="d-flex align-items-center">
+                        <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-4 shadow-sm me-3">⏳ <span id="examTimeDisplay">30:00</span></div>
+                        <button class="btn btn-outline-info rounded-pill px-3 shadow-sm" onclick="openExamForm()">🔄 รีเฟรช</button>
+                    </div>
+
                 </div>
+                
                 <div id="examContentArea"></div>
+                
                 <div class="d-flex justify-content-between mt-5 border-top pt-4">
                     <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('examSection')">กลับ</button>
                     <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-5 d-none rounded-pill shadow" onclick="submitRealExam()">ส่งคำตอบ</button>
@@ -143,7 +158,12 @@
                 
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                     <h4 class="text-success fw-bold mb-0">📊 <span id="surveyTitleLabel"></span></h4>
-                    <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('surveySection')">กลับหน้าหลัก</button>
+                    
+                    <div>
+                        <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openSurveyForm(currentSurveyType)">🔄 รีเฟรช</button>
+                        <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('surveySection')">กลับหน้าหลัก</button>
+                    </div>
+
                 </div>
                 
                 <div id="speakerSelectionArea" class="mb-4 d-none p-4 bg-light rounded-4 border border-primary shadow-sm"></div>
@@ -166,10 +186,17 @@
             <div class="row g-3 mb-4" id="assignmentDashboardSummary"></div>
 
             <div class="card shadow-lg p-4 border-0 rounded-4 bg-white">
-                <h5 class="fw-bold text-primary mb-4 border-start border-4 border-primary ps-3">รายการภาระงานที่ต้องส่ง</h5>
+                
+                <div class="d-flex justify-content-between align-items-center mb-4 pe-2">
+                    <h5 class="fw-bold text-primary mb-0 border-start border-4 border-primary ps-3">รายการภาระงานที่ต้องส่ง</h5>
+                    <button class="btn btn-outline-info rounded-pill px-3 shadow-sm" onclick="openAssignmentForm()">
+                        🔄 รีเฟรชตาราง
+                    </button>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle border">
-                        <thead class="table-light text-center">
+                        <thead class="table-light text-center align-top">
                             <tr>
                                 <th style="width: 5%;">ลำดับ</th>
                                 <th style="width: 40%;">ภาระงาน (คำสั่ง / กำหนดส่ง)</th>
