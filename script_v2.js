@@ -58,8 +58,12 @@ function logout() {
 }
 
 function showDashboard() {
+    // ซ่อนหน้า Login
     document.getElementById("loginSection").classList.add("d-none");
+    
+    // โชว์หน้า Dashboard และ Navbar ใหม่ของพี่บาบู
     document.getElementById("dashboardSection").classList.remove("d-none");
+    document.getElementById("main-nav").style.display = "block"; // 🔮 สั่งเปิด Navbar
 }
 
 function backToDashboard(currentId) {
