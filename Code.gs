@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 51.1 (The Complete Resilient Edition)
+ * VERSION: 52.0 (The Thai 24-Hrs Timezone Edition)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: ประกอบร่างใหม่ เปิดระบบครบทุกฟังก์ชัน + อัปโหลดไฟล์เสถียร
+ * DESCRIPTION: อัปเกรดระบบเวลาเป็นเขตเวลาประเทศไทย (Asia/Bangkok) 24 ชั่วโมงทั้งหมด
  */
 
 const DB_SHARDS = {
@@ -12,6 +12,11 @@ const DB_SHARDS = {
     'SPEAKER': '1suKQNqhm_DKwzHUMttEgTpPq7oIsBIj_SWO_p9kYktw',
     'ASSIGNMENT': '1Gx9b8UKkLhogO90NWLbVYsE0Fk_Rr2ZfUe4_USPcNOE'
 };
+
+// 🔮 ฟังก์ชันสร้างเวลาไทย 24 ชั่วโมง (รูปแบบ: วัน/เดือน/ปี ชั่วโม:นาที:วินาที)
+function getThaiTime() {
+    return Utilities.formatDate(new Date(), "Asia/Bangkok", "dd/MM/yyyy HH:mm:ss");
+}
 
 function doPost(e) {
     var lock = LockService.getScriptLock();
@@ -23,9 +28,10 @@ function doPost(e) {
         var payload = requestData.payload;
         var result = {};
 
-        // 🔮 เปิดประตูรับแขกครบทุกฟังก์ชันแล้วค่ะ!
         if (action === 'getAttendanceData') { result = getAttendanceData(payload.personal_id); }
         else if (action === 'submitAttendance') { result = submitAttendance(payload); }
+        else if (action === 'getUserProfile') { result = getUserProfile(payload.personal_id); }
+        else if (action === 'getExamData') { result = getExamData(payload.personal_id); }
         else if (action === 'getExamData') { result = getExamData(payload.personal_id); }
         else if (action === 'submitExam') { result = submitExam(payload); }
         else if (action === 'getSurveyData') { result = getSurveyData(payload); }
@@ -46,20 +52,18 @@ function doPost(e) {
 }
 
 // ============================================================
-// [#ASSIGNMENT_LOGIC]: Backend ระบบส่งงาน (เปลี่ยนชื่อไฟล์อัตโนมัติ)
+// [#ASSIGNMENT_LOGIC]
 // ============================================================
 
 function submitAssignment(payload) {
     var assignSs = SpreadsheetApp.openById(DB_SHARDS['ASSIGNMENT']);
     var sheet = assignSs.getSheetByName('Assignment_Log');
-    var timestamp = new Date();
-    var logId = "ASN-" + timestamp.getTime();
+    var rawTimestamp = new Date(); // ใช้สร้าง ID และตั้งชื่อไฟล์
+    var logId = "ASN-" + rawTimestamp.getTime();
     var finalLink = payload.file_link || ""; 
     
     if (payload.submission_type === 'FILE') {
-        if (!payload.base64Data) {
-            return { status: 'error', message: 'ไฟล์ข้อมูลขาดหายระหว่างทาง (Empty Base64) กรุณาลองใหม่อีกครั้ง' };
-        }
+        if (!payload.base64Data) return { status: 'error', message: 'ไฟล์ข้อมูลขาดหายระหว่างทาง (Empty Base64)' };
 
         try {
             var cleanFolderId = payload.target_folder_id ? payload.target_folder_id.toString().trim() : "";
@@ -70,24 +74,11 @@ function submitAssignment(payload) {
             var subFolders = parentFolder.getFoldersByName(payload.assign_id);
             var targetFolder = subFolders.hasNext() ? subFolders.next() : parentFolder.createFolder(payload.assign_id);
             
-            // 🔮 [วิอัปเกรด]: ระบบตั้งชื่อไฟล์ใหม่อัตโนมัติ
             var originalName = payload.fileName || "Uploaded_File";
-            var extension = "";
-            
-            // 1. ค้นหาและเก็บนามสกุลไฟล์เดิมไว้ (เช่น .pdf, .docx, .jpg)
-            var dotIndex = originalName.lastIndexOf(".");
-            if (dotIndex !== -1) {
-                extension = originalName.substring(dotIndex); 
-            }
-            
-            // 2. แปลงเวลาให้เป็นรูปแบบ วัน-เดือน-ปี_ชั่วโมงนาทีวินาที (Timezone ไทย)
-            var timeString = Utilities.formatDate(timestamp, "Asia/Bangkok", "dd-MM-yyyy_HHmmss");
-            
-            // 3. ประกอบร่างชื่อไฟล์ใหม่: รหัสประจำตัว_วันเดือนปี_เวลา.นามสกุล
-            // ตัวอย่าง: SV001_10-04-2026_153045.pdf
+            var extension = originalName.lastIndexOf(".") !== -1 ? originalName.substring(originalName.lastIndexOf(".")) : "";
+            var timeString = Utilities.formatDate(rawTimestamp, "Asia/Bangkok", "dd-MM-yyyy_HHmmss");
             var newFileName = payload.personal_id + "_" + timeString + extension;
             
-            // นำชื่อใหม่ไปใช้สร้างไฟล์
             var blob = Utilities.newBlob(Utilities.base64Decode(payload.base64Data), payload.mimeType || MimeType.PDF, newFileName);
             var file = targetFolder.createFile(blob);
             finalLink = file.getUrl(); 
@@ -96,79 +87,52 @@ function submitAssignment(payload) {
         }
     }
     
-    sheet.appendRow([ logId, payload.personal_id, payload.assign_id, payload.submission_type, finalLink, timestamp, "รอตรวจ", "", payload.is_late ]);
+    // 🔮 บันทึกเวลาลงชีตเป็นเวลาไทย 24 ชม.
+    sheet.appendRow([ logId, payload.personal_id, payload.assign_id, payload.submission_type, finalLink, getThaiTime(), "รอตรวจ", "", payload.is_late ]);
     return { status: 'success' };
 }
 
-// ============================================================
-// [#ASSIGNMENT_LOGIC]: ฟังก์ชันดึงข้อมูลงาน (อัปเกรดระบบกรองตามกลุ่ม/บทบาท)
-// ============================================================
-
 function getAssignmentData(personalId) {
     var masterSs = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // 1. ดึงข้อมูล User เพื่อเช็กว่าคนนี้อยู่ "บทบาท/กลุ่มไหน" (group_target)
     var userSheet = masterSs.getSheetByName('Users');
     var usersData = userSheet.getDataRange().getDisplayValues();
     var userGroup = "";
     
     for (var u = 1; u < usersData.length; u++) {
-        if (usersData[u][0] === personalId) { // index 0 คือ personal_id
-            userGroup = usersData[u][5].toString().trim(); // index 5 คือ group_target (คอลัมน์ F)
-            break;
-        }
+        if (usersData[u][0] === personalId) { userGroup = usersData[u][5].toString().trim(); break; }
     }
     
-    var configSheet = masterSs.getSheetByName('Assignment_Config');
-    var configs = configSheet.getDataRange().getDisplayValues();
-    
-    var assignSs = SpreadsheetApp.openById(DB_SHARDS['ASSIGNMENT']);
-    var logSheet = assignSs.getSheetByName('Assignment_Log');
-    var logs = logSheet.getDataRange().getDisplayValues();
+    var configs = masterSs.getSheetByName('Assignment_Config').getDataRange().getDisplayValues();
+    var logs = SpreadsheetApp.openById(DB_SHARDS['ASSIGNMENT']).getSheetByName('Assignment_Log').getDataRange().getDisplayValues();
     
     var assignments = [];
     var userSubmissions = {};
     
-    // 2. กรองภาระงานตามกลุ่มเป้าหมาย (Group Filter)
     for (var i = 1; i < configs.length; i++) {
         var isActive = configs[i][7] ? configs[i][7].toUpperCase() === 'TRUE' : false;
-        
         if (isActive) {
-            // ดึงค่าเป้าหมายจากคอลัมน์ I (index 8) ถ้าไม่มีข้อมูลให้มองเป็น ALL
             var targetGroup = configs[i][8] ? configs[i][8].toString().trim().toUpperCase() : "ALL"; 
-            
-            // ตรรกะดักจับคำ: หั่นคำด้วยลูกน้ำ แล้วเช็กว่ามีคำที่ตรงกับกลุ่มของ User ไหม
             var targetArray = targetGroup.split(',').map(function(item) { return item.trim(); });
             var isMatchGroup = (targetGroup === "ALL" || targetGroup === "" || targetArray.indexOf(userGroup) !== -1);
             
             if (isMatchGroup) {
                 assignments.push({
-                    assign_id: configs[i][0], 
-                    title: configs[i][1], 
-                    description: configs[i][2],
-                    submission_type: configs[i][3], 
-                    target_folder_id: configs[i][4],
-                    start_datetime: configs[i][5], 
-                    end_datetime: configs[i][6]
+                    assign_id: configs[i][0], title: configs[i][1], description: configs[i][2],
+                    submission_type: configs[i][3], target_folder_id: configs[i][4],
+                    start_datetime: configs[i][5], end_datetime: configs[i][6]
                 });
             }
         }
     }
     
-    // 3. ดึงประวัติการส่งงานของผู้อบรมคนนี้
     for (var j = 1; j < logs.length; j++) {
         if (logs[j][1] === personalId) {
             userSubmissions[logs[j][2]] = {
-                submission_type: logs[j][3], 
-                file_link: logs[j][4], 
-                timestamp: logs[j][5],
-                status: logs[j][6], 
-                feedback: logs[j][7], 
-                is_late: logs[j][8]
+                submission_type: logs[j][3], file_link: logs[j][4], timestamp: logs[j][5],
+                status: logs[j][6], feedback: logs[j][7], is_late: logs[j][8]
             };
         }
     }
-    
     return { status: 'success', assignments: assignments, userSubmissions: userSubmissions };
 }
 
@@ -178,8 +142,7 @@ function cancelAssignment(payload) {
     for (var i = data.length - 1; i >= 1; i--) {
         if (data[i][1] === payload.personal_id && data[i][2] === payload.assign_id) {
             if (data[i][6] === 'รอตรวจ' || data[i][6] === 'แก้ไข') {
-                sheet.getRange(i + 1, 7).setValue('ยกเลิก');
-                return { status: 'success' };
+                sheet.getRange(i + 1, 7).setValue('ยกเลิก'); return { status: 'success' };
             } else { return { status: 'error', message: 'ไม่สามารถยกเลิกได้ เนื่องจาก Mentor ตรวจให้คะแนนแล้ว' }; }
         }
     }
@@ -187,7 +150,7 @@ function cancelAssignment(payload) {
 }
 
 // ============================================================
-// [#ATT_LOGIC & EXAM & SURVEY] : ฟังก์ชันระบบอื่นๆ
+// [#ATT_LOGIC & EXAM & SURVEY] 
 // ============================================================
 
 function getAttendanceData(personalId) {
@@ -204,26 +167,35 @@ function getAttendanceData(personalId) {
 }
 
 function submitAttendance(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheetByName('Attendance_Log').appendRow(["ATT-" + new Date().getTime(), payload.personal_id, payload.day_no, payload.time_slot, new Date(), payload.note]);
+    // 🔮 บันทึกเวลาลงชีตเป็นเวลาไทย 24 ชม.
+    SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheetByName('Attendance_Log').appendRow(["ATT-" + new Date().getTime(), payload.personal_id, payload.day_no, payload.time_slot, getThaiTime(), payload.note]);
     return { status: 'success' };
 }
 
 function getExamData(personalId) {
     var masterSs = SpreadsheetApp.getActiveSpreadsheet();
     var configs = masterSs.getSheetByName('Exam_Config').getDataRange().getDisplayValues();
-    var activeExam = null, now = new Date();
+    
+    // 🔮 ดึงเวลาปัจจุบัน (เวลาไทย) มาเทียบ
+    var nowIsoStr = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd'T'HH:mm:ss");
+    var now = new Date(nowIsoStr);
+    var activeExam = null;
+    
     for (var i = 1; i < configs.length; i++) {
-        var start = new Date(configs[i][1]), end = new Date(configs[i][2]);
-        if (configs[i][3].toUpperCase() === 'TRUE' && now >= start && now <= end) {
+        var start = new Date(configs[i][1]); var end = new Date(configs[i][2]);
+        var isActive = configs[i][3] ? configs[i][3].toString().trim().toUpperCase() === 'TRUE' : false;
+        if (isActive && now >= start && now <= end) {
             activeExam = { type: configs[i][0], start_datetime: configs[i][1], end_datetime: configs[i][2], passing_percent: parseFloat(configs[i][4]) || 80 }; break;
         }
     }
     if (!activeExam) return { status: 'error', message: 'ยังไม่ถึงเวลาเปิดให้ทำแบบทดสอบ หรือ หมดเวลาทำแบบทดสอบแล้วครับ' };
+    
     var scores = SpreadsheetApp.openById(DB_SHARDS['EXAM']).getSheetByName('Test_Scores').getDataRange().getDisplayValues();
     var attempts = 0, bestScore = 0;
     for (var j = 1; j < scores.length; j++) {
         if (scores[j][1] === personalId && scores[j][2] === activeExam.type) { attempts++; bestScore = Math.max(bestScore, parseInt(scores[j][3]) || 0); }
     }
+    
     var qbData = masterSs.getSheetByName('Questions_Bank').getDataRange().getDisplayValues();
     var questions = [];
     for (var k = 1; k < qbData.length; k++) {
@@ -233,104 +205,94 @@ function getExamData(personalId) {
 }
 
 function submitExam(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['EXAM']).getSheetByName('Test_Scores').appendRow(["EXAM-" + new Date().getTime(), payload.personal_id, payload.test_type, payload.score, payload.max_score, new Date()]);
+    // 🔮 บันทึกเวลาลงชีตเป็นเวลาไทย 24 ชม.
+    SpreadsheetApp.openById(DB_SHARDS['EXAM']).getSheetByName('Test_Scores').appendRow(["EXAM-" + new Date().getTime(), payload.personal_id, payload.test_type, payload.score, payload.max_score, getThaiTime()]);
     return { status: 'success' };
 }
 
-// ============================================================
-// [#SURVEY_LOGIC]: Backend ระบบประเมิน (อัปเกรดเกราะป้องกัน Error)
-// ============================================================
-
 function getSurveyData(payload) {
-    // 🔮 1. เกราะป้องกันขั้นสูงสุด: ดักจับ payload ทุกรูปแบบที่หน้าบ้านส่งมา
-    var surveyType = "";
-    var personalId = "";
-    
-    // ตรวจสอบว่าหน้าบ้านส่งมาเป็น Object { survey_type: '...', personal_id: '...' }
+    var surveyType = ""; var personalId = "";
     if (typeof payload === 'object' && payload !== null) {
-        surveyType = payload.survey_type || payload.type || "";
-        personalId = payload.personal_id || "";
-    } 
-    // หรือตรวจสอบว่าหน้าบ้านส่งมาเป็นข้อความ String 'SPEAKER_SURVEY' ตรงๆ
-    else if (typeof payload === 'string') {
-        surveyType = payload; 
-    }
-    
-    // ถ้ายังหาไม่เจออีก ให้แจ้ง Error กลับไปสวยๆ ไม่ให้ระบบล่ม
-    if (!surveyType) {
-        throw new Error("Payload ขาดข้อมูล survey_type กรุณาตรวจสอบการส่งข้อมูลจาก script.js");
-    }
+        surveyType = payload.survey_type || payload.type || ""; personalId = payload.personal_id || "";
+    } else if (typeof payload === 'string') { surveyType = payload; }
+    if (!surveyType) throw new Error("Payload ขาดข้อมูล survey_type");
     
     var masterSs = SpreadsheetApp.getActiveSpreadsheet();
     var qData = masterSs.getSheetByName('Questions_Bank').getDataRange().getDisplayValues();
     var questions = [];
-    
-    // 2. ดึงชุดคำถาม (พร้อมแปลงค่าให้ปลอดภัย 100%)
     for (var k = 1; k < qData.length; k++) {
-        // เช็กก่อนว่ามีข้อมูลในเซลล์ไหม ก่อนจับทำ toUpperCase ป้องกัน Error ซ้ำซ้อน
         if (qData[k][1] && qData[k][1].toString().trim().toUpperCase() === surveyType.toString().trim().toUpperCase()) {
-            questions.push({ 
-                id: qData[k][0], category: qData[k][2], question: qData[k][3], 
-                options: [qData[k][4], qData[k][5], qData[k][6], qData[k][7], qData[k][8]].filter(function(e) { return e.trim() !== ""; }) 
-            });
+            questions.push({ id: qData[k][0], category: qData[k][2], question: qData[k][3], options: [qData[k][4], qData[k][5], qData[k][6], qData[k][7], qData[k][8]].filter(function(e) { return e.trim() !== ""; }) });
         }
     }
   
     var speakers = [];
     if (surveyType.toString().trim().toUpperCase() === 'SPEAKER_SURVEY') {
-        
-        // 3. ดึงประวัติการประเมิน
         var evaluatedList = [];
-        
-        // ถ้าหน้าบ้านส่ง personalId มาด้วย ถึงจะไปค้นหาประวัติให้
         if (personalId) {
-            var speakerDb = SpreadsheetApp.openById(DB_SHARDS['SPEAKER']);
-            var evalLogs = speakerDb.getSheets()[0].getDataRange().getDisplayValues();
-            
+            var evalLogs = SpreadsheetApp.openById(DB_SHARDS['SPEAKER']).getSheets()[0].getDataRange().getDisplayValues();
             for (var e = 1; e < evalLogs.length; e++) {
-                if (evalLogs[e][1] === personalId) {
-                    evaluatedList.push(evalLogs[e][2]); // เก็บ ID วิทยากรที่เคยประเมินแล้ว
-                }
+                if (evalLogs[e][1] === personalId) evaluatedList.push(evalLogs[e][2].toString().trim()); 
             }
         }
 
-        // 4. ดึงรายชื่อวิทยากรที่กำลังขึ้นเวที
         var spkData = masterSs.getSheetByName('Speakers_Config').getDataRange().getDisplayValues();
-        var now = new Date();
+        
+        // 🔮 ดึงเวลาปัจจุบัน (เวลาไทย) มาเทียบ เพื่อไม่ให้พลาดเวลาวิทยากร
+        var nowIsoStr = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd'T'HH:mm:ss");
+        var now = new Date(nowIsoStr);
         
         for (var s = 1; s < spkData.length; s++) {
-            var start = new Date(spkData[s][3]);
-            var end = new Date(spkData[s][4]);
-            var isActive = spkData[s][5] ? spkData[s][5].toUpperCase() === 'TRUE' : false;
+            if (!spkData[s][3] || !spkData[s][4]) continue; 
+            var start = new Date(spkData[s][3]); var end = new Date(spkData[s][4]);
+            var isActive = spkData[s][5] ? spkData[s][5].toString().trim().toUpperCase() === 'TRUE' : false;
             
             if (isActive && now >= start && now <= end) {
-                var spkId = spkData[s][0];
-                speakers.push({ 
-                    id: spkId, 
-                    name: spkData[s][1], 
-                    topic: spkData[s][2],
-                    // ส่งสถานะกลับไปบล็อกปุ่มหน้าเว็บ
-                    is_evaluated: evaluatedList.indexOf(spkId) !== -1 
-                });
+                var spkId = spkData[s][0].toString().trim();
+                speakers.push({ id: spkId, name: spkData[s][1], topic: spkData[s][2], is_evaluated: evaluatedList.indexOf(spkId) !== -1 });
             }
         }
     }
-    
     return { status: 'success', questions: questions, speakers: speakers };
 }
 
 function submitProjectEval(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['PROJECT']).getSheets()[0].appendRow(["PROJ-" + new Date().getTime(), payload.personal_id, JSON.stringify(payload.answers), new Date()]);
+    // 🔮 บันทึกเวลาลงชีตเป็นเวลาไทย 24 ชม.
+    SpreadsheetApp.openById(DB_SHARDS['PROJECT']).getSheets()[0].appendRow(["PROJ-" + new Date().getTime(), payload.personal_id, JSON.stringify(payload.answers), getThaiTime()]);
     return { status: 'success' };
 }
 
 function submitSpeakerEval(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['SPEAKER']).getSheets()[0].appendRow(["SPK-" + new Date().getTime(), payload.personal_id, payload.target_id, JSON.stringify(payload.answers), new Date()]);
+    // 🔮 บันทึกเวลาลงชีตเป็นเวลาไทย 24 ชม.
+    SpreadsheetApp.openById(DB_SHARDS['SPEAKER']).getSheets()[0].appendRow(["SPK-" + new Date().getTime(), payload.personal_id, payload.target_id, JSON.stringify(payload.answers), getThaiTime()]);
     return { status: 'success' };
 }
 
 function unlockDriveScope() {
-    // บังคับให้ Google ขอสิทธิ์ "สร้างโฟลเดอร์และแก้ไข"
     var tempFolder = DriveApp.createFolder("Test_Permission_By_Wi");
-    tempFolder.setTrashed(true); // สร้างเสร็จปุ๊บ สั่งจับลงถังขยะทันที (จะได้ไม่รก Drive ค่ะ)
+    tempFolder.setTrashed(true); 
+}
+
+// ============================================================
+// [#USER_LOGIC]: ฟังก์ชันดึงข้อมูลโปรไฟล์ผู้อบรม
+// ============================================================
+function getUserProfile(personalId) {
+    var masterSs = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = masterSs.getSheetByName('Users');
+    var data = sheet.getDataRange().getDisplayValues();
+    
+    for (var i = 1; i < data.length; i++) {
+        if (data[i][0] === personalId) { // ค้นหาจาก รหัสประจำตัว (คอลัมน์ A)
+            return { 
+                status: 'success', 
+                data: {
+                    name: data[i][1],          // อิงจากคอลัมน์ B (ชื่อ-สกุล)
+                    role: data[i][2],          // อิงจากคอลัมน์ C (Role)
+                    area_service: data[i][3],  // อิงจากคอลัมน์ D (Area_Service)
+                    group_target: data[i][5]   // อิงจากคอลัมน์ F (group_target)
+                }
+            };
+        }
+    }
+    return { status: 'error', message: 'ไม่มีรหัสประจำตัวนี้ในระบบ' };
 }
