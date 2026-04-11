@@ -89,7 +89,18 @@
             </div>
         </nav>
 
-        <div id="loginSection" class="app-view d-block">
+        <style>
+            .login-geometric-bg {
+                background-color: #f4f7fa; /* สีพื้นหลังสว่างอมฟ้าอ่อนๆ ดูสบายตา */
+                background-image: 
+                    /* แสงสว่างส่องจากด้านบน */
+                    radial-gradient(circle at 50% 0%, rgba(9, 0, 107, 0.06) 0%, transparent 60%),
+                    /* ลวดลายเรขาคณิต (Hexagon) สีกรมท่าโปร่งใส */
+                    url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2309006b' fill-opacity='0.04'%3E%3Cpath d='M10 16l-6-3V7l6-3 6 3v6l-6 3zm11-11l-6-3V-5l6-3 6 3v6l-6 3zm26 0l-6-3V-5l6-3 6 3v6l-6 3zM36 16l-6-3V7l6-3 6 3v6l-6 3zm11 11l-6-3v-6l6-3 6 3v6l-6 3zm-26 0l-6-3v-6l6-3 6 3v6l-6 3z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            }
+        </style>
+
+        <div id="loginSection" class="app-view d-block login-geometric-bg">
             <div class="d-flex align-items-center justify-content-center" style="min-height: 85vh;">
                 <div class="card shadow border-0 rounded-3 overflow-hidden" style="max-width: 550px; width: 100%;">
                     <div class="bg-primary text-white text-center py-5 px-3">
@@ -120,7 +131,6 @@
                         <div class="text-center mt-4 text-muted" style="font-size: 0.75rem; line-height: 1.5;">
                             พัฒนาโดย &copy; 2026 | นายภัทรพล แก้วเสนา<br>ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์
                         </div>
-                        
                     </div>
                 </div>
             </div>
