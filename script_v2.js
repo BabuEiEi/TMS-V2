@@ -200,6 +200,9 @@ async function openExamForm() {
     let contentArea = document.getElementById("examContentArea");
     document.getElementById("btnSubmitExam").classList.add("d-none");
     document.getElementById("examTimerBadge").classList.add("d-none");
+
+    // 🔮 แอบใส่หัวข้อระหว่างรอโหลด จะได้ไม่เห็นแค่ไอคอน 📝
+    document.getElementById("examTitleLabel").innerText = "กำลังตรวจสอบแบบทดสอบ...";
     contentArea.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-warning"></div></div>`;
 
     try {
@@ -215,9 +218,13 @@ async function openExamForm() {
             document.getElementById("examTitleLabel").innerText = thaiTitle;
             renderExamStartScreen();
         } else {
+            // 🔮 จุดแก้ปัญหา: กำหนดหัวข้อเริ่มต้นเมื่อยังไม่ถึงเวลาสอบ
+            document.getElementById("examTitleLabel").innerText = "แบบทดสอบก่อน-หลังอบรม";
             contentArea.innerHTML = `<div class="alert alert-info text-center p-5"><h5 class="fw-bold">${result.message}</h5></div>`;
         }
     } catch (error) {
+        // เผื่อเน็ตหลุด ก็ให้แสดงหัวข้อว่าเกิดข้อผิดพลาด
+        document.getElementById("examTitleLabel").innerText = "ข้อผิดพลาด";
         contentArea.innerHTML = '<div class="alert alert-danger text-center">ดึงข้อมูลไม่สำเร็จ</div>';
     }
 }
