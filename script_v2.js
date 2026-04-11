@@ -61,9 +61,13 @@ function showDashboard() {
     // ซ่อนหน้า Login
     document.getElementById("loginSection").classList.add("d-none");
     
-    // โชว์หน้า Dashboard และ Navbar ใหม่ของพี่บาบู
+    // โชว์หน้า Dashboard และ Navbar
     document.getElementById("dashboardSection").classList.remove("d-none");
-    document.getElementById("main-nav").style.display = "block"; // 🔮 สั่งเปิด Navbar
+    document.getElementById("main-nav").style.display = "block";
+    
+    // 🔮 โชว์ Footer หลัก หลังจากล็อกอินเสร็จแล้ว
+    let footer = document.getElementById("main-footer");
+    if(footer) footer.classList.remove("d-none");
 }
 
 function backToDashboard(currentId) {
