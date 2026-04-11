@@ -83,7 +83,13 @@ async function openAttendanceForm() {
     try {
         let response = await fetch(GAS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: localStorage.getItem("tms_personal_id") } })
+            body: JSON.stringify({
+                action: 'getSurveyData',
+                payload: {
+                    survey_type: type,
+                    personal_id: localStorage.getItem("tms_personal_id")
+                }
+            })
         });
         let result = await response.json();
 
