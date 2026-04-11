@@ -36,20 +36,56 @@ document.addEventListener("DOMContentLoaded", () => {
     let savedId = localStorage.getItem("tms_personal_id");
     if (savedId) {
         document.getElementById("personalId").value = savedId;
+        renderUserInfo(); // 🔮 ดึงข้อมูลเดิมมาโชว์ถ้ารีเฟรชหน้า
         showDashboard();
     }
 });
 
-function login() {
+// 🔮 ฟังก์ชันสำหรับเอาข้อมูลที่โหลดมา แปะลงบน Navbar
+function renderUserInfo() {
+    let userDataStr = localStorage.getItem("tms_user_data");
+    if (userDataStr) {
+        let user = JSON.parse(userDataStr);
+        document.getElementById("display-user-name").innerText = user.name || "ไม่ระบุชื่อ";
+        document.getElementById("display-user-role").innerText = user.role || "-";
+        document.getElementById("display-user-area").innerText = "📍 " + (user.area_service || "-");
+        document.getElementById("display-user-group").innerText = "🎯 กลุ่มเป้าหมาย: " + (user.group_target || "-");
+    }
+}
+
+async function login() {
     let idInput = document.getElementById("personalId");
     let id = idInput.value.trim().toUpperCase();
     if (id === "") {
         Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกรหัสประจำตัวก่อนครับ' });
         return;
     }
-    localStorage.setItem("tms_personal_id", id);
-    showDashboard();
-    Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ยินดีต้อนรับเข้าสู่ระบบ', timer: 1500, showConfirmButton: false });
+
+    // 🔮 โชว์หน้าโหลดระหว่างเช็กข้อมูล
+    Swal.fire({ title: 'กำลังตรวจสอบข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        // วิ่งไปขอข้อมูลจากหลังบ้าน
+        let response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getUserProfile', payload: { personal_id: id } })
+        });
+        let result = await response.json();
+
+        if (result.status === 'success') {
+            // เก็บข้อมูลลงเครื่อง
+            localStorage.setItem("tms_personal_id", id);
+            localStorage.setItem("tms_user_data", JSON.stringify(result.data));
+
+            renderUserInfo(); // อัปเดตข้อมูลขึ้นจอ
+            showDashboard();
+            Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ยินดีต้อนรับเข้าสู่ระบบ', timer: 1500, showConfirmButton: false });
+        } else {
+            Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: result.message });
+        }
+    } catch (error) {
+        Swal.fire({ icon: 'error', title: 'ระบบขัดข้อง', text: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' });
+    }
 }
 
 function logout() {
@@ -60,14 +96,14 @@ function logout() {
 function showDashboard() {
     // ซ่อนหน้า Login
     document.getElementById("loginSection").classList.add("d-none");
-    
+
     // โชว์หน้า Dashboard และ Navbar
     document.getElementById("dashboardSection").classList.remove("d-none");
     document.getElementById("main-nav").style.display = "block";
-    
+
     // 🔮 โชว์ Footer หลัก หลังจากล็อกอินเสร็จแล้ว
     let footer = document.getElementById("main-footer");
-    if(footer) footer.classList.remove("d-none");
+    if (footer) footer.classList.remove("d-none");
 }
 
 function backToDashboard(currentId) {
