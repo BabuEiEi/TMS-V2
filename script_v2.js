@@ -642,25 +642,26 @@ function renderAssignmentDashboard() {
 
     let progressPercent = totalAssignments > 0 ? Math.round((submittedCount / totalAssignments) * 100) : 0;
 
+    // 🔮 โค้ดสร้างการ์ดสรุปผล (ปรับกึ่งกลาง + สีกรมท่า + เพิ่มไอคอน)
     document.getElementById("assignmentDashboardSummary").innerHTML = `
         <div class="col-md-4">
-            <div class="card bg-primary text-white border-0 rounded-4 shadow-sm p-3 h-100">
-                <h6 class="fw-bold mb-1">ภาระงานทั้งหมด</h6>
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #1A365D;">
+                <h6 class="fw-bold mb-1">📁 ภาระงานทั้งหมด</h6>
                 <h2 class="mb-0 fw-bold">${totalAssignments} <span class="fs-6 fw-normal">งาน</span></h2>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card bg-success text-white border-0 rounded-4 shadow-sm p-3 h-100">
-                <h6 class="fw-bold mb-1">ส่งงานแล้ว</h6>
+            <div class="card bg-success text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center">
+                <h6 class="fw-bold mb-1">✅ ส่งงานแล้ว</h6>
                 <h2 class="mb-0 fw-bold">${submittedCount} <span class="fs-6 fw-normal">งาน</span></h2>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100" style="background-color: #34495e;">
-                <h6 class="fw-bold mb-1">ความก้าวหน้า (Progress)</h6>
-                <div class="d-flex align-items-center">
+            <div class="card text-white border-0 rounded-4 shadow-sm p-3 h-100 text-center" style="background-color: #34495e;">
+                <h6 class="fw-bold mb-1">📈 ความก้าวหน้า (Progress)</h6>
+                <div class="d-flex align-items-center justify-content-center mt-2">
                     <h2 class="mb-0 fw-bold me-3">${progressPercent}%</h2>
-                    <div class="progress flex-grow-1" style="height: 10px; background-color: rgba(255,255,255,0.2);">
+                    <div class="progress flex-grow-1" style="height: 10px; background-color: rgba(255,255,255,0.2); max-width: 150px;">
                         <div class="progress-bar bg-info" role="progressbar" style="width: ${progressPercent}%;"></div>
                     </div>
                 </div>
