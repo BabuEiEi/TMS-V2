@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 65.0 (Smart Form Generator + CSV + Collapsible Sidebar)
+ * VERSION: 66.0 (Clean Database - No Weight Column)
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -828,7 +828,7 @@ let adminCurrentConfigSheet = "Attendance_Config";
 let adminConfigHeaders = [];
 let adminConfigRows = [];
 
-// 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping)
+// 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping) ตอนนี้เหลือ 11 คอลัมน์แล้ว
 const CUSTOM_HEADERS = {
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
     'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
@@ -955,7 +955,7 @@ function parseDateTimeValue(val) {
     return { date: d, hh: h, mm: m };
 }
 
-// 🌟 [ฟังก์ชันใหม่] สร้างแถวรูบริค
+// 🌟 สร้างแถวรูบริค
 window.getRubricRowHtml = function(id, name, raw, weight) {
     return `
     <tr id="rubric_row_${id}" class="rubric-row">
@@ -967,7 +967,7 @@ window.getRubricRowHtml = function(id, name, raw, weight) {
     `;
 };
 
-// 🌟 [ฟังก์ชันใหม่] กดเพิ่มแถวรูบริค
+// 🌟 กดเพิ่มแถวรูบริค
 window.addRubricRow = function() {
     window.rubricRowCount = (window.rubricRowCount || 0) + 1;
     let tbody = document.getElementById('rubricTbody');
@@ -977,7 +977,7 @@ window.addRubricRow = function() {
     }
 };
 
-// 🌟 [ฟังก์ชันใหม่] กดลบแถวรูบริค
+// 🌟 กดลบแถวรูบริค
 window.removeRubricRow = function(id) {
     let row = document.getElementById(`rubric_row_${id}`);
     if(row) {
@@ -986,7 +986,7 @@ window.removeRubricRow = function(id) {
     }
 };
 
-// 🌟 [ฟังก์ชันใหม่] คำนวณคะแนนรวม และเซฟเป็น JSON อัตโนมัติ
+// 🌟 คำนวณคะแนนรวม และเซฟเป็น JSON อัตโนมัติ
 window.calcRubricTotal = function() {
     let rows = document.querySelectorAll('.rubric-row');
     let total = 0;
@@ -1006,11 +1006,11 @@ window.calcRubricTotal = function() {
     let finalTotal = total % 1 === 0 ? total : total.toFixed(2);
     if(display) display.innerText = finalTotal;
     
-    // อัปเดตช่องซ่อนของรูบริค
-    let hiddenInput = document.getElementById('cfgInput_11'); 
+    // 🌟 แก้ไข: อัปเดตช่องซ่อนของรูบริค (ตอนนี้น้องขยับมาอยู่ index 10 แล้ว)
+    let hiddenInput = document.getElementById('cfgInput_10'); 
     if(hiddenInput) hiddenInput.value = JSON.stringify(rubricArray);
     
-    // 🪄 [เวทมนตร์] อัปเดตช่อง "คะแนนเต็ม" ให้อัตโนมัติ
+    // 🪄 [เวทมนตร์] อัปเดตช่อง "คะแนนเต็ม" (อยู่ index 9 เหมือนเดิม)
     let totalScoreInput = document.getElementById('cfgInput_9');
     if(totalScoreInput) totalScoreInput.value = finalTotal;
 };
@@ -1072,7 +1072,7 @@ function openConfigForm(id = null) {
             <div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6>
                 <div class="alert alert-info border border-info small py-2 mb-3 text-dark shadow-sm">
-                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็ม" x "ตัวคูณ" = คะแนนจริง</b>
+                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็มดิบ" x "น้ำหนัก" = คะแนนรวม</b>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-borderless align-middle mb-0">
@@ -1135,8 +1135,9 @@ function openConfigForm(id = null) {
             else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); 
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
-            // 🌟 ล็อกช่อง "คะแนนเต็ม" ให้แก้ไขเองไม่ได้ 
+            // 🌟 ล็อกช่อง "คะแนนเต็ม" ให้แก้ไขเองไม่ได้ (อยู่ที่เดิมคือ 9)
             else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`;
+            // 🌟 รูบริค ขยับมาอยู่ที่ 10 (แทนน้ำหนักคะแนนที่ถูกลบไปแล้ว)
             else if (i === 10) inputHtml = makeRubricEditor(); 
             else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
@@ -1149,18 +1150,15 @@ function openConfigForm(id = null) {
             inputHtml = makeText();
         }
 
-        // 🌟 ถ้าระบบบอกว่าเป็นช่องซ่อน (i=10) ไม่ต้องสร้าง Label และ Div ครอบ
-        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) {
-            html += inputHtml;
-        } else {
-            let labelHtml = i === 11 && adminCurrentConfigSheet === 'Assignment_Config' ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
-            html += `
-                <div class="mb-4">
-                    ${labelHtml}
-                    ${inputHtml}
-                </div>
-            `;
-        }
+        // 🌟 แก้ไข: ไม่ต้องใช้ตรรกะซ่อน Label แบบเก่าแล้ว เปลี่ยนให้ซ่อน Label ของช่องรูบริคแทน
+        let labelHtml = (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
+        html += `
+            <div class="mb-4">
+                ${labelHtml}
+                ${inputHtml}
+            </div>
+        `;
+        
     });
     html += '</div>';
 
@@ -1187,8 +1185,7 @@ function openConfigForm(id = null) {
                     val = val.replace('T', ' ');
                 }
 
-                // ข้ามการ validate สำหรับช่องที่โดนซ่อน
-                if(i === 0 && val === '' && el.type !== 'hidden') {
+                if(i === 0 && val === '') {
                     Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`);
                     return false;
                 }
