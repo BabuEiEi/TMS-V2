@@ -280,16 +280,22 @@ function getUserProfile(personalId) {
     var masterSs = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = masterSs.getSheetByName('Users');
     var data = sheet.getDataRange().getDisplayValues();
-    
+
+    // 🚨 แปลงรหัสที่พิมพ์เข้ามาให้เป็นตัวเล็กทั้งหมดและตัดช่องว่างทิ้ง
+    var searchId = personalId.toString().trim().toLowerCase();
+
     for (var i = 1; i < data.length; i++) {
-        if (data[i][0] === personalId) { // ค้นหาจาก รหัสประจำตัว (คอลัมน์ A)
-            return { 
-                status: 'success', 
+        // 🚨 แปลงรหัสในฐานข้อมูลเป็นตัวเล็กทั้งหมดและตัดช่องว่างเช่นกัน
+        var rowId = data[i][0].toString().trim().toLowerCase();
+
+        if (rowId === searchId) {
+            return {
+                status: 'success',
                 data: {
-                    name: data[i][1],          // อิงจากคอลัมน์ B (ชื่อ-สกุล)
-                    role: data[i][2],          // อิงจากคอลัมน์ C (Role)
-                    area_service: data[i][3],  // อิงจากคอลัมน์ D (Area_Service)
-                    group_target: data[i][5]   // อิงจากคอลัมน์ F (group_target)
+                    name: data[i][1],
+                    role: data[i][2],
+                    area_service: data[i][3],
+                    group_target: data[i][5]
                 }
             };
         }
