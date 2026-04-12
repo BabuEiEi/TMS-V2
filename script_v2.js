@@ -823,12 +823,15 @@ async function cancelAssignment(assignId) {
 }
 
 // ============================================================
-// 🛡️ ADMIN SYSTEM FUNCTIONS (Phase 2)
+// 🛡️ ADMIN SYSTEM FUNCTIONS (Phase 2 - Real Data Control)
 // ============================================================
 
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
+    
+    // สั่งดึงข้อมูลทุกครั้งที่เปิดหน้า Admin
+    fetchAdminConfigs();
 }
 
 function switchAdminTab(tabName) {
@@ -838,10 +841,97 @@ function switchAdminTab(tabName) {
     if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
 }
 
-function toggleSystem(systemName, isChecked) {
-    Swal.fire({ title: 'กำลังอัปเดตคำสั่ง...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    setTimeout(() => {
-        let statusText = isChecked ? 'เปิดระบบ' : 'ปิดระบบ';
-        Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', text: `${statusText} ${systemName} เรียบร้อยแล้ว`, timer: 1500, showConfirmButton: false });
-    }, 800);
+// ดึงข้อมูล 4 ชีตมาสร้างตาราง Switcher
+async function fetchAdminConfigs() {
+    let container = document.getElementById("adminSystemControlContainer");
+    container.innerHTML = `<div class="text-center py-5 text-muted"><div class="spinner-border text-primary mb-3"></div><p>กำลังเชื่อมต่อฐานข้อมูล...</p></div>`;
+
+    try {
+        let response = await fetch(GAS_API_URL, {
+            method: 'POST', body: JSON.stringify({ action: 'getAdminConfigs' })
+        });
+        let result = await response.json();
+        
+        if (result.status === 'success') {
+            buildAdminSystemUI(result.data);
+        } else {
+            container.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger">ไม่สามารถดึงข้อมูลตั้งค่าได้ กรุณาตรวจสอบการเชื่อมต่อ</div>`;
+    }
+}
+
+// สร้าง UI สำหรับแผงควบคุม
+function buildAdminSystemUI(data) {
+    let html = '';
+
+    // 1. หมวดแบบทดสอบ (Exam)
+    html += `<h6 class="fw-bold text-primary mt-4 mb-3"><i class="bi bi-journal-text"></i> ระบบแบบทดสอบ (Pre/Post Test)</h6><div class="row g-3 mb-4">`;
+    data.exam.forEach(item => {
+        let isChecked = item.is_active ? 'checked' : '';
+        html += `<div class="col-md-6"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
+            <div><div class="fw-bold text-dark">แบบทดสอบ: ${item.id}</div></div>
+            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('EXAM', '${item.id}', this.checked)"></div>
+        </div></div>`;
+    });
+    html += `</div>`;
+
+    // 2. หมวดลงเวลา (Attendance)
+    html += `<h6 class="fw-bold text-info mb-3 border-top pt-4"><i class="bi bi-clock-history"></i> ระบบลงเวลาเข้าอบรม</h6><div class="row g-3 mb-4">`;
+    data.attendance.forEach(item => {
+        let isChecked = item.is_active ? 'checked' : '';
+        html += `<div class="col-md-6"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
+            <div><div class="fw-bold text-dark">${item.label}</div><div class="text-muted small">${item.date} (${item.time})</div></div>
+            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('ATTENDANCE', '${item.id}', this.checked)"></div>
+        </div></div>`;
+    });
+    html += `</div>`;
+
+    // 3. หมวดภาระงาน (Assignment)
+    html += `<h6 class="fw-bold text-danger mb-3 border-top pt-4"><i class="bi bi-folder-check"></i> ระบบส่งภาระงาน</h6><div class="row g-3 mb-4">`;
+    data.assignment.forEach(item => {
+        let isChecked = item.is_active ? 'checked' : '';
+        html += `<div class="col-12"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
+            <div><div class="fw-bold text-dark">${item.id}: ${item.title}</div><div class="text-muted small">รูปแบบ: ${item.type}</div></div>
+            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('ASSIGNMENT', '${item.id}', this.checked)"></div>
+        </div></div>`;
+    });
+    html += `</div>`;
+
+    // 4. หมวดประเมินวิทยากร (Speaker)
+    html += `<h6 class="fw-bold text-success mb-3 border-top pt-4"><i class="bi bi-person-lines-fill"></i> ระบบประเมินวิทยากร</h6><div class="row g-3 mb-4">`;
+    data.speaker.forEach(item => {
+        let isChecked = item.is_active ? 'checked' : '';
+        html += `<div class="col-12"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
+            <div class="pe-3"><div class="fw-bold text-dark">${item.name}</div><div class="text-muted small">หัวข้อ: ${item.topic}</div></div>
+            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('SPEAKER', '${item.id}', this.checked)"></div>
+        </div></div>`;
+    });
+    html += `</div>`;
+
+    document.getElementById("adminSystemControlContainer").innerHTML = html;
+}
+
+// ยิงคำสั่งอัปเดตกลับไปที่ GAS
+async function toggleRealSystem(configType, itemId, isChecked) {
+    Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        let response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateConfigStatus', payload: { configType: configType, itemId: itemId, isActive: isChecked } })
+        });
+        let result = await response.json();
+        
+        if (result.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'อัปเดตเรียบร้อย', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+        } else {
+            Swal.fire('ข้อผิดพลาด', result.message, 'error');
+            fetchAdminConfigs(); // ถ้ายกเลิก ให้โหลดค่าเดิมกลับมา
+        }
+    } catch (e) {
+        Swal.fire('เชื่อมต่อล้มเหลว', 'ไม่สามารถส่งคำสั่งได้', 'error');
+        fetchAdminConfigs(); 
+    }
 }
