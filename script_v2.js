@@ -923,7 +923,7 @@ function renderAdminTable() {
 }
 
 // ============================================================
-// 🛠️ HELPER FUNCTIONS: ตัวช่วยจัดการเวลาและวันที่
+// 🛠️ HELPER FUNCTIONS: ตัวช่วยจัดการเวลา วันที่ และ รูบริค
 // ============================================================
 function parseDateTimeValue(val) {
     let now = new Date();
@@ -955,21 +955,64 @@ function parseDateTimeValue(val) {
     return { date: d, hh: h, mm: m };
 }
 
-window.updateTimeOnly = function(i) {
-    let hh = document.getElementById('hh_'+i).value.padStart(2,'0');
-    let mm = document.getElementById('mm_'+i).value.padStart(2,'0');
-    document.getElementById('hh_val_'+i).innerText = hh;
-    document.getElementById('mm_val_'+i).innerText = mm;
-    document.getElementById('cfgInput_'+i).value = hh + ':' + mm;
+// 🌟 [ฟังก์ชันใหม่] สร้างแถวรูบริค
+window.getRubricRowHtml = function(id, name, raw, weight) {
+    return `
+    <tr id="rubric_row_${id}" class="rubric-row">
+        <td class="p-1"><input type="text" class="form-control rubric-name shadow-sm" placeholder="เช่น ความเป็นและความสำคัญ..." value="${name}" oninput="calcRubricTotal()"></td>
+        <td class="p-1"><input type="number" class="form-control text-center rubric-raw text-primary fw-bold shadow-sm" min="0" value="${raw}" oninput="calcRubricTotal()"></td>
+        <td class="p-1"><input type="number" class="form-control text-center rubric-weight text-success fw-bold shadow-sm" min="0" step="0.1" value="${weight}" oninput="calcRubricTotal()"></td>
+        <td class="p-1 text-center"><button type="button" class="btn btn-danger shadow-sm" onclick="removeRubricRow(${id})"><i class="bi bi-trash"></i></button></td>
+    </tr>
+    `;
 };
 
-window.updateDateTime = function(i) {
-    let d = document.getElementById('date_'+i).value || "2026-01-01";
-    let hh = document.getElementById('hh_'+i).value.padStart(2,'0');
-    let mm = document.getElementById('mm_'+i).value.padStart(2,'0');
-    document.getElementById('hh_val_'+i).innerText = hh;
-    document.getElementById('mm_val_'+i).innerText = mm;
-    document.getElementById('cfgInput_'+i).value = d + ' ' + hh + ':' + mm;
+// 🌟 [ฟังก์ชันใหม่] กดเพิ่มแถวรูบริค
+window.addRubricRow = function() {
+    window.rubricRowCount = (window.rubricRowCount || 0) + 1;
+    let tbody = document.getElementById('rubricTbody');
+    if(tbody) {
+        tbody.insertAdjacentHTML('beforeend', window.getRubricRowHtml(window.rubricRowCount, '', 4, 1.5));
+        window.calcRubricTotal();
+    }
+};
+
+// 🌟 [ฟังก์ชันใหม่] กดลบแถวรูบริค
+window.removeRubricRow = function(id) {
+    let row = document.getElementById(`rubric_row_${id}`);
+    if(row) {
+        row.remove();
+        window.calcRubricTotal();
+    }
+};
+
+// 🌟 [ฟังก์ชันใหม่] คำนวณคะแนนรวม และเซฟเป็น JSON อัตโนมัติ
+window.calcRubricTotal = function() {
+    let rows = document.querySelectorAll('.rubric-row');
+    let total = 0;
+    let rubricArray = [];
+    
+    rows.forEach(r => {
+        let name = r.querySelector('.rubric-name').value.trim();
+        let raw = parseFloat(r.querySelector('.rubric-raw').value) || 0;
+        let weight = parseFloat(r.querySelector('.rubric-weight').value) || 0;
+        total += (raw * weight);
+        if(name !== "") {
+            rubricArray.push({name: name, raw: raw, weight: weight});
+        }
+    });
+    
+    let display = document.getElementById('rubricTotalDisplay');
+    let finalTotal = total % 1 === 0 ? total : total.toFixed(2);
+    if(display) display.innerText = finalTotal;
+    
+    // อัปเดตช่องซ่อนของรูบริค
+    let hiddenInput = document.getElementById('cfgInput_11'); 
+    if(hiddenInput) hiddenInput.value = JSON.stringify(rubricArray);
+    
+    // 🪄 [เวทมนตร์] อัปเดตช่อง "คะแนนเต็ม" ให้อัตโนมัติ
+    let totalScoreInput = document.getElementById('cfgInput_9');
+    if(totalScoreInput) totalScoreInput.value = finalTotal;
 };
 
 // ============================================================
@@ -980,7 +1023,7 @@ function openConfigForm(id = null) {
     let rowData = isNew ? Array(adminConfigHeaders.length).fill('') : adminConfigRows.find(r => r[0] == id);
     if (!rowData) return;
 
-    let html = '<div class="text-start" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden; padding-right: 15px;">';
+    let html = '<div class="text-start" style="max-height: 70vh; overflow-y: auto; overflow-x: hidden; padding-right: 15px;">';
     
     adminConfigHeaders.forEach((h, i) => {
         let val = rowData[i] || '';
@@ -1001,18 +1044,63 @@ function openConfigForm(id = null) {
             return `<input type="date" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${parsed.date}">`;
         };
 
-        // 🌟 ปรับใหม่: เปลี่ยนเป็นช่องเลือกเวลา (Time Picker) แบบมาตรฐาน
         const makeTimePicker = () => {
             let parsed = parseDateTimeValue(val);
             return `<input type="time" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${parsed.hh}:${parsed.mm}">`;
         };
 
-        // 🌟 ปรับใหม่: เปลี่ยนเป็นช่องเลือกวันที่และเวลา (Date/Time Picker) แบบมาตรฐาน
         const makeDateTimePicker = () => {
             let parsed = parseDateTimeValue(val);
-            // datetime-local ต้องใช้ Format YYYY-MM-DDTHH:mm (มีตัว T คั่นกลาง)
             let dtValue = `${parsed.date}T${parsed.hh}:${parsed.mm}`;
             return `<input type="datetime-local" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${dtValue}">`;
+        };
+
+        // 🌟 [ฟังก์ชันใหม่] สร้างตารางรูบริคแบบไดนามิก
+        const makeRubricEditor = () => {
+            let rubricData = [];
+            if (val && val.trim().startsWith('[')) {
+                try { rubricData = JSON.parse(val); } catch(e) {}
+            }
+            if(rubricData.length === 0) rubricData.push({name: 'ความครบถ้วนของเนื้อหา', raw: 4, weight: 1.5});
+
+            window.rubricRowCount = 0;
+            let rowsHtml = rubricData.map(r => {
+                window.rubricRowCount++;
+                return window.getRubricRowHtml(window.rubricRowCount, r.name, r.raw, r.weight);
+            }).join('');
+
+            return `
+            <div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6>
+                <div class="alert alert-info border border-info small py-2 mb-3 text-dark shadow-sm">
+                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนดิบเต็ม" x "ตัวคูณ" = คะแนนจริง</b>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-borderless align-middle mb-0">
+                        <thead class="border-bottom border-secondary">
+                            <tr class="text-secondary small">
+                                <th class="text-start pb-2">ชื่อเกณฑ์/ประเด็นพิจารณา</th>
+                                <th class="text-center pb-2" style="width: 100px;">คะแนนดิบเต็ม</th>
+                                <th class="text-center pb-2" style="width: 100px;">ตัวคูณ (น้ำหนัก)</th>
+                                <th class="text-center pb-2" style="width: 50px;">ลบ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rubricTbody">
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 border-info">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill bg-white shadow-sm fw-bold" onclick="addRubricRow()">
+                        <i class="bi bi-plus-circle"></i> เพิ่มประเด็นพิจารณา
+                    </button>
+                    <div class="fw-bold text-dark fs-6 bg-white px-3 py-1 rounded-pill shadow-sm">
+                        คะแนนรวมสุทธิ: <span id="rubricTotalDisplay" class="fs-4 text-primary ms-2">0</span>
+                    </div>
+                </div>
+                <input type="hidden" id="cfgInput_${i}" value='${val}'>
+            </div>
+            `;
         };
 
         const makeText = (isTextArea = false) => {
@@ -1025,29 +1113,30 @@ function openConfigForm(id = null) {
             else if (i === 1) inputHtml = makeDropdown(["1", "2", "3", "4", "5", "6", "7"]);
             else if (i === 2) inputHtml = makeDatePicker();
             else if (i === 3) inputHtml = makeDropdown(["Morning", "Afternoon", "Evening"]);
-            else if (i === 5 || i === 6) inputHtml = makeTimePicker(); // เรียกใช้ Time Picker
+            else if (i === 5 || i === 6) inputHtml = makeTimePicker(); 
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Exam_Config') {
             if (i === 0) inputHtml = makeDropdown(["PRE", "POST"]);
-            else if (i === 1 || i === 2) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
+            else if (i === 1 || i === 2) inputHtml = makeDateTimePicker(); 
             else if (i === 3) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Speakers_Config') {
             if (i === 0) inputHtml = makeAutoId('SPK');
-            else if (i === 3 || i === 4) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
+            else if (i === 3 || i === 4) inputHtml = makeDateTimePicker(); 
             else if (i === 5) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Assignment_Config') {
             if (i === 0) inputHtml = makeAutoId('ASN');
             else if (i === 3) inputHtml = makeDropdown(["LINK", "FILE"]);
-            else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
+            else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); 
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
-            else if (i === 2 || i === 11) inputHtml = makeText(true); 
+            else if (i === 11) inputHtml = makeRubricEditor(); // 🌟 เรียกใช้ตารางรูบริค
+            else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Questions_Bank') {
@@ -1058,9 +1147,12 @@ function openConfigForm(id = null) {
             inputHtml = makeText();
         }
 
+        // ซ่อน Label ของช่องรูบริค เพราะหัวข้ออยู่ในตารางแล้ว
+        let labelHtml = i === 11 && adminCurrentConfigSheet === 'Assignment_Config' ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
+
         html += `
             <div class="mb-4">
-                <label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>
+                ${labelHtml}
                 ${inputHtml}
             </div>
         `;
@@ -1070,19 +1162,23 @@ function openConfigForm(id = null) {
     Swal.fire({
         title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล',
         html: html,
-        width: '600px', // ปรับขนาดกลับมาให้พอดีกับ Picker แบบใหม่
+        width: '800px', // 🌟 ขยายความกว้างให้รองรับตารางรูบริค
         showCancelButton: true,
         confirmButtonText: '💾 บันทึกข้อมูล',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#198754',
+        didOpen: () => {
+            // 🌟 สั่งให้คำนวณคะแนนรวมทันทีที่เปิดหน้าต่างขึ้นมา
+            if (adminCurrentConfigSheet === 'Assignment_Config') {
+                window.calcRubricTotal();
+            }
+        },
         preConfirm: () => {
             let newData = [];
             for(let i=0; i<adminConfigHeaders.length; i++) {
                 let el = document.getElementById(`cfgInput_${i}`);
                 let val = el.value.trim();
                 
-                // 🌟 สำคัญ: ถ้าเป็น datetime-local มันจะมีตัว 'T' คั่น (เช่น 2026-04-08T08:00) 
-                // เราจะแทนที่ 'T' เป็นช่องว่าง ให้ลงฐานข้อมูลในรูปแบบที่ชีตคุ้นเคย (2026-04-08 08:00)
                 if (el.type === 'datetime-local') {
                     val = val.replace('T', ' ');
                 }
