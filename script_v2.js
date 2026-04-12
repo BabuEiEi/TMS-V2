@@ -1072,7 +1072,7 @@ function openConfigForm(id = null) {
             <div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6>
                 <div class="alert alert-info border border-info small py-2 mb-3 text-dark shadow-sm">
-                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็มดิบ" x "น้ำหนัก" = คะแนนรวม</b>
+                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็ม" x "น้ำหนัก" = คะแนนรวม</b>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-borderless align-middle mb-0">
