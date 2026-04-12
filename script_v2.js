@@ -1047,11 +1047,12 @@ window.handleUserRoleChange = function() {
     let targetContainer = document.getElementById('container_cfgInput_5'); // กล่องครอบ Dropdown กลุ่มเป้าหมาย
     let targetInput = document.getElementById('cfgInput_5');
     
-    // ถ้าเป็น Admin, Staff, Mentor ให้ซ่อนช่องกลุ่มเป้าหมายทิ้ง
-    if (role === 'Admin' || role === 'Staff' || role === 'Mentor') {
+    // 🌟 อัปเดตใหม่: ถ้าเป็น Admin หรือ Staff ให้ซ่อนช่องกลุ่มเป้าหมายทิ้ง
+    if (role === 'Admin' || role === 'Staff') {
         if(targetContainer) targetContainer.style.display = 'none';
         if(targetInput) targetInput.value = ''; // เคลียร์ค่าทิ้งด้วย
     } else {
+        // 🌟 ส่วน Mentor และ Trainee จะเข้าเงื่อนไขนี้ (โชว์กล่องให้เลือก)
         if(targetContainer) targetContainer.style.display = 'block';
     }
 };
