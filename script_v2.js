@@ -830,7 +830,7 @@ let adminConfigRows = [];
 
 // 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping) ตอนนี้เหลือ 11 คอลัมน์แล้ว
 const CUSTOM_HEADERS = {
-    'Users': ['รหัสประจำตัว', 'ชื่อ-นามสกุล', 'บทบาท', 'สังกัด/หน่วยงาน', 'รหัสผ่าน', 'กลุ่มเป้าหมาย'],
+    'Users': ['รหัสประจำตัว', 'ชื่อ-นามสกุล', 'บทบาท', 'สังกัด/หน่วยงาน', 'Cluster', 'กลุ่มเป้าหมาย']
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
     'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
     'Speakers_Config': ['รหัส', 'ชื่อวิทยากร', 'หัวข้อบรรยาย', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้'],
@@ -930,10 +930,7 @@ function renderAdminTable(targetId = "configTableContainer") {
                 
                 let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell;
                 
-                // 🔒 Security ให้อ่านรหัสผ่าน (คอลัมน์ E / Index 4) เป็นดอกจันบนหน้าตาราง
-                if (adminCurrentConfigSheet === 'Users' && i === 4 && displayCell.trim() !== '') {
-                    displayCell = '<span class="text-muted">••••••••</span>';
-                }
+                // 🌟 (ลบโค้ดซ่อนดอกจันออกไปแล้ว ข้อมูล Cluster จะโชว์ปกติครับ)
                 
                 html += `<td>${displayCell}</td>`;
             });
@@ -1041,6 +1038,24 @@ window.calcRubricTotal = function() {
     if(totalScoreInput) totalScoreInput.value = finalTotal;
 };
 
+// 🌟 ฟังก์ชันตัวช่วยสำหรับซ่อน/โชว์ Dropdown กลุ่มเป้าหมาย
+window.handleUserRoleChange = function() {
+    let roleDropdown = document.getElementById('cfgInput_2');
+    if(!roleDropdown) return;
+    
+    let role = roleDropdown.value;
+    let targetContainer = document.getElementById('container_cfgInput_5'); // กล่องครอบ Dropdown กลุ่มเป้าหมาย
+    let targetInput = document.getElementById('cfgInput_5');
+    
+    // ถ้าเป็น Admin, Staff, Mentor ให้ซ่อนช่องกลุ่มเป้าหมายทิ้ง
+    if (role === 'Admin' || role === 'Staff' || role === 'Mentor') {
+        if(targetContainer) targetContainer.style.display = 'none';
+        if(targetInput) targetInput.value = ''; // เคลียร์ค่าทิ้งด้วย
+    } else {
+        if(targetContainer) targetContainer.style.display = 'block';
+    }
+};
+
 // ============================================================
 // 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล (Smart Form Generator)
 // ============================================================
@@ -1097,9 +1112,6 @@ function openConfigForm(id = null) {
             return `
             <div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6>
-                <div class="alert alert-info border border-info small py-2 mb-3 text-dark shadow-sm">
-                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็ม" x "น้ำหนัก" = คะแนนรวม</b>
-                </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-borderless align-middle mb-0">
                         <thead class="border-bottom border-secondary">
@@ -1161,35 +1173,46 @@ function openConfigForm(id = null) {
             else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); 
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
-            // 🌟 ล็อกช่อง "คะแนนเต็ม" ให้แก้ไขเองไม่ได้ (อยู่ที่เดิมคือ 9)
             else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`;
-            // 🌟 รูบริค ขยับมาอยู่ที่ 10 (แทนน้ำหนักคะแนนที่ถูกลบไปแล้ว)
             else if (i === 10) inputHtml = makeRubricEditor(); 
             else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
         } 
-        else if (adminCurrentConfigSheet === 'Users') {
-            if (i === 0) inputHtml = makeText(); // รหัสประจำตัว (ปกติเป็นเลข 13 หลัก หรือ ID พิมพ์เอง)
-            else if (i === 2) inputHtml = makeDropdown(["ผู้อบรม", "วิทยากร", "ADMIN"]);
-            else if (i === 5) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
-            else inputHtml = makeText();
-        }
         else if (adminCurrentConfigSheet === 'Questions_Bank') {
             if (i === 1) inputHtml = makeDropdown(["PROJECT_SURVEY", "SPEAKER_SURVEY", "TEST", "PRE_TEST", "POST_TEST"]);
             else inputHtml = makeText();
         } 
+        // 🌟 🌟 เพิ่ม Logic สำหรับชีต Users ตรงนี้ 🌟 🌟
+        else if (adminCurrentConfigSheet === 'Users') {
+            if (i === 2) {
+                // บทบาท
+                let opts = ["Admin", "Staff", "Mentor", "Trainee"].map(opt => `<option value="${opt}" ${opt === val ? 'selected' : ''}>${opt}</option>`).join('');
+                inputHtml = `<select id="cfgInput_${i}" class="form-select border-secondary shadow-sm" onchange="handleUserRoleChange()">${opts}</select>`;
+            }
+            else if (i === 5) {
+                // กลุ่มเป้าหมาย
+                let opts = ["", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"].map(opt => `<option value="${opt}" ${opt === val ? 'selected' : ''}>${opt === "" ? "-- ไม่ระบุ --" : opt}</option>`).join('');
+                inputHtml = `<select id="cfgInput_${i}" class="form-select border-secondary shadow-sm">${opts}</select>`;
+            }
+            else inputHtml = makeText();
+        }
         else {
             inputHtml = makeText();
         }
 
-        // 🌟 แก้ไข: ไม่ต้องใช้ตรรกะซ่อน Label แบบเก่าแล้ว เปลี่ยนให้ซ่อน Label ของช่องรูบริคแทน
-        let labelHtml = (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
-        html += `
-            <div class="mb-4">
-                ${labelHtml}
-                ${inputHtml}
-            </div>
-        `;
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) {
+            html += inputHtml;
+        } else {
+            let labelHtml = (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
+            
+            // 🌟 เพิ่ม id ให้กล่องครอบ เพื่อใช้ในการซ่อน/โชว์ด้วย handleUserRoleChange()
+            html += `
+                <div class="mb-4" id="container_cfgInput_${i}">
+                    ${labelHtml}
+                    ${inputHtml}
+                </div>
+            `;
+        }
         
     });
     html += '</div>';
@@ -1203,9 +1226,8 @@ function openConfigForm(id = null) {
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#198754',
         didOpen: () => {
-            if (adminCurrentConfigSheet === 'Assignment_Config') {
-                window.calcRubricTotal();
-            }
+            if (adminCurrentConfigSheet === 'Assignment_Config') window.calcRubricTotal();
+            if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange(); // 🌟 รันฟังก์ชันเพื่อซ่อนกลุ่มเป้าหมายทันทีที่เปิดหน้าต่าง
         },
         preConfirm: () => {
             let newData = [];
@@ -1213,11 +1235,13 @@ function openConfigForm(id = null) {
                 let el = document.getElementById(`cfgInput_${i}`);
                 let val = el.value.trim();
                 
-                if (el.type === 'datetime-local') {
-                    val = val.replace('T', ' ');
-                }
+                if (el.type === 'datetime-local') val = val.replace('T', ' ');
 
-                if(i === 0 && val === '') {
+                // ข้ามการตรวจค่าว่างถ้าเป็นช่องที่โดนซ่อน หรือช่องกลุ่มเป้าหมาย (เผื่อ Admin/Staff ไม่ต้องกรอก)
+                let container = document.getElementById(`container_cfgInput_${i}`);
+                let isHidden = container && container.style.display === 'none';
+                
+                if(i === 0 && val === '' && el.type !== 'hidden' && !isHidden) {
                     Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`);
                     return false;
                 }
