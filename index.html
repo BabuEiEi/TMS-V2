@@ -189,68 +189,86 @@
         </div>
 
         <div id="adminSection" class="app-view d-none fade-in mt-4 mb-5">
-            <div class="row align-items-start g-4">
+            <div class="container-fluid px-2 px-md-4" style="max-width: 1400px;">
                 
-                <div class="col-md-3">
-                    <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 100px; z-index: 1000;">
-                        <div class="card-body p-3">
-                            <h6 class="fw-bold text-primary mb-3 ps-2 border-start border-4 border-primary">เมนูหลัก</h6>
-                            <div class="list-group list-group-flush gap-2">
-                                <button class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold" onclick="switchAdminTab('systemControl')">
-                                    <i class="bi bi-gear-fill me-2"></i> ตั้งค่าระบบ (Settings)
-                                </button>
-                                <button class="list-group-item list-group-item-action rounded-3 border-0" onclick="switchAdminTab('userManage')">
-                                    <i class="bi bi-people me-2"></i> จัดการผู้ใช้งาน
-                                </button>
-                                <button class="list-group-item list-group-item-action rounded-3 border-0" onclick="switchAdminTab('reportManage')">
-                                    <i class="bi bi-file-earmark-bar-graph me-2"></i> สรุปรายงานผล
-                                </button>
-                                <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold" onclick="logout()">
-                                    <i class="bi bi-box-arrow-right me-2"></i> ออกจากระบบ
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-9">
-                    <div id="adminTab_systemControl" class="card shadow-lg border-0 rounded-4 admin-tab-content bg-white">
-                        <div class="card-body p-4 p-md-5">
-                            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
-                                <h4 class="fw-bold text-dark mb-0">⚙️ ตั้งค่าระบบฐานข้อมูล</h4>
-                                <div>
-                                    <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold me-2" onclick="openCSVMenu()">
-                                        <i class="bi bi-filetype-csv me-1"></i> นำเข้า/นำออก CSV
-                                    </button>
-                                    <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
-                                        <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูล
-                                    </button>
+                <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+                    
+                    <div id="adminSidebar" class="flex-shrink-0">
+                        <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 100px; z-index: 1000;">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 ps-2 border-start border-4 border-primary sidebar-header">
+                                    <h6 class="fw-bold text-primary mb-0"><span class="sidebar-text">🛠️ Admin Menu</span></h6>
+                                    <i class="bi bi-list fs-4 toggle-sidebar-btn text-secondary" onclick="toggleAdminSidebar()" title="ย่อ/ขยายเมนู"></i>
                                 </div>
-                            </div>
-                            
-                            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
-
-                            <div class="d-flex flex-wrap gap-2 mb-4">
-                                <button id="tab_Attendance_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Attendance_Config')">🕒 การลงเวลา</button>
-                                <button id="tab_Exam_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Exam_Config')">📝 การทดสอบ</button>
-                                <button id="tab_Speakers_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Speakers_Config')">🎤 ประเมินวิทยากร</button>
-                                <button id="tab_Assignment_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Assignment_Config')">📁 การส่งงาน</button>
-                                <button id="tab_Questions_Bank" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Questions_Bank')">📚 คลังคำถาม</button>
-                            </div>
-
-                            <div id="configTableContainer" class="border rounded-4 bg-light p-3 shadow-sm" style="min-height: 350px;">
-                                <div class="text-center py-5 text-muted">
-                                    <p class="mb-0">กำลังโหลดระบบ...</p>
+                                
+                                <div class="list-group list-group-flush gap-2">
+                                    <button class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchAdminTab('systemControl')" title="ตั้งค่าระบบ (Settings)">
+                                        <i class="bi bi-gear-fill me-2"></i> <span class="sidebar-text">ตั้งค่าระบบ (Settings)</span>
+                                    </button>
+                                    <button class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('userManage')" title="จัดการผู้ใช้งาน">
+                                        <i class="bi bi-people me-2"></i> <span class="sidebar-text">จัดการผู้ใช้งาน</span>
+                                    </button>
+                                    <button class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('reportManage')" title="สรุปรายงานผล">
+                                        <i class="bi bi-file-earmark-bar-graph me-2"></i> <span class="sidebar-text">สรุปรายงานผล</span>
+                                    </button>
+                                    
+                                    <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()" title="ออกจากระบบ">
+                                        <i class="bi bi-box-arrow-right me-2"></i> <span class="sidebar-text">ออกจากระบบ</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="adminTab_userManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
-                        <div class="card-body p-5 text-center text-muted"><h4 class="fw-bold">👥 ระบบจัดการผู้ใช้งาน</h4><p>ในเฟสถัดไป</p></div>
-                    </div>
-                    <div id="adminTab_reportManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
-                        <div class="card-body p-5 text-center text-muted"><h4 class="fw-bold">📑 ระบบสรุปรายงาน</h4><p>ในเฟสถัดไป</p></div>
+                    <div class="flex-grow-1 w-100" style="min-width: 0;">
+                        
+                        <div id="adminTab_systemControl" class="card shadow-lg border-0 rounded-4 admin-tab-content bg-white">
+                            <div class="card-body p-4 p-md-5">
+                                
+                                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
+                                    <h4 class="fw-bold text-dark mb-0">⚙️ ตั้งค่าระบบฐานข้อมูล</h4>
+                                    <div>
+                                        <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold me-2" onclick="openCSVMenu()">
+                                            <i class="bi bi-filetype-csv me-1"></i> นำเข้า/นำออก
+                                        </button>
+                                        <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
+                                            <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูล
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
+
+                                <div class="d-flex flex-wrap gap-2 mb-4">
+                                    <button id="tab_Attendance_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Attendance_Config')">🕒 การลงเวลา</button>
+                                    <button id="tab_Exam_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Exam_Config')">📝 การทดสอบ</button>
+                                    <button id="tab_Speakers_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Speakers_Config')">🎤 ประเมินวิทยากร</button>
+                                    <button id="tab_Assignment_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Assignment_Config')">📁 การส่งงาน</button>
+                                    <button id="tab_Questions_Bank" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Questions_Bank')">📚 คลังคำถาม</button>
+                                </div>
+
+                                <div id="configTableContainer" class="border rounded-4 bg-light p-3 shadow-sm" style="min-height: 350px;">
+                                    <div class="text-center py-5 text-muted">
+                                        <p class="mb-0">กำลังโหลดระบบ...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="adminTab_userManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
+                            <div class="card-body p-5 text-center text-muted">
+                                <h4 class="fw-bold">👥 ระบบจัดการผู้ใช้งาน</h4>
+                                <p>ในเฟสถัดไป</p>
+                            </div>
+                        </div>
+                        
+                        <div id="adminTab_reportManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
+                            <div class="card-body p-5 text-center text-muted">
+                                <h4 class="fw-bold">📑 ระบบสรุปรายงาน</h4>
+                                <p>ในเฟสถัดไป</p>
+                            </div>
+                        </div>
+                        
                     </div>
                 </div>
             </div>

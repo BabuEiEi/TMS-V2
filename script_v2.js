@@ -852,6 +852,14 @@ function switchAdminTab(tabName) {
     if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
 }
 
+// ฟังก์ชันสำหรับ ย่อ/ขยาย Sidebar
+function toggleAdminSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
 // 1. ดึงข้อมูลจาก Sheets มาสร้างตาราง
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
