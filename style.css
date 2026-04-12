@@ -1,6 +1,10 @@
 body {
   font-family: 'Niramit', sans-serif;
-  background-color: #f8f9fa;
+  background-color: #f4f7f9;
+  background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
+  background-size: 25px 25px;
+  background-position: center center;
+  background-attachment: fixed;
 }
 
 .card {
