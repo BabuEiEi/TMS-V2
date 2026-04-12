@@ -1012,3 +1012,124 @@ async function deleteConfigRow(id) {
         Swal.fire('ขัดข้อง', 'ไม่สามารถลบข้อมูลได้', 'error');
     }
 }
+
+// ============================================================
+// 📊 ADMIN CSV IMPORT / EXPORT
+// ============================================================
+
+// 1. เมนูเลือก นำเข้า หรือ นำออก
+function openCSVMenu() {
+    Swal.fire({
+        title: 'จัดการข้อมูล CSV',
+        html: `เลือกการดำเนินการสำหรับตาราง <b>${document.getElementById('tab_' + adminCurrentConfigSheet).innerText}</b>`,
+        icon: 'info',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="bi bi-download"></i> นำออก (Export)',
+        denyButtonText: '<i class="bi bi-upload"></i> นำเข้า (Import)',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#198754',
+        denyButtonColor: '#0d6efd'
+    }).then((result) => {
+        if (result.isConfirmed) exportConfigToCSV();
+        else if (result.isDenied) document.getElementById('csvFileInput').click();
+    });
+}
+
+// 2. ฟังก์ชันนำออก (Export) 
+function exportConfigToCSV() {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF ป้องกันภาษาไทยเพี้ยนใน Excel
+    let rows = [adminConfigHeaders, ...adminConfigRows];
+    
+    rows.forEach(rowArray => {
+        let row = rowArray.map(item => {
+            let str = String(item || '').replace(/"/g, '""'); // จัดการเครื่องหมายคำพูดซ้อน
+            return `"${str}"`;
+        }).join(",");
+        csvContent += row + "\r\n";
+    });
+
+    let encodedUri = encodeURI(csvContent);
+    let link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${adminCurrentConfigSheet}_Export.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 3. ฟังก์ชันรับไฟล์และแปลง (Import)
+function handleCSVImport(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = async function(e) {
+        let text = e.target.result;
+        let rows = parseCSV(text);
+        
+        // ถ้ารายการแรกเป็นหัวตาราง ให้ตัดทิ้ง
+        if(rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift(); 
+
+        if(rows.length === 0) {
+             Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล หรือคอลัมน์ไม่ตรงกัน', 'error');
+             event.target.value = ''; return;
+        }
+
+        const confirm = await Swal.fire({
+            icon: 'warning',
+            title: 'ยืนยันการนำเข้าข้อมูล?',
+            html: `คำเตือน: การนำเข้าจะ<b>เขียนทับ (Overwrite)</b> ข้อมูลเดิมทั้งหมดในตารางนี้<br><br>พบข้อมูลใหม่จำนวน <b class="text-primary">${rows.length}</b> รายการ`,
+            showCancelButton: true,
+            confirmButtonText: 'ใช่, เขียนทับเลย',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#dc3545'
+        });
+
+        if(confirm.isConfirmed) uploadCSVToGAS(rows);
+        event.target.value = ''; // เคลียร์ไฟล์ออกหลังอ่านเสร็จ
+    };
+    reader.readAsText(file);
+}
+
+// 4. ตัวสกัดข้อมูล CSV (CSV Parser)
+function parseCSV(str) {
+    let arr = []; let quote = false; let row = 0, col = 0;
+    for (let c = 0; c < str.length; c++) {
+        let cc = str[c], nc = str[c+1];
+        arr[row] = arr[row] || [];
+        arr[row][col] = arr[row][col] || '';
+        if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+        if (cc == '"') { quote = !quote; continue; }
+        if (cc == ',' && !quote) { ++col; continue; }
+        if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+        if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+        if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+        arr[row][col] += cc;
+    }
+    // ตัดบรรทัดว่างทิ้ง
+    return arr.filter(r => r.join('').trim() !== '');
+}
+
+// 5. ส่งข้อมูล CSV ไปเขียนทับในหลังบ้าน
+async function uploadCSVToGAS(rowsData) {
+    Swal.fire({title: 'กำลังอัปเดตฐานข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    try {
+        let res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                action: 'manageConfig', 
+                payload: { action: 'IMPORT_CSV', sheetName: adminCurrentConfigSheet, csvData: rowsData } 
+            })
+        });
+        let result = await res.json();
+        if (result.status === 'success') {
+            Swal.fire('สำเร็จ!', result.message, 'success');
+            loadAdminConfig(adminCurrentConfigSheet);
+        } else {
+            Swal.fire('ผิดพลาด', result.message, 'error');
+        }
+    } catch (e) {
+        Swal.fire('ขัดข้อง', 'การเชื่อมต่อล้มเหลว', 'error');
+    }
+}

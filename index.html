@@ -218,10 +218,17 @@
                         <div class="card-body p-4 p-md-5">
                             <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                                 <h4 class="fw-bold text-dark mb-0">⚙️ ตั้งค่าระบบฐานข้อมูล</h4>
-                                <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
-                                    <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูลใหม่
-                                </button>
+                                <div>
+                                    <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold me-2" onclick="openCSVMenu()">
+                                        <i class="bi bi-filetype-csv me-1"></i> นำเข้า/นำออก CSV
+                                    </button>
+                                    <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
+                                        <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูล
+                                    </button>
+                                </div>
                             </div>
+                            
+                            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
 
                             <div class="d-flex flex-wrap gap-2 mb-4">
                                 <button id="tab_Attendance_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Attendance_Config')">🕒 การลงเวลา</button>
