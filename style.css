@@ -1,99 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;500;600;700&display=swap');
-
-/* ========================================= */
-/* 🔮 พื้นหลังลายจุดตาราง และ ฟอนต์หลัก */
-/* ========================================= */
 body {
-    font-family: 'Niramit', sans-serif;
-    background-color: #f4f7f9 !important;
-    background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px) !important;
-    background-size: 25px 25px !important;
-    background-position: center center !important;
-    background-attachment: fixed !important; /* ล็อกพื้นหลังไม่ให้เลื่อนตามจอ */
+  font-family: 'Niramit', sans-serif;
+  background-color: #f4f7f9;
+  background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
+  background-size: 25px 25px;
+  background-position: center center;
+  background-attachment: fixed;
 }
 
-/* เอฟเฟกต์การเปลี่ยนหน้าจอหลัก */
-.app-view {
-    transition: opacity 0.3s ease-in-out;
+.card {
+  border: none;
+  border-radius: 12px;
+}
+
+.menu-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .fade-in {
-    animation: fadeIn 0.4s ease-out;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 
-/* เอฟเฟกต์ของการ์ดเมื่อเอาเมาส์ชี้ทั่วไป */
-.card {
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-}
-
-/* เอฟเฟกต์เฉพาะปุ่มเมนูหลัก */
-.menu-card { 
-    cursor: pointer; 
-    transition: 0.3s; 
-    border: none; 
-}
-
-.menu-card:hover { 
-    transform: translateY(-5px); 
-    box-shadow: 0 10px 25px rgba(245, 113, 19, 0.15) !important; 
-}
-
-/* เอฟเฟกต์การ์ดเลือกวิทยากร */
-.speaker-card {
-    transition: all 0.3s ease;
-}
-
-.speaker-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.15) !important;
-    border-color: #0d6efd !important;
-}
-
-/* ========================================= */
-/* 📊 ส่วนตกแต่งฟอร์มประเมิน (Rating Scale) */
-/* ========================================= */
-.horizontal-rating-wrapper { margin-top: 20px; margin-bottom: 20px; }
-.horizontal-rating-container { display: flex; flex-direction: row; justify-content: space-between; max-width: 500px; margin-bottom: 12px; }
-.rating-btn-item { flex: 1; text-align: center; position: relative; }
-.rating-btn-item input { position: absolute; opacity: 0; cursor: pointer; width: 100%; height: 100%; left: 0; top: 0; z-index: 2; }
-.rating-btn-label { 
-    display: flex; align-items: center; justify-content: center; 
-    width: 50px; height: 50px; margin: 0 auto; 
-    border: 2px solid #dee2e6; border-radius: 50%; 
-    cursor: pointer; transition: 0.2s; font-weight: bold; 
-    background-color: #fff; position: relative; z-index: 1; 
-}
-.rating-btn-item input:checked + .rating-btn-label { 
-    background-color: #0d6efd; color: white; border-color: #0d6efd; 
-    box-shadow: 0 4px 12px rgba(13,110,253,0.3); transform: scale(1.15); 
-}
-.rating-desc-text { 
-    display: flex; justify-content: space-between; 
-    max-width: 500px; padding-left: 10px; padding-right: 10px; 
-    font-size: 14px; color: #0d6efd; font-weight: 600; 
-}
-.survey-card { 
-    border-radius: 20px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
-    border-left: 7px solid #0dcaf0; margin-bottom: 25px; padding: 30px; 
-    background-color: #fff; transition: 0.3s ease; 
-}
-.vertical-form-check { margin-bottom: 15px; padding-left: 40px; font-size: 1.05rem; }
-
-/* ========================================= */
-/* 🛡️ สีปุ่มเมนูของหน้า Admin Dashboard */
-/* ========================================= */
-.list-group-item.active {
-    background-color: #0d6efd !important;
-    border-color: #0d6efd !important;
-    color: white !important;
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
