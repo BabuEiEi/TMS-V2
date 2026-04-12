@@ -823,15 +823,19 @@ async function cancelAssignment(assignId) {
 }
 
 // ============================================================
-// 🛡️ ADMIN SYSTEM FUNCTIONS (Phase 2 - Real Data Control)
+// 🛡️ ADMIN SYSTEM FUNCTIONS (Database CRUD)
 // ============================================================
+
+let adminCurrentConfigSheet = "Attendance_Config";
+let adminConfigHeaders = [];
+let adminConfigRows = [];
 
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
     
-    // สั่งดึงข้อมูลทุกครั้งที่เปิดหน้า Admin
-    fetchAdminConfigs();
+    // โหลดหน้าจอลงเวลาเป็นค่าเริ่มต้น
+    loadAdminConfig('Attendance_Config');
 }
 
 function switchAdminTab(tabName) {
@@ -841,97 +845,166 @@ function switchAdminTab(tabName) {
     if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
 }
 
-// ดึงข้อมูล 4 ชีตมาสร้างตาราง Switcher
-async function fetchAdminConfigs() {
-    let container = document.getElementById("adminSystemControlContainer");
-    container.innerHTML = `<div class="text-center py-5 text-muted"><div class="spinner-border text-primary mb-3"></div><p>กำลังเชื่อมต่อฐานข้อมูล...</p></div>`;
+// 1. ดึงข้อมูลจาก Sheets มาสร้างตาราง
+async function loadAdminConfig(sheetName) {
+    adminCurrentConfigSheet = sheetName;
+    
+    // สลับสีปุ่มเมนู
+    document.querySelectorAll('.config-tab-btn').forEach(b => {
+        b.classList.remove('btn-primary', 'text-white');
+        b.classList.add('btn-outline-primary');
+    });
+    let activeTab = document.getElementById('tab_' + sheetName);
+    if(activeTab) {
+        activeTab.classList.remove('btn-outline-primary');
+        activeTab.classList.add('btn-primary', 'text-white');
+    }
+
+    let container = document.getElementById("configTableContainer");
+    container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังดึงข้อมูลจากฐานข้อมูล...</p></div>`;
 
     try {
-        let response = await fetch(GAS_API_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'getAdminConfigs' })
+        let res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'manageConfig', payload: { action: 'GET', sheetName: sheetName } })
         });
-        let result = await response.json();
+        let result = await res.json();
         
         if (result.status === 'success') {
-            buildAdminSystemUI(result.data);
+            adminConfigHeaders = result.headers;
+            adminConfigRows = result.rows;
+            renderAdminTable(); // นำข้อมูลไปสร้างตาราง
         } else {
-            container.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger text-center">${result.message}</div>`;
         }
     } catch (e) {
-        container.innerHTML = `<div class="alert alert-danger">ไม่สามารถดึงข้อมูลตั้งค่าได้ กรุณาตรวจสอบการเชื่อมต่อ</div>`;
+        container.innerHTML = `<div class="alert alert-danger text-center">การเชื่อมต่อขัดข้อง</div>`;
     }
 }
 
-// สร้าง UI สำหรับแผงควบคุม
-function buildAdminSystemUI(data) {
-    let html = '';
+// 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
+function renderAdminTable() {
+    let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
+    
+    // สร้างหัวตาราง
+    adminConfigHeaders.forEach(h => html += `<th>${h}</th>`);
+    html += '<th class="text-center border-start bg-light" style="position: sticky; right: 0; z-index: 2;">จัดการ</th></tr></thead><tbody>';
 
-    // 1. หมวดแบบทดสอบ (Exam)
-    html += `<h6 class="fw-bold text-primary mt-4 mb-3"><i class="bi bi-journal-text"></i> ระบบแบบทดสอบ (Pre/Post Test)</h6><div class="row g-3 mb-4">`;
-    data.exam.forEach(item => {
-        let isChecked = item.is_active ? 'checked' : '';
-        html += `<div class="col-md-6"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
-            <div><div class="fw-bold text-dark">แบบทดสอบ: ${item.id}</div></div>
-            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('EXAM', '${item.id}', this.checked)"></div>
-        </div></div>`;
-    });
-    html += `</div>`;
-
-    // 2. หมวดลงเวลา (Attendance)
-    html += `<h6 class="fw-bold text-info mb-3 border-top pt-4"><i class="bi bi-clock-history"></i> ระบบลงเวลาเข้าอบรม</h6><div class="row g-3 mb-4">`;
-    data.attendance.forEach(item => {
-        let isChecked = item.is_active ? 'checked' : '';
-        html += `<div class="col-md-6"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
-            <div><div class="fw-bold text-dark">${item.label}</div><div class="text-muted small">${item.date} (${item.time})</div></div>
-            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('ATTENDANCE', '${item.id}', this.checked)"></div>
-        </div></div>`;
-    });
-    html += `</div>`;
-
-    // 3. หมวดภาระงาน (Assignment)
-    html += `<h6 class="fw-bold text-danger mb-3 border-top pt-4"><i class="bi bi-folder-check"></i> ระบบส่งภาระงาน</h6><div class="row g-3 mb-4">`;
-    data.assignment.forEach(item => {
-        let isChecked = item.is_active ? 'checked' : '';
-        html += `<div class="col-12"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
-            <div><div class="fw-bold text-dark">${item.id}: ${item.title}</div><div class="text-muted small">รูปแบบ: ${item.type}</div></div>
-            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('ASSIGNMENT', '${item.id}', this.checked)"></div>
-        </div></div>`;
-    });
-    html += `</div>`;
-
-    // 4. หมวดประเมินวิทยากร (Speaker)
-    html += `<h6 class="fw-bold text-success mb-3 border-top pt-4"><i class="bi bi-person-lines-fill"></i> ระบบประเมินวิทยากร</h6><div class="row g-3 mb-4">`;
-    data.speaker.forEach(item => {
-        let isChecked = item.is_active ? 'checked' : '';
-        html += `<div class="col-12"><div class="p-3 border border-2 border-light rounded-4 bg-light d-flex justify-content-between align-items-center shadow-sm">
-            <div class="pe-3"><div class="fw-bold text-dark">${item.name}</div><div class="text-muted small">หัวข้อ: ${item.topic}</div></div>
-            <div class="form-check form-switch fs-4 mb-0"><input class="form-check-input border-secondary" type="checkbox" ${isChecked} onchange="toggleRealSystem('SPEAKER', '${item.id}', this.checked)"></div>
-        </div></div>`;
-    });
-    html += `</div>`;
-
-    document.getElementById("adminSystemControlContainer").innerHTML = html;
+    if (adminConfigRows.length === 0) {
+        html += `<tr><td colspan="${adminConfigHeaders.length + 1}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
+    } else {
+        // สร้างข้อมูลแต่ละแถว
+        adminConfigRows.forEach(row => {
+            html += '<tr>';
+            row.forEach(cell => {
+                let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell; // ตัดข้อความยาวๆ ไม่ให้ล้นจอ
+                html += `<td>${displayCell}</td>`;
+            });
+            // ปุ่มจัดการ
+            html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;">
+                <button class="btn btn-sm btn-warning text-dark me-1 shadow-sm" title="แก้ไข" onclick="openConfigForm('${row[0]}')"><i class="bi bi-pencil-square"></i></button>
+                <button class="btn btn-sm btn-danger shadow-sm" title="ลบ" onclick="deleteConfigRow('${row[0]}')"><i class="bi bi-trash"></i></button>
+            </td></tr>`;
+        });
+    }
+    
+    html += '</tbody></table></div>';
+    document.getElementById("configTableContainer").innerHTML = html;
 }
 
-// ยิงคำสั่งอัปเดตกลับไปที่ GAS
-async function toggleRealSystem(configType, itemId, isChecked) {
-    Swal.fire({ title: 'กำลังบันทึกการตั้งค่า...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล (สร้างช่องกรอกอัตโนมัติ)
+function openConfigForm(id = null) {
+    let isNew = !id;
+    let rowData = isNew ? Array(adminConfigHeaders.length).fill('') : adminConfigRows.find(r => r[0] == id);
 
-    try {
-        let response = await fetch(GAS_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'updateConfigStatus', payload: { configType: configType, itemId: itemId, isActive: isChecked } })
-        });
-        let result = await response.json();
+    if (!rowData) return;
+
+    let html = '<div class="text-start" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">';
+    
+    // วนลูปสร้างกล่อง Input ตามหัวคอลัมน์ของชีตนั้นๆ
+    adminConfigHeaders.forEach((h, i) => {
+        let readonly = (!isNew && i === 0) ? 'readonly bg-light' : ''; // ห้ามแก้รหัส ID เดิม
         
+        // บรรทัดที่เป็น is_active ให้คำแนะนำการกรอก
+        let helperText = h.toLowerCase().includes('active') ? '<span class="text-danger small ms-2">(พิมพ์ TRUE เพื่อเปิดระบบ, FALSE เพื่อปิดระบบ)</span>' : '';
+
+        html += `
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-primary mb-1">${h} ${helperText}</label>
+                <textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="${rowData[i].length > 50 ? 3 : 1}" ${readonly}>${rowData[i]}</textarea>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    Swal.fire({
+        title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล',
+        html: html,
+        width: '600px',
+        showCancelButton: true,
+        confirmButtonText: '💾 บันทึกข้อมูล',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#198754',
+        preConfirm: () => {
+            let newData = [];
+            for(let i=0; i<adminConfigHeaders.length; i++) {
+                let val = document.getElementById(`cfgInput_${i}`).value.trim();
+                if(i === 0 && val === '') {
+                    Swal.showValidationMessage(`กรุณากรอกรหัส [${adminConfigHeaders[0]}] ด้วยครับ (ห้ามเว้นว่าง)`);
+                    return false;
+                }
+                newData.push(val);
+            }
+            return newData;
+        }
+    }).then((result) => {
+        if(result.isConfirmed) saveConfigRow(result.value, isNew);
+    });
+}
+
+// 4. สั่งบันทึกลงฐานข้อมูล
+async function saveConfigRow(rowData, isNew) {
+    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    try {
+        let res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'manageConfig', payload: { action: 'SAVE', sheetName: adminCurrentConfigSheet, rowData: rowData, isNew: isNew } })
+        });
+        let result = await res.json();
         if (result.status === 'success') {
-            Swal.fire({ icon: 'success', title: 'อัปเดตเรียบร้อย', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+            loadAdminConfig(adminCurrentConfigSheet); 
         } else {
-            Swal.fire('ข้อผิดพลาด', result.message, 'error');
-            fetchAdminConfigs(); // ถ้ายกเลิก ให้โหลดค่าเดิมกลับมา
+            Swal.fire('ผิดพลาด', result.message, 'error');
         }
     } catch (e) {
-        Swal.fire('เชื่อมต่อล้มเหลว', 'ไม่สามารถส่งคำสั่งได้', 'error');
-        fetchAdminConfigs(); 
+        Swal.fire('ขัดข้อง', 'ไม่สามารถบันทึกได้', 'error');
+    }
+}
+
+// 5. สั่งลบข้อมูลจากฐานข้อมูล
+async function deleteConfigRow(id) {
+    const confirm = await Swal.fire({
+        icon: 'warning', title: 'ยืนยันการลบ?', text: `ต้องการลบข้อมูลรหัส "${id}" ใช่หรือไม่? (ลบแล้วเรียกคืนไม่ได้)`,
+        showCancelButton: true, confirmButtonText: 'ใช่, ลบทิ้งเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc3545'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    try {
+        let res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'manageConfig', payload: { action: 'DELETE', sheetName: adminCurrentConfigSheet, id: id } })
+        });
+        let result = await res.json();
+        if (result.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false });
+            loadAdminConfig(adminCurrentConfigSheet); 
+        } else {
+            Swal.fire('ผิดพลาด', result.message, 'error');
+        }
+    } catch (e) {
+        Swal.fire('ขัดข้อง', 'ไม่สามารถลบข้อมูลได้', 'error');
     }
 }
