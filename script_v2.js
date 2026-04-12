@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 54.0 (Bug Fixes - Case Insensitive Login)
+ * VERSION: 65.0 (Smart Form Generator + CSV + Collapsible Sidebar)
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -52,7 +52,6 @@ function renderUserInfo() {
 
 async function login() {
     let idInput = document.getElementById("personalId");
-    // 🚨 แก้ไขแล้ว: ลบ .toUpperCase() ออกเพื่อรักษารูปแบบเดิมเป๊ะๆ
     let id = idInput.value.trim(); 
     
     if (id === "") {
@@ -99,7 +98,6 @@ function showDashboard() {
     const userDataStr = localStorage.getItem("tms_user_data");
     if (userDataStr) {
         const user = JSON.parse(userDataStr);
-        // 🚨 เช็กสิทธิ์โดยแปลงค่าชั่วคราว ไม่กระทบข้อมูลดิบ
         const role = user.role ? user.role.toUpperCase() : "";
         
         if (role === 'ADMIN') {
@@ -823,7 +821,7 @@ async function cancelAssignment(assignId) {
 }
 
 // ============================================================
-// 🛡️ ADMIN SYSTEM FUNCTIONS (Database CRUD)
+// 🛡️ ADMIN SYSTEM FUNCTIONS (Database CRUD & Smart Forms)
 // ============================================================
 
 let adminCurrentConfigSheet = "Attendance_Config";
@@ -886,7 +884,6 @@ async function loadAdminConfig(sheetName) {
         let result = await res.json();
         
         if (result.status === 'success') {
-            // 🌟 เช็กว่าถ้ามีหัวตารางภาษาไทยใน CUSTOM_HEADERS ให้ใช้ตัวนั้น ถ้าไม่มีให้ดึงจาก DB
             adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers;
             adminConfigRows = result.rows;
             renderAdminTable(); 
@@ -925,25 +922,176 @@ function renderAdminTable() {
     document.getElementById("configTableContainer").innerHTML = html;
 }
 
-// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล
+// ============================================================
+// 🛠️ HELPER FUNCTIONS: ตัวช่วยจัดการเวลาและวันที่
+// ============================================================
+function parseDateTimeValue(val) {
+    let now = new Date();
+    let d = now.toISOString().split('T')[0]; 
+    let h = String(now.getHours()).padStart(2, '0');
+    let m = String(now.getMinutes()).padStart(2, '0');
+    
+    if (val && val.trim() !== '') {
+        let parts = val.trim().split(' ');
+        if(parts.length > 0) {
+             let dPart = parts[0];
+             if(dPart.includes('/')) {
+                 let dp = dPart.split('/');
+                 if(dp.length === 3) d = `${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`; 
+             } else if (dPart.includes('-')) {
+                 d = dPart; 
+             } else if (dPart.includes(':')) {
+                 let tPart = dPart.split(':');
+                 h = tPart[0] ? tPart[0].padStart(2,'0') : h;
+                 m = tPart[1] ? tPart[1].padStart(2,'0') : m;
+             }
+        }
+        if(parts.length > 1) {
+             let tPart = parts[1].split(':');
+             h = tPart[0] ? tPart[0].padStart(2,'0') : h;
+             m = tPart[1] ? tPart[1].padStart(2,'0') : m;
+        }
+    }
+    return { date: d, hh: h, mm: m };
+}
+
+window.updateTimeOnly = function(i) {
+    let hh = document.getElementById('hh_'+i).value.padStart(2,'0');
+    let mm = document.getElementById('mm_'+i).value.padStart(2,'0');
+    document.getElementById('hh_val_'+i).innerText = hh;
+    document.getElementById('mm_val_'+i).innerText = mm;
+    document.getElementById('cfgInput_'+i).value = hh + ':' + mm;
+};
+
+window.updateDateTime = function(i) {
+    let d = document.getElementById('date_'+i).value || "2026-01-01";
+    let hh = document.getElementById('hh_'+i).value.padStart(2,'0');
+    let mm = document.getElementById('mm_'+i).value.padStart(2,'0');
+    document.getElementById('hh_val_'+i).innerText = hh;
+    document.getElementById('mm_val_'+i).innerText = mm;
+    document.getElementById('cfgInput_'+i).value = d + ' ' + hh + ':' + mm;
+};
+
+// ============================================================
+// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล (Smart Form Generator)
+// ============================================================
 function openConfigForm(id = null) {
     let isNew = !id;
     let rowData = isNew ? Array(adminConfigHeaders.length).fill('') : adminConfigRows.find(r => r[0] == id);
-
     if (!rowData) return;
 
-    let html = '<div class="text-start" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">';
+    let html = '<div class="text-start" style="max-height: 65vh; overflow-y: auto; overflow-x: hidden; padding-right: 15px;">';
     
     adminConfigHeaders.forEach((h, i) => {
-        let readonly = (!isNew && i === 0) ? 'readonly bg-light' : ''; 
-        
-        // 🌟 ดักจับหัวตารางคำว่า "เปิดใช้" เพื่อใส่คำแนะนำ
-        let helperText = (h.includes('เปิดใช้')) ? '<span class="text-danger small ms-2">(พิมพ์ TRUE เพื่อเปิด, FALSE เพื่อปิด)</span>' : '';
+        let val = rowData[i] || '';
+        let inputHtml = '';
+
+        const makeAutoId = (prefix) => {
+            let v = isNew ? `${prefix}-${new Date().getTime()}` : val;
+            return `<input type="text" id="cfgInput_${i}" class="form-control bg-light text-secondary border-0 fw-bold" value="${v}" readonly>`;
+        };
+
+        const makeDropdown = (options) => {
+            let opts = options.map(opt => `<option value="${opt}" ${opt === val ? 'selected' : ''}>${opt}</option>`).join('');
+            return `<select id="cfgInput_${i}" class="form-select border-secondary shadow-sm">${opts}</select>`;
+        };
+
+        const makeDatePicker = () => {
+            let parsed = parseDateTimeValue(val);
+            return `<input type="date" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${parsed.date}">`;
+        };
+
+        const makeTimeSlider = () => {
+            let parsed = parseDateTimeValue(val);
+            return `
+                <div class="card p-3 border-light bg-light shadow-sm rounded-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="small fw-bold text-muted"><i class="bi bi-clock"></i> ชั่วโมง (HH)</span>
+                        <span class="badge bg-primary fs-6" id="hh_val_${i}">${parsed.hh}</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="23" value="${parseInt(parsed.hh)}" id="hh_${i}" oninput="updateTimeOnly(${i})">
+                    
+                    <div class="d-flex justify-content-between mb-2 mt-3">
+                        <span class="small fw-bold text-muted"><i class="bi bi-stopwatch"></i> นาที (MM)</span>
+                        <span class="badge bg-primary fs-6" id="mm_val_${i}">${parsed.mm}</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="59" value="${parseInt(parsed.mm)}" id="mm_${i}" oninput="updateTimeOnly(${i})">
+                    <input type="hidden" id="cfgInput_${i}" value="${parsed.hh}:${parsed.mm}">
+                </div>
+            `;
+        };
+
+        const makeDateTimeSlider = () => {
+            let parsed = parseDateTimeValue(val);
+            return `
+                <div class="card p-3 border-light bg-light shadow-sm rounded-4">
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted mb-1"><i class="bi bi-calendar-event"></i> เลือกวันที่</label>
+                        <input type="date" id="date_${i}" class="form-control shadow-sm" value="${parsed.date}" onchange="updateDateTime(${i})">
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="small fw-bold text-muted"><i class="bi bi-clock"></i> ชั่วโมง (HH)</span>
+                        <span class="badge bg-primary fs-6" id="hh_val_${i}">${parsed.hh}</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="23" value="${parseInt(parsed.hh)}" id="hh_${i}" oninput="updateDateTime(${i})">
+                    
+                    <div class="d-flex justify-content-between mb-2 mt-3">
+                        <span class="small fw-bold text-muted"><i class="bi bi-stopwatch"></i> นาที (MM)</span>
+                        <span class="badge bg-primary fs-6" id="mm_val_${i}">${parsed.mm}</span>
+                    </div>
+                    <input type="range" class="form-range" min="0" max="59" value="${parseInt(parsed.mm)}" id="mm_${i}" oninput="updateDateTime(${i})">
+                    <input type="hidden" id="cfgInput_${i}" value="${parsed.date} ${parsed.hh}:${parsed.mm}">
+                </div>
+            `;
+        };
+
+        const makeText = (isTextArea = false) => {
+            if (isTextArea || val.length > 50) return `<textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="3">${val}</textarea>`;
+            return `<input type="text" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${val}">`;
+        };
+
+        if (adminCurrentConfigSheet === 'Attendance_Config') {
+            if (i === 0) inputHtml = makeAutoId('ATT');
+            else if (i === 1) inputHtml = makeDropdown(["1", "2", "3", "4", "5", "6", "7"]);
+            else if (i === 2) inputHtml = makeDatePicker();
+            else if (i === 3) inputHtml = makeDropdown(["Morning", "Afternoon", "Evening"]);
+            else if (i === 5 || i === 6) inputHtml = makeTimeSlider();
+            else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
+            else inputHtml = makeText();
+        } 
+        else if (adminCurrentConfigSheet === 'Exam_Config') {
+            if (i === 0) inputHtml = makeDropdown(["PRE", "POST"]);
+            else if (i === 1 || i === 2) inputHtml = makeDateTimeSlider();
+            else if (i === 3) inputHtml = makeDropdown(["TRUE", "FALSE"]);
+            else inputHtml = makeText();
+        } 
+        else if (adminCurrentConfigSheet === 'Speakers_Config') {
+            if (i === 0) inputHtml = makeAutoId('SPK');
+            else if (i === 3 || i === 4) inputHtml = makeDateTimeSlider();
+            else if (i === 5) inputHtml = makeDropdown(["TRUE", "FALSE"]);
+            else inputHtml = makeText();
+        } 
+        else if (adminCurrentConfigSheet === 'Assignment_Config') {
+            if (i === 0) inputHtml = makeAutoId('ASN');
+            else if (i === 3) inputHtml = makeDropdown(["LINK", "FILE"]);
+            else if (i === 5 || i === 6) inputHtml = makeDateTimeSlider();
+            else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
+            else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
+            else if (i === 2 || i === 11) inputHtml = makeText(true); 
+            else inputHtml = makeText();
+        } 
+        else if (adminCurrentConfigSheet === 'Questions_Bank') {
+            if (i === 1) inputHtml = makeDropdown(["PROJECT_SURVEY", "SPEAKER_SURVEY", "TEST", "PRE_TEST", "POST_TEST"]);
+            else inputHtml = makeText();
+        } 
+        else {
+            inputHtml = makeText();
+        }
 
         html += `
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-primary mb-1">${h} ${helperText}</label>
-                <textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="${rowData[i] && rowData[i].length > 50 ? 3 : 1}" ${readonly}>${rowData[i] || ''}</textarea>
+            <div class="mb-4">
+                <label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>
+                ${inputHtml}
             </div>
         `;
     });
@@ -952,7 +1100,7 @@ function openConfigForm(id = null) {
     Swal.fire({
         title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล',
         html: html,
-        width: '600px',
+        width: '650px',
         showCancelButton: true,
         confirmButtonText: '💾 บันทึกข้อมูล',
         cancelButtonText: 'ยกเลิก',
@@ -962,7 +1110,7 @@ function openConfigForm(id = null) {
             for(let i=0; i<adminConfigHeaders.length; i++) {
                 let val = document.getElementById(`cfgInput_${i}`).value.trim();
                 if(i === 0 && val === '') {
-                    Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ด้วยครับ (ห้ามเว้นว่าง)`);
+                    Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`);
                     return false;
                 }
                 newData.push(val);
@@ -1025,7 +1173,6 @@ async function deleteConfigRow(id) {
 // 📊 ADMIN CSV IMPORT / EXPORT
 // ============================================================
 
-// 1. เมนูเลือก นำเข้า หรือ นำออก
 function openCSVMenu() {
     Swal.fire({
         title: 'จัดการข้อมูล CSV',
@@ -1044,14 +1191,13 @@ function openCSVMenu() {
     });
 }
 
-// 2. ฟังก์ชันนำออก (Export) 
 function exportConfigToCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF ป้องกันภาษาไทยเพี้ยนใน Excel
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
     let rows = [adminConfigHeaders, ...adminConfigRows];
     
     rows.forEach(rowArray => {
         let row = rowArray.map(item => {
-            let str = String(item || '').replace(/"/g, '""'); // จัดการเครื่องหมายคำพูดซ้อน
+            let str = String(item || '').replace(/"/g, '""');
             return `"${str}"`;
         }).join(",");
         csvContent += row + "\r\n";
@@ -1066,7 +1212,6 @@ function exportConfigToCSV() {
     document.body.removeChild(link);
 }
 
-// 3. ฟังก์ชันรับไฟล์และแปลง (Import)
 function handleCSVImport(event) {
     let file = event.target.files[0];
     if (!file) return;
@@ -1076,7 +1221,6 @@ function handleCSVImport(event) {
         let text = e.target.result;
         let rows = parseCSV(text);
         
-        // ถ้ารายการแรกเป็นหัวตาราง ให้ตัดทิ้ง
         if(rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift(); 
 
         if(rows.length === 0) {
@@ -1095,12 +1239,11 @@ function handleCSVImport(event) {
         });
 
         if(confirm.isConfirmed) uploadCSVToGAS(rows);
-        event.target.value = ''; // เคลียร์ไฟล์ออกหลังอ่านเสร็จ
+        event.target.value = ''; 
     };
     reader.readAsText(file);
 }
 
-// 4. ตัวสกัดข้อมูล CSV (CSV Parser)
 function parseCSV(str) {
     let arr = []; let quote = false; let row = 0, col = 0;
     for (let c = 0; c < str.length; c++) {
@@ -1115,11 +1258,9 @@ function parseCSV(str) {
         if (cc == '\r' && !quote) { ++row; col = 0; continue; }
         arr[row][col] += cc;
     }
-    // ตัดบรรทัดว่างทิ้ง
     return arr.filter(r => r.join('').trim() !== '');
 }
 
-// 5. ส่งข้อมูล CSV ไปเขียนทับในหลังบ้าน
 async function uploadCSVToGAS(rowsData) {
     Swal.fire({title: 'กำลังอัปเดตฐานข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
     try {
