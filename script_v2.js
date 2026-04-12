@@ -830,11 +830,18 @@ let adminCurrentConfigSheet = "Attendance_Config";
 let adminConfigHeaders = [];
 let adminConfigRows = [];
 
+// 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping)
+const CUSTOM_HEADERS = {
+    'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
+    'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
+    'Speakers_Config': ['รหัส', 'ชื่อวิทยากร', 'หัวข้อบรรยาย', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้'],
+    'Assignment_Config': ['รหัส', 'ชื่อภาระงาน', 'คำอธิบาย', 'รูปแบบ', 'ID Folder', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'กลุ่มเป้าหมาย', 'คะแนนเต็ม', 'น้ำหนักคะแนน', 'รูบริค'],
+    'Questions_Bank': ['รหัสคำถาม', 'ประเภท (Pre/Post/Survey)', 'หมวดหมู่', 'คำถาม', 'ตัวเลือก A', 'ตัวเลือก B', 'ตัวเลือก C', 'ตัวเลือก D', 'ตัวเลือก E', 'เฉลย']
+};
+
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
-    
-    // โหลดหน้าจอลงเวลาเป็นค่าเริ่มต้น
     loadAdminConfig('Attendance_Config');
 }
 
@@ -871,9 +878,10 @@ async function loadAdminConfig(sheetName) {
         let result = await res.json();
         
         if (result.status === 'success') {
-            adminConfigHeaders = result.headers;
+            // 🌟 เช็กว่าถ้ามีหัวตารางภาษาไทยใน CUSTOM_HEADERS ให้ใช้ตัวนั้น ถ้าไม่มีให้ดึงจาก DB
+            adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers;
             adminConfigRows = result.rows;
-            renderAdminTable(); // นำข้อมูลไปสร้างตาราง
+            renderAdminTable(); 
         } else {
             container.innerHTML = `<div class="alert alert-danger text-center">${result.message}</div>`;
         }
@@ -886,21 +894,18 @@ async function loadAdminConfig(sheetName) {
 function renderAdminTable() {
     let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
     
-    // สร้างหัวตาราง
     adminConfigHeaders.forEach(h => html += `<th>${h}</th>`);
     html += '<th class="text-center border-start bg-light" style="position: sticky; right: 0; z-index: 2;">จัดการ</th></tr></thead><tbody>';
 
     if (adminConfigRows.length === 0) {
         html += `<tr><td colspan="${adminConfigHeaders.length + 1}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
     } else {
-        // สร้างข้อมูลแต่ละแถว
         adminConfigRows.forEach(row => {
             html += '<tr>';
             row.forEach(cell => {
-                let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell; // ตัดข้อความยาวๆ ไม่ให้ล้นจอ
+                let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell;
                 html += `<td>${displayCell}</td>`;
             });
-            // ปุ่มจัดการ
             html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;">
                 <button class="btn btn-sm btn-warning text-dark me-1 shadow-sm" title="แก้ไข" onclick="openConfigForm('${row[0]}')"><i class="bi bi-pencil-square"></i></button>
                 <button class="btn btn-sm btn-danger shadow-sm" title="ลบ" onclick="deleteConfigRow('${row[0]}')"><i class="bi bi-trash"></i></button>
@@ -912,7 +917,7 @@ function renderAdminTable() {
     document.getElementById("configTableContainer").innerHTML = html;
 }
 
-// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล (สร้างช่องกรอกอัตโนมัติ)
+// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล
 function openConfigForm(id = null) {
     let isNew = !id;
     let rowData = isNew ? Array(adminConfigHeaders.length).fill('') : adminConfigRows.find(r => r[0] == id);
@@ -921,17 +926,16 @@ function openConfigForm(id = null) {
 
     let html = '<div class="text-start" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">';
     
-    // วนลูปสร้างกล่อง Input ตามหัวคอลัมน์ของชีตนั้นๆ
     adminConfigHeaders.forEach((h, i) => {
-        let readonly = (!isNew && i === 0) ? 'readonly bg-light' : ''; // ห้ามแก้รหัส ID เดิม
+        let readonly = (!isNew && i === 0) ? 'readonly bg-light' : ''; 
         
-        // บรรทัดที่เป็น is_active ให้คำแนะนำการกรอก
-        let helperText = h.toLowerCase().includes('active') ? '<span class="text-danger small ms-2">(พิมพ์ TRUE เพื่อเปิดระบบ, FALSE เพื่อปิดระบบ)</span>' : '';
+        // 🌟 ดักจับหัวตารางคำว่า "เปิดใช้" เพื่อใส่คำแนะนำ
+        let helperText = (h.includes('เปิดใช้')) ? '<span class="text-danger small ms-2">(พิมพ์ TRUE เพื่อเปิด, FALSE เพื่อปิด)</span>' : '';
 
         html += `
             <div class="mb-3">
                 <label class="form-label small fw-bold text-primary mb-1">${h} ${helperText}</label>
-                <textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="${rowData[i].length > 50 ? 3 : 1}" ${readonly}>${rowData[i]}</textarea>
+                <textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="${rowData[i] && rowData[i].length > 50 ? 3 : 1}" ${readonly}>${rowData[i] || ''}</textarea>
             </div>
         `;
     });
@@ -950,7 +954,7 @@ function openConfigForm(id = null) {
             for(let i=0; i<adminConfigHeaders.length; i++) {
                 let val = document.getElementById(`cfgInput_${i}`).value.trim();
                 if(i === 0 && val === '') {
-                    Swal.showValidationMessage(`กรุณากรอกรหัส [${adminConfigHeaders[0]}] ด้วยครับ (ห้ามเว้นว่าง)`);
+                    Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ด้วยครับ (ห้ามเว้นว่าง)`);
                     return false;
                 }
                 newData.push(val);
