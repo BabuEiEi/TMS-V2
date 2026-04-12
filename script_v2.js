@@ -1246,67 +1246,70 @@ async function deleteConfigRow(id) {
 }
 
 // ============================================================
-// 📊 ADMIN CSV IMPORT / EXPORT
+// 📊 ADMIN EXCEL IMPORT / EXPORT (Powered by SheetJS)
 // ============================================================
 
-function openCSVMenu() {
+function openExcelMenu() {
     Swal.fire({
-        title: 'จัดการข้อมูล CSV',
+        title: 'จัดการข้อมูล Excel',
         html: `เลือกการดำเนินการสำหรับตาราง <b>${document.getElementById('tab_' + adminCurrentConfigSheet).innerText}</b>`,
         icon: 'info',
         showCancelButton: true,
         showDenyButton: true,
-        confirmButtonText: '<i class="bi bi-download"></i> นำออก (Export)',
-        denyButtonText: '<i class="bi bi-upload"></i> นำเข้า (Import)',
+        confirmButtonText: '<i class="bi bi-file-earmark-arrow-down"></i> นำออก (Export)',
+        denyButtonText: '<i class="bi bi-file-earmark-arrow-up"></i> นำเข้า (Import)',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#198754',
         denyButtonColor: '#0d6efd'
     }).then((result) => {
-        if (result.isConfirmed) exportConfigToCSV();
-        else if (result.isDenied) document.getElementById('csvFileInput').click();
+        if (result.isConfirmed) exportConfigToExcel();
+        else if (result.isDenied) document.getElementById('excelFileInput').click();
     });
 }
 
-function exportConfigToCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+function exportConfigToExcel() {
     let rows = [adminConfigHeaders, ...adminConfigRows];
     
-    rows.forEach(rowArray => {
-        let row = rowArray.map(item => {
-            let str = String(item || '').replace(/"/g, '""');
-            return `"${str}"`;
-        }).join(",");
-        csvContent += row + "\r\n";
-    });
-
-    let encodedUri = encodeURI(csvContent);
-    let link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${adminCurrentConfigSheet}_Export.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // สร้าง Workbook และ Worksheet ด้วย SheetJS
+    let wb = XLSX.utils.book_new();
+    let ws = XLSX.utils.aoa_to_sheet(rows);
+    
+    XLSX.utils.book_append_sheet(wb, ws, adminCurrentConfigSheet);
+    
+    // สั่งดาวน์โหลดไฟล์ .xlsx
+    XLSX.writeFile(wb, `${adminCurrentConfigSheet}_Export.xlsx`);
 }
 
-function handleCSVImport(event) {
+function handleExcelImport(event) {
     let file = event.target.files[0];
     if (!file) return;
 
     let reader = new FileReader();
     reader.onload = async function(e) {
-        let text = e.target.result;
-        let rows = parseCSV(text);
+        let data = new Uint8Array(e.target.result);
+        let workbook = XLSX.read(data, {type: 'array'});
         
+        // ดึงข้อมูลจากชีตแรกสุดของไฟล์ Excel
+        let firstSheetName = workbook.SheetNames[0];
+        let worksheet = workbook.Sheets[firstSheetName];
+        
+        // แปลงข้อมูลเป็น Array 2 มิติ
+        let rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+        
+        // ถ้ารายการแรกเป็นหัวตาราง ให้ตัดทิ้ง
         if(rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift(); 
 
+        // กรองแถวว่างทิ้ง
+        rows = rows.filter(r => r.join('').trim() !== '');
+
         if(rows.length === 0) {
-             Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล หรือคอลัมน์ไม่ตรงกัน', 'error');
+             Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล หรือรูปแบบตารางไม่ถูกต้อง', 'error');
              event.target.value = ''; return;
         }
 
         const confirm = await Swal.fire({
             icon: 'warning',
-            title: 'ยืนยันการนำเข้าข้อมูล?',
+            title: 'ยืนยันการนำเข้า Excel?',
             html: `คำเตือน: การนำเข้าจะ<b>เขียนทับ (Overwrite)</b> ข้อมูลเดิมทั้งหมดในตารางนี้<br><br>พบข้อมูลใหม่จำนวน <b class="text-primary">${rows.length}</b> รายการ`,
             showCancelButton: true,
             confirmButtonText: 'ใช่, เขียนทับเลย',
@@ -1314,37 +1317,20 @@ function handleCSVImport(event) {
             confirmButtonColor: '#dc3545'
         });
 
-        if(confirm.isConfirmed) uploadCSVToGAS(rows);
+        if(confirm.isConfirmed) uploadExcelToGAS(rows);
         event.target.value = ''; 
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file); // อ่านไฟล์เป็น ArrayBuffer สำหรับ Excel
 }
 
-function parseCSV(str) {
-    let arr = []; let quote = false; let row = 0, col = 0;
-    for (let c = 0; c < str.length; c++) {
-        let cc = str[c], nc = str[c+1];
-        arr[row] = arr[row] || [];
-        arr[row][col] = arr[row][col] || '';
-        if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
-        if (cc == '"') { quote = !quote; continue; }
-        if (cc == ',' && !quote) { ++col; continue; }
-        if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
-        if (cc == '\n' && !quote) { ++row; col = 0; continue; }
-        if (cc == '\r' && !quote) { ++row; col = 0; continue; }
-        arr[row][col] += cc;
-    }
-    return arr.filter(r => r.join('').trim() !== '');
-}
-
-async function uploadCSVToGAS(rowsData) {
+async function uploadExcelToGAS(rowsData) {
     Swal.fire({title: 'กำลังอัปเดตฐานข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
     try {
         let res = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify({ 
                 action: 'manageConfig', 
-                payload: { action: 'IMPORT_CSV', sheetName: adminCurrentConfigSheet, csvData: rowsData } 
+                payload: { action: 'IMPORT_EXCEL', sheetName: adminCurrentConfigSheet, excelData: rowsData } 
             })
         });
         let result = await res.json();

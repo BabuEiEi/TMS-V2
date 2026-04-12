@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 
     <style>
@@ -230,8 +232,11 @@
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
                             <h4 class="fw-bold text-dark mb-0">⚙️ ตั้งค่าระบบฐานข้อมูล</h4>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold" onclick="openCSVMenu()">
-                                    <i class="bi bi-filetype-csv me-1"></i> นำเข้า/นำออก
+                                <button class="btn btn-outline-info rounded-pill px-3 shadow-sm fw-bold" onclick="loadAdminConfig(adminCurrentConfigSheet)">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> รีเฟรช
+                                </button>
+                                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold" onclick="openExcelMenu()">
+                                    <i class="bi bi-file-earmark-excel me-1"></i> นำเข้า/นำออก
                                 </button>
                                 <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
                                     <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูล
@@ -239,7 +244,7 @@
                             </div>
                         </div>
                         
-                        <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event)">
 
                         <div class="d-flex flex-wrap gap-2 mb-4">
                             <button id="tab_Attendance_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Attendance_Config')">🕒 การลงเวลา</button>
