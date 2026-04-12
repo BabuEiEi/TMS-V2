@@ -901,21 +901,40 @@ async function loadAdminConfig(sheetName) {
 }
 
 // 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
-// 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
-// 🌟 จุดที่ 1: เพิ่มตัวแปร targetId (ถ้าไม่มีใครส่งค่ามา ให้ใช้ configTableContainer เป็นค่าเริ่มต้น)
 function renderAdminTable(targetId = "configTableContainer") {
     let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
     
-    adminConfigHeaders.forEach(h => html += `<th>${h}</th>`);
+    // 🌟 สร้างหัวตาราง (ดักซ่อนคอลัมน์)
+    adminConfigHeaders.forEach((h, i) => {
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; // ข้ามคอลัมน์น้ำหนักคะแนน
+        if (adminCurrentConfigSheet === 'Users' && i >= 6) return; // 🌟 ขยายให้โชว์ถึงคอลัมน์ F (Index 5) ซ่อนตั้งแต่ G (Index 6)
+        
+        html += `<th>${h}</th>`;
+    });
     html += '<th class="text-center border-start bg-light" style="position: sticky; right: 0; z-index: 2;">จัดการ</th></tr></thead><tbody>';
 
     if (adminConfigRows.length === 0) {
-        html += `<tr><td colspan="${adminConfigHeaders.length + 1}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
+        // ปรับ colspan ให้สอดคล้องกับคอลัมน์ที่โชว์
+        let colSpan = adminConfigHeaders.length + 1;
+        if (adminCurrentConfigSheet === 'Assignment_Config') colSpan -= 1;
+        if (adminCurrentConfigSheet === 'Users') colSpan = 7; // โชว์ 6 คอลัมน์ (A-F) + 1 ปุ่มจัดการ
+        
+        html += `<tr><td colspan="${colSpan}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
     } else {
+        // 🌟 สร้างข้อมูลแต่ละแถว
         adminConfigRows.forEach(row => {
             html += '<tr>';
-            row.forEach(cell => {
+            row.forEach((cell, i) => {
+                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; // ข้ามข้อมูลคอลัมน์น้ำหนักคะแนน
+                if (adminCurrentConfigSheet === 'Users' && i >= 6) return; // 🌟 ขยายให้โชว์ข้อมูลถึงคอลัมน์ F 
+                
                 let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell;
+                
+                // 🔒 Security ให้อ่านรหัสผ่าน (คอลัมน์ E / Index 4) เป็นดอกจันบนหน้าตาราง
+                if (adminCurrentConfigSheet === 'Users' && i === 4 && displayCell.trim() !== '') {
+                    displayCell = '<span class="text-muted">••••••••</span>';
+                }
+                
                 html += `<td>${displayCell}</td>`;
             });
             html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;">
@@ -926,8 +945,6 @@ function renderAdminTable(targetId = "configTableContainer") {
     }
     
     html += '</tbody></table></div>';
-    
-    // 🌟 จุดที่ 2: เปลี่ยนจากการล็อกชื่อ "configTableContainer" ให้เป็นตัวแปร targetId
     document.getElementById(targetId).innerHTML = html;
 }
 
