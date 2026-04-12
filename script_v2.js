@@ -830,6 +830,7 @@ let adminConfigRows = [];
 
 // 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping) ตอนนี้เหลือ 11 คอลัมน์แล้ว
 const CUSTOM_HEADERS = {
+    'Users': ['รหัสประจำตัว', 'ชื่อ-นามสกุล', 'บทบาท', 'สังกัด/หน่วยงาน', 'รหัสผ่าน', 'กลุ่มเป้าหมาย'],
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
     'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
     'Speakers_Config': ['รหัส', 'ชื่อวิทยากร', 'หัวข้อบรรยาย', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้'],
@@ -847,7 +848,15 @@ function switchAdminTab(tabName) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
     document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active', 'fw-bold'));
     document.getElementById('adminTab_' + tabName).classList.remove('d-none');
+    
     if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
+
+    // 🌟 1. เพิ่ม Logic โหลดข้อมูลอัตโนมัติเมื่อสลับ Tab
+    if (tabName === 'userManage') {
+        loadAdminConfig('Users');
+    } else if (tabName === 'systemControl') {
+        loadAdminConfig('Attendance_Config');
+    }
 }
 
 // ฟังก์ชันสำหรับ ย่อ/ขยาย Sidebar
@@ -862,18 +871,12 @@ function toggleAdminSidebar() {
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
     
-    // สลับสีปุ่มเมนู
-    document.querySelectorAll('.config-tab-btn').forEach(b => {
-        b.classList.remove('btn-primary', 'text-white');
-        b.classList.add('btn-outline-primary');
-    });
-    let activeTab = document.getElementById('tab_' + sheetName);
-    if(activeTab) {
-        activeTab.classList.remove('btn-outline-primary');
-        activeTab.classList.add('btn-primary', 'text-white');
-    }
+    // เลือก Container ให้ถูกตัว (ถ้าเป็น Users ให้ลง userTableContainer ถ้าเป็น Config อื่นๆ ให้ลงตัวเดิม)
+    let containerId = (sheetName === 'Users') ? "userTableContainer" : "configTableContainer";
+    let container = document.getElementById(containerId);
+    
+    // ... (ส่วนการสลับสีปุ่มเมนูคงเดิม) ...
 
-    let container = document.getElementById("configTableContainer");
     container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังดึงข้อมูลจากฐานข้อมูล...</p></div>`;
 
     try {
@@ -886,7 +889,9 @@ async function loadAdminConfig(sheetName) {
         if (result.status === 'success') {
             adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers;
             adminConfigRows = result.rows;
-            renderAdminTable(); 
+            
+            // 🌟 2. ส่ง containerId ไปยังฟังก์ชันสร้างตารางด้วย
+            renderAdminTable(containerId); 
         } else {
             container.innerHTML = `<div class="alert alert-danger text-center">${result.message}</div>`;
         }
@@ -896,7 +901,9 @@ async function loadAdminConfig(sheetName) {
 }
 
 // 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
-function renderAdminTable() {
+// 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
+// 🌟 จุดที่ 1: เพิ่มตัวแปร targetId (ถ้าไม่มีใครส่งค่ามา ให้ใช้ configTableContainer เป็นค่าเริ่มต้น)
+function renderAdminTable(targetId = "configTableContainer") {
     let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
     
     adminConfigHeaders.forEach(h => html += `<th>${h}</th>`);
@@ -919,7 +926,9 @@ function renderAdminTable() {
     }
     
     html += '</tbody></table></div>';
-    document.getElementById("configTableContainer").innerHTML = html;
+    
+    // 🌟 จุดที่ 2: เปลี่ยนจากการล็อกชื่อ "configTableContainer" ให้เป็นตัวแปร targetId
+    document.getElementById(targetId).innerHTML = html;
 }
 
 // ============================================================
@@ -1142,6 +1151,12 @@ function openConfigForm(id = null) {
             else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
         } 
+        else if (adminCurrentConfigSheet === 'Users') {
+            if (i === 0) inputHtml = makeText(); // รหัสประจำตัว (ปกติเป็นเลข 13 หลัก หรือ ID พิมพ์เอง)
+            else if (i === 2) inputHtml = makeDropdown(["ผู้อบรม", "วิทยากร", "ADMIN"]);
+            else if (i === 5) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
+            else inputHtml = makeText();
+        }
         else if (adminCurrentConfigSheet === 'Questions_Bank') {
             if (i === 1) inputHtml = makeDropdown(["PROJECT_SURVEY", "SPEAKER_SURVEY", "TEST", "PRE_TEST", "POST_TEST"]);
             else inputHtml = makeText();
