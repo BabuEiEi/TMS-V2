@@ -833,7 +833,7 @@ const CUSTOM_HEADERS = {
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
     'Exam_Config': ['ประเภทการสอบ', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'เกณฑ์การผ่าน'],
     'Speakers_Config': ['รหัส', 'ชื่อวิทยากร', 'หัวข้อบรรยาย', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้'],
-    'Assignment_Config': ['รหัส', 'ชื่อภาระงาน', 'คำอธิบาย', 'รูปแบบ', 'ID Folder', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'กลุ่มเป้าหมาย', 'คะแนนเต็ม', 'น้ำหนักคะแนน', 'รูบริค'],
+    'Assignment_Config': ['รหัส', 'ชื่อภาระงาน', 'คำอธิบาย', 'รูปแบบ', 'ID Folder', 'วัน เวลาเริ่มต้น', 'วัน เวลาสิ้นสุด', 'เปิดใช้', 'กลุ่มเป้าหมาย', 'คะแนนเต็ม', 'รูบริค'],
     'Questions_Bank': ['รหัสคำถาม', 'ประเภท (Pre/Post/Survey)', 'หมวดหมู่', 'คำถาม', 'ตัวเลือก A', 'ตัวเลือก B', 'ตัวเลือก C', 'ตัวเลือก D', 'ตัวเลือก E', 'เฉลย']
 };
 
@@ -1137,9 +1137,7 @@ function openConfigForm(id = null) {
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
             // 🌟 ล็อกช่อง "คะแนนเต็ม" ให้แก้ไขเองไม่ได้ 
             else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`;
-            // 🌟 ซ่อนช่อง "น้ำหนักคะแนน" ทิ้งไปเลย ให้เป็น hidden
-            else if (i === 10) inputHtml = `<input type="hidden" id="cfgInput_${i}" value="${val}">`; 
-            else if (i === 11) inputHtml = makeRubricEditor(); 
+            else if (i === 10) inputHtml = makeRubricEditor(); 
             else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
         } 
