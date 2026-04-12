@@ -96,14 +96,25 @@ function logout() {
 function showDashboard() {
     // ซ่อนหน้า Login
     document.getElementById("loginSection").classList.add("d-none");
-
-    // โชว์หน้า Dashboard และ Navbar
-    document.getElementById("dashboardSection").classList.remove("d-none");
+    // เปิด Navbar
     document.getElementById("main-nav").style.display = "block";
-
-    // 🔮 โชว์ Footer หลัก หลังจากล็อกอินเสร็จแล้ว
+    
+    // โชว์ Footer หลัก
     let footer = document.getElementById("main-footer");
-    if (footer) footer.classList.remove("d-none");
+    if(footer) footer.classList.remove("d-none");
+
+    // 🔮 เช็ก Role เพื่อแยกหน้า (Routing)
+    const userDataStr = localStorage.getItem("tms_user_data");
+    if (userDataStr) {
+        const user = JSON.parse(userDataStr);
+        if (user.role.toUpperCase() === 'ADMIN') {
+            renderAdminDashboard(); // ถ้าเป็น Admin ให้เปิดหน้าควบคุม
+            return; // หยุดการทำงานตรงนี้ ไม่ให้ลงไปเปิดหน้าปกติ
+        }
+    }
+    
+    // ถ้าไม่ใช่ Admin ให้โชว์หน้า Dashboard ผู้เข้าอบรมปกติ
+    document.getElementById("dashboardSection").classList.remove("d-none");
 }
 
 function backToDashboard(currentId) {
@@ -848,4 +859,56 @@ async function cancelAssignment(assignId) {
     } catch (e) {
         Swal.fire('ผิดพลาด', 'เชื่อมต่อระบบล้มเหลว', 'error');
     }
+}
+
+// ============================================================
+// 🛡️ ADMIN SYSTEM FUNCTIONS (Phase 2)
+// ============================================================
+
+// 1. ฟังก์ชันเปิดหน้า Admin Dashboard
+function renderAdminDashboard() {
+    // ซ่อนหน้าหลักผู้อบรม
+    document.getElementById("dashboardSection").classList.add("d-none");
+    // โชว์หน้า Admin
+    document.getElementById("adminSection").classList.remove("d-none");
+    
+    // (หมายเหตุ: ในสเต็ปหน้าเราจะเขียนดึงค่าเปิด/ปิดระบบจาก GAS มาอัปเดตสถานะปุ่มที่นี่ค่ะ)
+}
+
+// 2. ฟังก์ชันสลับแท็บเมนูด้านซ้าย
+function switchAdminTab(tabName) {
+    // ซ่อนเนื้อหาทุกแท็บก่อน
+    document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
+    // ลบสีปุ่มที่ถูกเลือกออกให้หมด
+    document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active', 'fw-bold'));
+    
+    // โชว์เฉพาะเนื้อหาแท็บที่กด
+    document.getElementById('adminTab_' + tabName).classList.remove('d-none');
+    
+    // ใส่สีให้ปุ่มที่เพิ่งกด
+    if(event && event.currentTarget) {
+        event.currentTarget.classList.add('active', 'fw-bold');
+    }
+}
+
+// 3. ฟังก์ชันจำลองการกดเปิด-ปิดระบบ (เตรียมเชื่อม GAS)
+function toggleSystem(systemName, isChecked) {
+    // โชว์หน้าต่างโหลด
+    Swal.fire({
+        title: 'กำลังอัปเดตคำสั่ง...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    // 🔮 (จำลอง) เคลียร์ Loading แล้วแจ้งเตือนผลลัพธ์
+    setTimeout(() => {
+        let statusText = isChecked ? 'เปิดระบบ' : 'ปิดระบบ';
+        Swal.fire({
+            icon: 'success',
+            title: 'อัปเดตสำเร็จ!',
+            text: `${statusText} ${systemName} เรียบร้อยแล้ว`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    }, 800);
 }
