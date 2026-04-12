@@ -1001,48 +1001,18 @@ function openConfigForm(id = null) {
             return `<input type="date" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${parsed.date}">`;
         };
 
-        const makeTimeSlider = () => {
+        // 🌟 ปรับใหม่: เปลี่ยนเป็นช่องเลือกเวลา (Time Picker) แบบมาตรฐาน
+        const makeTimePicker = () => {
             let parsed = parseDateTimeValue(val);
-            return `
-                <div class="card p-3 border-light bg-light shadow-sm rounded-4">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="small fw-bold text-muted"><i class="bi bi-clock"></i> ชั่วโมง (HH)</span>
-                        <span class="badge bg-primary fs-6" id="hh_val_${i}">${parsed.hh}</span>
-                    </div>
-                    <input type="range" class="form-range" min="0" max="23" value="${parseInt(parsed.hh)}" id="hh_${i}" oninput="updateTimeOnly(${i})">
-                    
-                    <div class="d-flex justify-content-between mb-2 mt-3">
-                        <span class="small fw-bold text-muted"><i class="bi bi-stopwatch"></i> นาที (MM)</span>
-                        <span class="badge bg-primary fs-6" id="mm_val_${i}">${parsed.mm}</span>
-                    </div>
-                    <input type="range" class="form-range" min="0" max="59" value="${parseInt(parsed.mm)}" id="mm_${i}" oninput="updateTimeOnly(${i})">
-                    <input type="hidden" id="cfgInput_${i}" value="${parsed.hh}:${parsed.mm}">
-                </div>
-            `;
+            return `<input type="time" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${parsed.hh}:${parsed.mm}">`;
         };
 
-        const makeDateTimeSlider = () => {
+        // 🌟 ปรับใหม่: เปลี่ยนเป็นช่องเลือกวันที่และเวลา (Date/Time Picker) แบบมาตรฐาน
+        const makeDateTimePicker = () => {
             let parsed = parseDateTimeValue(val);
-            return `
-                <div class="card p-3 border-light bg-light shadow-sm rounded-4">
-                    <div class="mb-3">
-                        <label class="small fw-bold text-muted mb-1"><i class="bi bi-calendar-event"></i> เลือกวันที่</label>
-                        <input type="date" id="date_${i}" class="form-control shadow-sm" value="${parsed.date}" onchange="updateDateTime(${i})">
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="small fw-bold text-muted"><i class="bi bi-clock"></i> ชั่วโมง (HH)</span>
-                        <span class="badge bg-primary fs-6" id="hh_val_${i}">${parsed.hh}</span>
-                    </div>
-                    <input type="range" class="form-range" min="0" max="23" value="${parseInt(parsed.hh)}" id="hh_${i}" oninput="updateDateTime(${i})">
-                    
-                    <div class="d-flex justify-content-between mb-2 mt-3">
-                        <span class="small fw-bold text-muted"><i class="bi bi-stopwatch"></i> นาที (MM)</span>
-                        <span class="badge bg-primary fs-6" id="mm_val_${i}">${parsed.mm}</span>
-                    </div>
-                    <input type="range" class="form-range" min="0" max="59" value="${parseInt(parsed.mm)}" id="mm_${i}" oninput="updateDateTime(${i})">
-                    <input type="hidden" id="cfgInput_${i}" value="${parsed.date} ${parsed.hh}:${parsed.mm}">
-                </div>
-            `;
+            // datetime-local ต้องใช้ Format YYYY-MM-DDTHH:mm (มีตัว T คั่นกลาง)
+            let dtValue = `${parsed.date}T${parsed.hh}:${parsed.mm}`;
+            return `<input type="datetime-local" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${dtValue}">`;
         };
 
         const makeText = (isTextArea = false) => {
@@ -1055,26 +1025,26 @@ function openConfigForm(id = null) {
             else if (i === 1) inputHtml = makeDropdown(["1", "2", "3", "4", "5", "6", "7"]);
             else if (i === 2) inputHtml = makeDatePicker();
             else if (i === 3) inputHtml = makeDropdown(["Morning", "Afternoon", "Evening"]);
-            else if (i === 5 || i === 6) inputHtml = makeTimeSlider();
+            else if (i === 5 || i === 6) inputHtml = makeTimePicker(); // เรียกใช้ Time Picker
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Exam_Config') {
             if (i === 0) inputHtml = makeDropdown(["PRE", "POST"]);
-            else if (i === 1 || i === 2) inputHtml = makeDateTimeSlider();
+            else if (i === 1 || i === 2) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
             else if (i === 3) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Speakers_Config') {
             if (i === 0) inputHtml = makeAutoId('SPK');
-            else if (i === 3 || i === 4) inputHtml = makeDateTimeSlider();
+            else if (i === 3 || i === 4) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
             else if (i === 5) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else inputHtml = makeText();
         } 
         else if (adminCurrentConfigSheet === 'Assignment_Config') {
             if (i === 0) inputHtml = makeAutoId('ASN');
             else if (i === 3) inputHtml = makeDropdown(["LINK", "FILE"]);
-            else if (i === 5 || i === 6) inputHtml = makeDateTimeSlider();
+            else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); // เรียกใช้ DateTime Picker
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
             else if (i === 2 || i === 11) inputHtml = makeText(true); 
@@ -1100,7 +1070,7 @@ function openConfigForm(id = null) {
     Swal.fire({
         title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล',
         html: html,
-        width: '650px',
+        width: '600px', // ปรับขนาดกลับมาให้พอดีกับ Picker แบบใหม่
         showCancelButton: true,
         confirmButtonText: '💾 บันทึกข้อมูล',
         cancelButtonText: 'ยกเลิก',
@@ -1108,7 +1078,15 @@ function openConfigForm(id = null) {
         preConfirm: () => {
             let newData = [];
             for(let i=0; i<adminConfigHeaders.length; i++) {
-                let val = document.getElementById(`cfgInput_${i}`).value.trim();
+                let el = document.getElementById(`cfgInput_${i}`);
+                let val = el.value.trim();
+                
+                // 🌟 สำคัญ: ถ้าเป็น datetime-local มันจะมีตัว 'T' คั่น (เช่น 2026-04-08T08:00) 
+                // เราจะแทนที่ 'T' เป็นช่องว่าง ให้ลงฐานข้อมูลในรูปแบบที่ชีตคุ้นเคย (2026-04-08 08:00)
+                if (el.type === 'datetime-local') {
+                    val = val.replace('T', ' ');
+                }
+
                 if(i === 0 && val === '') {
                     Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`);
                     return false;
