@@ -441,31 +441,31 @@ function manageConfig(payload) {
     }
     return { status: 'error', message: 'ไม่พบข้อมูลที่ต้องการลบ' };
   }
-  // 📥 โหมดนำเข้าไฟล์ CSV (Import & Overwrite)
-  else if (action === "IMPORT_CSV") {
-    var csvData = payload.csvData;
-    if (!csvData || csvData.length === 0) return { status: 'error', message: 'ไม่มีข้อมูลสำหรับนำเข้า' };
-    
-    var lastRow = sheet.getLastRow();
-    var lastCol = sheet.getLastColumn();
-    
-    // 1. ลบข้อมูลเดิมทิ้งทั้งหมด (แต่เว้นหัวตารางไว้แถวที่ 1)
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
-    }
-    
-    // 2. เคลียร์ข้อมูลว่างๆ และจัดให้มีจำนวนคอลัมน์เท่ากับหัวตารางเป๊ะๆ (ป้องกัน Error)
-    var cleanData = csvData.map(function(row) {
-       var newRow = [];
-       for(var i=0; i<lastCol; i++) {
-          newRow.push(row[i] !== undefined ? row[i] : "");
-       }
-       return newRow;
-    });
+  // 📥 โหมดนำเข้าไฟล์ Excel (Import & Overwrite)
+    else if (action === "IMPORT_EXCEL") {
+      var excelData = payload.excelData;
+      if (!excelData || excelData.length === 0) return { status: 'error', message: 'ไม่มีข้อมูลสำหรับนำเข้า' };
+      
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      
+      // 1. ลบข้อมูลเดิมทิ้งทั้งหมด (แต่เว้นหัวตารางไว้แถวที่ 1)
+      if (lastRow > 1) {
+        sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+      }
+      
+      // 2. เคลียร์ข้อมูลว่างๆ และจัดให้มีจำนวนคอลัมน์เท่ากับหัวตารางเป๊ะๆ (ป้องกัน Error)
+      var cleanData = excelData.map(function(row) {
+        var newRow = [];
+        for(var i=0; i<lastCol; i++) {
+            newRow.push(row[i] !== undefined ? row[i] : "");
+        }
+        return newRow;
+      });
 
-    // 3. เขียนข้อมูลชุดใหม่ทับลงไป
-    sheet.getRange(2, 1, cleanData.length, lastCol).setValues(cleanData);
-    return { status: 'success', message: 'นำเข้าข้อมูลใหม่ ' + cleanData.length + ' รายการเรียบร้อย' };
-  }
+      // 3. เขียนข้อมูลชุดใหม่ทับลงไป
+      sheet.getRange(2, 1, cleanData.length, lastCol).setValues(cleanData);
+      return { status: 'success', message: 'นำเข้าข้อมูลใหม่ ' + cleanData.length + ' รายการเรียบร้อย' };
+    }
   return { status: 'error', message: 'คำสั่ง Database ผิดพลาด' };
 }
