@@ -1055,7 +1055,6 @@ function openConfigForm(id = null) {
             return `<input type="datetime-local" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${dtValue}">`;
         };
 
-        // 🌟 [ฟังก์ชันใหม่] สร้างตารางรูบริคแบบไดนามิก
         const makeRubricEditor = () => {
             let rubricData = [];
             if (val && val.trim().startsWith('[')) {
@@ -1073,15 +1072,15 @@ function openConfigForm(id = null) {
             <div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;">
                 <h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6>
                 <div class="alert alert-info border border-info small py-2 mb-3 text-dark shadow-sm">
-                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนดิบเต็ม" x "ตัวคูณ" = คะแนนจริง</b>
+                    <i class="bi bi-info-circle-fill text-info me-1"></i> ระบบจะนำ <b>"คะแนนเต็ม" x "ตัวคูณ" = คะแนนจริง</b>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-borderless align-middle mb-0">
                         <thead class="border-bottom border-secondary">
                             <tr class="text-secondary small">
                                 <th class="text-start pb-2">ชื่อเกณฑ์/ประเด็นพิจารณา</th>
-                                <th class="text-center pb-2" style="width: 100px;">คะแนนดิบเต็ม</th>
-                                <th class="text-center pb-2" style="width: 100px;">ตัวคูณ (น้ำหนัก)</th>
+                                <th class="text-center pb-2" style="width: 100px;">คะแนนเต็ม</th>
+                                <th class="text-center pb-2" style="width: 100px;">น้ำหนัก</th>
                                 <th class="text-center pb-2" style="width: 50px;">ลบ</th>
                             </tr>
                         </thead>
@@ -1108,6 +1107,7 @@ function openConfigForm(id = null) {
             return `<input type="text" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${val}">`;
         };
 
+        // 🧠 Logic แปลงเครื่องมือให้ตรงกับข้อมูล
         if (adminCurrentConfigSheet === 'Attendance_Config') {
             if (i === 0) inputHtml = makeAutoId('ATT');
             else if (i === 1) inputHtml = makeDropdown(["1", "2", "3", "4", "5", "6", "7"]);
@@ -1135,7 +1135,11 @@ function openConfigForm(id = null) {
             else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); 
             else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]);
             else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]);
-            else if (i === 11) inputHtml = makeRubricEditor(); // 🌟 เรียกใช้ตารางรูบริค
+            // 🌟 ล็อกช่อง "คะแนนเต็ม" ให้แก้ไขเองไม่ได้ 
+            else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`;
+            // 🌟 ซ่อนช่อง "น้ำหนักคะแนน" ทิ้งไปเลย ให้เป็น hidden
+            else if (i === 10) inputHtml = `<input type="hidden" id="cfgInput_${i}" value="${val}">`; 
+            else if (i === 11) inputHtml = makeRubricEditor(); 
             else if (i === 2) inputHtml = makeText(true); 
             else inputHtml = makeText();
         } 
@@ -1147,28 +1151,30 @@ function openConfigForm(id = null) {
             inputHtml = makeText();
         }
 
-        // ซ่อน Label ของช่องรูบริค เพราะหัวข้ออยู่ในตารางแล้ว
-        let labelHtml = i === 11 && adminCurrentConfigSheet === 'Assignment_Config' ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
-
-        html += `
-            <div class="mb-4">
-                ${labelHtml}
-                ${inputHtml}
-            </div>
-        `;
+        // 🌟 ถ้าระบบบอกว่าเป็นช่องซ่อน (i=10) ไม่ต้องสร้าง Label และ Div ครอบ
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) {
+            html += inputHtml;
+        } else {
+            let labelHtml = i === 11 && adminCurrentConfigSheet === 'Assignment_Config' ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
+            html += `
+                <div class="mb-4">
+                    ${labelHtml}
+                    ${inputHtml}
+                </div>
+            `;
+        }
     });
     html += '</div>';
 
     Swal.fire({
         title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล',
         html: html,
-        width: '800px', // 🌟 ขยายความกว้างให้รองรับตารางรูบริค
+        width: '800px', 
         showCancelButton: true,
         confirmButtonText: '💾 บันทึกข้อมูล',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#198754',
         didOpen: () => {
-            // 🌟 สั่งให้คำนวณคะแนนรวมทันทีที่เปิดหน้าต่างขึ้นมา
             if (adminCurrentConfigSheet === 'Assignment_Config') {
                 window.calcRubricTotal();
             }
@@ -1183,7 +1189,8 @@ function openConfigForm(id = null) {
                     val = val.replace('T', ' ');
                 }
 
-                if(i === 0 && val === '') {
+                // ข้ามการ validate สำหรับช่องที่โดนซ่อน
+                if(i === 0 && val === '' && el.type !== 'hidden') {
                     Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`);
                     return false;
                 }
