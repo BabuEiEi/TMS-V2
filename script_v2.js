@@ -1572,7 +1572,7 @@ window.switchAdminTab = function(tabName) {
 };
 
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis)
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED
 // ============================================================
 
 // แปลผลค่าเฉลี่ย
@@ -1584,72 +1584,80 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
+// 🌟 1. ดึงข้อมูลจาก API ของระบบเดิม (getEvaluationDashboardData)
+async function fetchEvaluationSummary() {
+    const container = document.getElementById('evalReportContent');
+    if(container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
+    
+    try {
+        const res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getEvaluationDashboardData' })
+        });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
+            globalEvalData = result; // ใช้ตัวแปรของระบบเดิมที่มีข้อมูลครบถ้วน
+            renderEvaluationReport();
+        } else {
+            if(container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
+        }
+    } catch(e) {
+        if(container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง</div>`;
+    }
+}
+
+// 🌟 2. ฟังก์ชันวาดหน้าจอ (ใช้ข้อมูลจาก globalEvalData)
 function renderEvaluationReport() {
-    if (!reportDataCache || !reportDataCache.survey) return;
+    if (!globalEvalData) return;
 
     let evalType = document.getElementById('evalTypeSelector').value;
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
     
-    // 🛡️ ป้องกันบั๊กกรณีข้อมูลวิทยากรยังไม่ถูกโหลด
-    if (evalType === 'SPEAKER_SURVEY' && !reportDataCache.speakers) {
-        Swal.fire('แจ้งเตือน', 'กรุณากดปุ่ม "อัปเดตข้อมูล" ด้านบนขวาก่อนครับ', 'warning');
-        document.getElementById('evalTypeSelector').value = 'PROJECT_SURVEY';
-        return;
-    }
-
-    // 🌟 1. ปรับ Dropdown ให้แสดง "ชื่อวิทยากร (หัวข้อบรรยาย)" ตามที่พี่บาบูต้องการ
+    // --- จัดการ Dropdown วิทยากร (ป้องกันบั๊กกดแล้วเด้งกลับ) ---
     if (evalType === 'SPEAKER_SURVEY') {
         speakerSelect.classList.remove('d-none');
+        let currentSpkVal = speakerSelect.value; // จำค่าที่ผู้ใช้เพิ่งกดเลือก
+        
         let spkHtml = '';
-        reportDataCache.speakers.forEach(s => {
-            let keys = Object.keys(s);
-            let spkId = s[keys[0]];   // รหัส
-            let spkName = s[keys[1]]; // ชื่อวิทยากร
-            let spkTopic = s[keys[2]]; // หัวข้อบรรยาย
-            
-            if (spkId && spkName) {
-                let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
-                spkHtml += `<option value="${spkId}">${displayText}</option>`;
-            }
+        globalEvalData.speakers.forEach(spk => {
+            let displayText = spk.topic ? `${spk.name} (${spk.topic})` : spk.name;
+            spkHtml += `<option value="${spk.id}">🎤 ${displayText}</option>`;
         });
-        speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากรในระบบ</option>`;
+        speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากร</option>`;
+        
+        // คืนค่าที่ถูกเลือกไว้
+        if (currentSpkVal && speakerSelect.querySelector(`option[value="${currentSpkVal}"]`)) {
+            speakerSelect.value = currentSpkVal;
+        }
     } else {
         speakerSelect.classList.add('d-none');
     }
 
+    // --- กรองข้อมูลตาม Target ---
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
-    let filteredLogs = reportDataCache.survey.filter(s => s.survey_type === evalType && s.target_id === targetId);
-    let totalN = filteredLogs.length;
+    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId);
+    const totalN = targetSurveys.length;
 
-    if (totalN === 0) {
-        contentArea.innerHTML = `<div class="alert alert-warning text-center py-4">ยังไม่มีผู้ตอบแบบประเมินในหัวข้อนี้</div>`;
+    if(totalN === 0) {
+        contentArea.innerHTML = `<div class="alert alert-warning text-center py-4 shadow-sm border-0"><i class="bi bi-info-circle"></i> ยังไม่มีผู้ตอบแบบประเมินในหัวข้อนี้</div>`;
         return;
     }
 
-    // แปลงคำตอบ
-    let answersList = filteredLogs.map(s => {
-        try { return JSON.parse(s.answers); } catch(e) { return {}; }
-    });
-
-    // 🌟 2. ดึงคำถามและจำแนกประเภท (CHOICE, RATING, TEXT)
-    let rawQuestions = reportDataCache.questions.filter(q => q[Object.keys(q)[1]] === evalType);
-    let targetQuestions = rawQuestions.map(q => {
-        let keys = Object.keys(q);
-        let opts = [q[keys[4]], q[keys[5]], q[keys[6]], q[keys[7]], q[keys[8]]].filter(o => o && o.toString().trim() !== "");
-        
-        let type = 'CHOICE';
-        if (opts[0] === 'TEXT') type = 'TEXT';
-        else if (opts.length > 0 && opts.every(opt => !isNaN(opt))) type = 'RATING';
-        
-        return { q_id: q[keys[0]], category: q[keys[2]], text: q[keys[3]], inputType: type, options: opts };
-    });
+    // --- คัดกรองคำถามเฉพาะประเภทที่เลือก ---
+    let targetQuestions = [];
+    for (let qId in globalEvalData.questions) { 
+        if (globalEvalData.questions[qId].type === evalType) {
+            targetQuestions.push({ q_id: qId, ...globalEvalData.questions[qId] }); 
+        }
+    }
 
     let categories = [...new Set(targetQuestions.map(q => q.category))];
     let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
 
     // ==========================================
-    // 📊 ตอนที่ 1: ข้อมูลทั่วไป (CHOICE) -> แสดง จำนวน / ร้อยละ
+    // 📊 ตอนที่ 1: ข้อมูลพื้นฐาน (CHOICE)
     // ==========================================
     let choiceCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'CHOICE'));
     if (choiceCategories.length > 0) {
@@ -1665,7 +1673,12 @@ function renderEvaluationReport() {
             choiceQs.forEach(q => {
                 html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
                 let counts = {}; q.options.forEach(opt => counts[opt] = 0);
-                answersList.forEach(ans => { if (ans[q.q_id]) counts[ans[q.q_id]] = (counts[ans[q.q_id]] || 0) + 1; });
+                
+                // นับคำตอบ
+                targetSurveys.forEach(s => { 
+                    const ans = s.answers[q.q_id]; 
+                    if (ans) counts[ans] = (counts[ans] || 0) + 1; 
+                });
                 
                 q.options.forEach(opt => {
                     let c = counts[opt] || 0; 
@@ -1678,7 +1691,7 @@ function renderEvaluationReport() {
     }
 
     // ==========================================
-    // 📈 ตอนที่ 2: ความพึงพอใจ (RATING) -> แสดง Mean, S.D., แปลผล + สรุปรายด้าน
+    // 📈 ตอนที่ 2: ความพึงพอใจ (RATING)
     // ==========================================
     let ratingCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'RATING'));
     if (ratingCategories.length > 0) {
@@ -1697,7 +1710,10 @@ function renderEvaluationReport() {
             let catScores = [];
             ratingQs.forEach((q, idx) => {
                 let scores = [];
-                answersList.forEach(ans => { let val = parseFloat(ans[q.q_id]); if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } });
+                targetSurveys.forEach(s => { 
+                    let val = parseFloat(s.answers[q.q_id]); 
+                    if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } 
+                });
                 let mean = calcMean(scores); let sd = calcSD(scores, mean);
                 html += `<tr>
                     <td class="text-center">${idx + 1}</td>
@@ -1707,7 +1723,7 @@ function renderEvaluationReport() {
                     <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${scores.length > 0 ? getRatingMeaning(mean) : '-'}</span></td>
                 </tr>`;
             });
-            // สรุปรายหมวดหมู่ (Category Mean)
+            
             let catMean = calcMean(catScores); let catSd = calcSD(catScores, catMean);
             html += `<tr class="table-info fw-bold">
                 <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
@@ -1717,7 +1733,6 @@ function renderEvaluationReport() {
             </tr>`;
         });
         
-        // สรุปรวมทุกด้าน (Total Mean)
         let allMean = calcMean(allRatingScores); let allSd = calcSD(allRatingScores, allMean);
         html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
             <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
@@ -1737,7 +1752,12 @@ function renderEvaluationReport() {
         textCategories.forEach(cat => {
             let textQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'TEXT');
             textQs.forEach((q, i) => {
-                let texts = []; answersList.forEach(ans => { if(ans[q.q_id] && ans[q.q_id].trim() !== '') texts.push(ans[q.q_id].trim()); });
+                let texts = []; 
+                targetSurveys.forEach(s => { 
+                    let ans = s.answers[q.q_id];
+                    if(ans && ans.trim() !== '') texts.push(ans.trim()); 
+                });
+                
                 html += `<div class="card border-0 shadow-sm rounded-3 mb-3 bg-light"><div class="card-body py-3"><h6 class="fw-bold text-primary mb-2">${i+1}. ${q.text}</h6><ul class="mb-0 text-muted small ps-3">`;
                 texts.forEach(txt => { html += `<li class="mb-1">${txt}</li>`; });
                 if (texts.length === 0) html += `<li>- ไม่มีข้อเสนอแนะ -</li>`;
@@ -1749,12 +1769,15 @@ function renderEvaluationReport() {
     contentArea.innerHTML = html;
 }
 
-// ผูกการทำงานเวลาโหลดข้อมูลหลักเสร็จ ให้เรนเดอร์แท็บนี้ด้วย
-const originalProcessAndRenderReport = window.processAndRenderReport;
-window.processAndRenderReport = function() {
-    if(originalProcessAndRenderReport) originalProcessAndRenderReport();
-    renderEvaluationReport();
-};
+// 🌟 ผูกคำสั่งให้ดึงข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ "ผลประเมินวิทยากร/โครงการ"
+document.addEventListener('DOMContentLoaded', () => {
+    const evalTabBtn = document.getElementById('evaluation-tab');
+    if(evalTabBtn) {
+        evalTabBtn.addEventListener('click', () => {
+            if(!globalEvalData) fetchEvaluationSummary();
+        });
+    }
+});
 
 // ============================================================
 // 💾 EXPORT TO EXCEL LOGIC (รวมข้อมูลทั้งหมดลงไฟล์เดียว)
