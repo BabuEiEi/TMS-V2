@@ -47,6 +47,42 @@ function doPost(e) {
     else if (action === 'updateConfigStatus') { result = updateConfigStatus(payload); }
     else if (action === 'manageConfig') { result = manageConfig(payload); }
 
+    // 🌟 🌟 วางตรงนี้ครับ: จุดที่ 1 สำหรับระบบ Report Dashboard 🌟 🌟
+    else if (action === 'getDashboardReport') {
+      try {
+        var ss = SpreadsheetApp.getActiveSpreadsheet();
+        
+        // ฟังก์ชันช่วยดึงข้อมูลและแปลงเป็น JSON Array
+        var getSheetData = function(sheetName) {
+          var sheet = ss.getSheetByName(sheetName);
+          if(!sheet) return [];
+          var data = sheet.getDataRange().getValues();
+          if(data.length <= 1) return [];
+          var headers = data.shift();
+          return data.map(function(row) {
+            var obj = {};
+            headers.forEach(function(h, i) { obj[h] = row[i]; });
+            return obj;
+          });
+        };
+
+        result = {
+          status: 'success',
+          users: getSheetData('Users'),
+          attendance: getSheetData('Attendance_Logs'),
+          exam: getSheetData('Exam_Logs'),
+          assignment: getSheetData('Assignment_Logs'),
+          survey: getSheetData('Survey_Logs'),
+          examConfig: getSheetData('Exam_Config'),
+          assignConfig: getSheetData('Assignment_Config'),
+          questions: getSheetData('Questions_Bank'),
+          speakers: getSheetData('Speakers_Config')
+        };
+      } catch (err) {
+        result = { status: 'error', message: err.toString() };
+      }
+    }
+
     // ส่งผลลัพธ์กลับเป็น JSON
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 
