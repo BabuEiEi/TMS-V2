@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 70 (Ultimate God Mode + Safe Routing + Cross-Sheet Eval Fixed 100%)
+ * VERSION: 71
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -28,8 +28,8 @@ function doPost(e) {
     else if (action === 'getExamData') { result = getExamData(payload.personal_id); } 
     else if (action === 'submitExam') { result = submitExam(payload); }
     else if (action === 'getSurveyData') { result = getSurveyData(payload); }
-    else if (action === 'submitSurvey' && payload.survey_type === 'PROJECT_SURVEY') { result = submitProjectEval(payload); }
-    else if (action === 'submitSurvey' && payload.survey_type === 'SPEAKER_SURVEY') { result = submitSpeakerEval(payload); }
+    else if (action === 'submitProjectEval') { result = submitProjectEval(payload); }
+    else if (action === 'submitSpeakerEval') { result = submitSpeakerEval(payload); }
     else if (action === 'getAssignmentData') { result = getAssignmentData(payload.personal_id); }
     else if (action === 'submitAssignment') { result = submitAssignment(payload); }
     else if (action === 'cancelAssignment') { result = cancelAssignment(payload); }
