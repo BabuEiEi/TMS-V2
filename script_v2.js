@@ -954,7 +954,7 @@ function processAndRenderReport() {
 }
 
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED FOR INDEX.HTML
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - ULTIMATE FIX
 // ============================================================
 
 let globalEvalData = null;
@@ -967,9 +967,15 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
-// 🌟 ดึงข้อมูลจากฐานข้อมูล
+// 🌟 ฟังก์ชันดึงข้อมูลหลัก (ถูกเรียกเมื่อสลับแท็บ หรือเมื่อเปลี่ยน Dropdown)
 async function fetchEvaluationSummary() {
     const container = document.getElementById('evalReportContent');
+    // ถ้ามีข้อมูลแล้ว ไม่ต้องโหลดซ้ำ (ป้องกันการกระตุก)
+    if (globalEvalData) {
+        renderEvaluationReport();
+        return;
+    }
+    
     if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
     
     try {
@@ -981,20 +987,19 @@ async function fetchEvaluationSummary() {
         
         if (result.status === 'success') {
             globalEvalData = result; 
-            renderEvaluationReport(); // เรียกใช้งานเพื่อวาดหน้าจอ
+            renderEvaluationReport(); // วาดหน้าจอทันทีเมื่อโหลดเสร็จ
         } else {
             if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
         }
     } catch(e) {
-        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง หรือยังไม่ได้ Deploy Code.gs เป็นเวอร์ชันใหม่</div>`;
+        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง กรุณาลองรีเฟรชหน้าเว็บ</div>`;
     }
 }
 
-// 🌟 สร้างตารางข้อมูลให้สอดคล้องกับ Dropdown ของ HTML
+// 🌟 ฟังก์ชันวาดตารางและคำนวณสถิติ
 function renderEvaluationReport() {
     if (!globalEvalData) return;
 
-    // อ่านค่าจาก HTML ของพี่บาบู
     let evalType = document.getElementById('evalTypeSelector').value;
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
@@ -1025,7 +1030,7 @@ function renderEvaluationReport() {
         speakerSelect.classList.add('d-none');
     }
 
-    // --- 2. กรองข้อมูล Log ---
+    // --- 2. กรองข้อมูลตามที่เลือก ---
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
     const targetSurveys = globalEvalData.surveys ? globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId) : [];
     const totalN = targetSurveys.length;
@@ -1035,6 +1040,7 @@ function renderEvaluationReport() {
         return;
     }
 
+    // แปลง String เป็น JSON Object
     let parsedSurveys = targetSurveys.map(s => {
        let ansObj = {};
        if (s.answers && typeof s.answers === 'object') ansObj = s.answers;
@@ -1043,7 +1049,7 @@ function renderEvaluationReport() {
        return { ...s, parsedAnswers: ansObj };
     });
 
-    // --- 3. ดึงคำถาม ---
+    // --- 3. ดึงและกรองคำถาม ---
     let targetQuestions = [];
     for (let qId in globalEvalData.questions) { 
         let qData = globalEvalData.questions[qId];
@@ -1067,7 +1073,9 @@ function renderEvaluationReport() {
     let categories = [...new Set(targetQuestions.map(q => q.category))];
     let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
 
-    // --- ตอนที่ 1: ข้อมูลพื้นฐาน ---
+    // =====================================
+    // ตอนที่ 1: ข้อมูลพื้นฐาน (CHOICE)
+    // =====================================
     let choiceCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'CHOICE'));
     if (choiceCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลทั่วไป (ข้อมูลพื้นฐาน)</h6>`;
@@ -1101,7 +1109,9 @@ function renderEvaluationReport() {
         });
     }
 
-    // --- ตอนที่ 2: ความพึงพอใจ ---
+    // =====================================
+    // ตอนที่ 2: ความพึงพอใจ (RATING) - สถิติ x̄ และ S.D.
+    // =====================================
     let ratingCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'RATING'));
     if (ratingCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลความพึงพอใจ (เชิงปริมาณ)</h6>`;
@@ -1172,7 +1182,9 @@ function renderEvaluationReport() {
         html += `</tbody></table></div>`;
     }
 
-    // --- ตอนที่ 3: ข้อเสนอแนะ ---
+    // =====================================
+    // ตอนที่ 3: ข้อเสนอแนะปลายเปิด (TEXT)
+    // =====================================
     let textCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'TEXT'));
     if (textCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)</h6>`;
@@ -1203,20 +1215,36 @@ function renderEvaluationReport() {
     contentArea.innerHTML = html;
 }
 
-// 🌟 โหลดข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ
+// 🌟🌟 ระบบดักจับการคลิกแท็บแบบครอบจักรวาล (ULTIMATE TAB LISTENER) 🌟🌟
+// ไม่ว่าปุ่มแท็บของพี่จะใช้ ID หรือ Class อะไร ถ้ามันคลิกแล้วโชว์ตารางประเมิน มันจะโหลดข้อมูลทันที!
 document.addEventListener('DOMContentLoaded', () => {
-    const evalTabBtn = document.getElementById('evaluation-tab');
-    if(evalTabBtn) {
-        evalTabBtn.addEventListener('click', () => {
-            if(!globalEvalData) fetchEvaluationSummary();
-        });
+    // ดักจับการคลิกทุกอย่างในหน้าเว็บ
+    document.body.addEventListener('click', function(e) {
+        // เช็คว่าปุ่มที่กด เกี่ยวข้องกับคำว่า "ประเมิน" (evaluation) หรือไม่
+        if (e.target.closest('[data-bs-target="#evaluation"]') || 
+            e.target.closest('#evaluation-tab') || 
+            (e.target.innerText && e.target.innerText.includes('ผลประเมินวิทยากร/โครงการ'))) {
+            
+            // ถ้ายังไม่มีข้อมูล หรือข้อมูลว่างเปล่า ให้โหลดใหม่
+            if (!globalEvalData) {
+                fetchEvaluationSummary();
+            } else {
+                // ถ้ามีข้อมูลอยู่แล้ว ก็แค่วาดหน้าจอใหม่ (เพื่อความรวดเร็ว)
+                renderEvaluationReport();
+            }
+        }
+    });
+
+    // ดักจับเพิ่มเติม: กรณีที่หน้าโหลดมาแล้ว แท็บนี้ถูกเปิดอยู่ก่อนแล้ว (เช่น กดรีเฟรชหน้า)
+    let evalTab = document.getElementById('evaluation');
+    if (evalTab && evalTab.classList.contains('active')) {
+        fetchEvaluationSummary();
     }
 });
 
 // ============================================================
 // 💾 EXPORT TO EXCEL LOGIC (รองรับปุ่มใน HTML ของคุณ)
 // ============================================================
-// ชื่อฟังก์ชันตรงกับที่ปุ่มเรียกใช้
 function exportFullReportToExcel() {
     Swal.fire({title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
     
@@ -1224,15 +1252,12 @@ function exportFullReportToExcel() {
         try {
             let wb = XLSX.utils.book_new();
 
-            // ส่งออกข้อมูลสถิติ
             let statSheet = XLSX.utils.table_to_sheet(document.getElementById('exportStatTable'));
-            XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
+            if(statSheet) XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
 
-            // ส่งออกข้อมูลผู้เข้าอบรม
             let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
-            XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
+            if(userSheet) XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
 
-            // ดึงชื่อประเมินที่กำลังแสดงอยู่
             let evalTypeObj = document.getElementById('evalTypeSelector');
             let speakerObj = document.getElementById('evalSpeakerSelector');
             let evalLabel = "ประเมิน";
@@ -1242,7 +1267,6 @@ function exportFullReportToExcel() {
                 evalLabel = speakerObj.options[speakerObj.selectedIndex].text.replace("🎤 ", "");
             }
             
-            // ดึงข้อมูลในตารางประเมินทั้งหมด
             let contentArea = document.getElementById('evalReportContent');
             if (contentArea) {
                 let tables = contentArea.querySelectorAll('table');
@@ -1258,7 +1282,6 @@ function exportFullReportToExcel() {
                 }
             }
 
-            // ดาวน์โหลดเป็นไฟล์ XLSX
             XLSX.writeFile(wb, `TMS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
             Swal.close();
             
