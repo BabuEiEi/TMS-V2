@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 71
+ * VERSION: 72
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -102,25 +102,54 @@ function getUserProfile(personalId) {
     return { status: 'error', message: 'ไม่มีรหัสประจำตัวนี้ในระบบ' };
 }
 
+// ============================================================
+// 🕒 [ATTENDANCE LOGIC] ระบบลงเวลา (อัปเกรดความเสถียร 100%)
+// ============================================================
 function getAttendanceData(personalId) {
-    var masterSs = SpreadsheetApp.getActiveSpreadsheet();
-    var configs = masterSs.getSheetByName('Attendance_Config').getDataRange().getDisplayValues();
-    var logs = SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheetByName('Attendance_Log').getDataRange().getDisplayValues();
-    var userLogs = {};
-    for (var i = 1; i < logs.length; i++) { if (logs[i][1] === personalId) userLogs[logs[i][2] + '_' + logs[i][3]] = logs[i][4]; }
-    
-    var schedule = [];
-    for (var j = 1; j < configs.length; j++) {
-        if (configs[j][7].toUpperCase() === 'TRUE') {
-            schedule.push({ day_no: configs[j][1], date: configs[j][2], slot_id: configs[j][3], slot_label: configs[j][4], start_time: configs[j][5], end_time: configs[j][6] });
+    try {
+        var masterSs = SpreadsheetApp.getActiveSpreadsheet();
+        var configs = masterSs.getSheetByName('Attendance_Config').getDataRange().getDisplayValues();
+        
+        // 🌟 เปลี่ยนมาใช้ getSheets()[0] เพื่อดึงชีตแรกสุดเสมอ ไม่ว่าพี่จะตั้งชื่อแท็บว่าอะไรก็ตาม!
+        var logSheet = SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheets()[0];
+        var logs = logSheet.getDataRange().getDisplayValues();
+        
+        var userLogs = {};
+        for (var i = 1; i < logs.length; i++) { 
+            if (logs[i][1] === personalId) {
+                userLogs[logs[i][2] + '_' + logs[i][3]] = logs[i][4]; 
+            }
         }
+        
+        var schedule = [];
+        for (var j = 1; j < configs.length; j++) {
+            // 🌟 ป้องกันบั๊กค่าว่าง และลบช่องว่างส่วนเกินก่อนเช็คคำว่า TRUE
+            if (configs[j][7] && configs[j][7].toString().trim().toUpperCase() === 'TRUE') {
+                schedule.push({ 
+                    day_no: configs[j][1], 
+                    date: configs[j][2], 
+                    slot_id: configs[j][3], 
+                    slot_label: configs[j][4], 
+                    start_time: configs[j][5], 
+                    end_time: configs[j][6] 
+                });
+            }
+        }
+        return { status: 'success', schedule: schedule, userLogs: userLogs };
+    } catch (error) {
+        return { status: 'error', message: 'เกิดข้อผิดพลาดในการดึงฐานข้อมูล: ' + error.message };
     }
-    return { status: 'success', schedule: schedule, userLogs: userLogs };
 }
 
 function submitAttendance(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheetByName('Attendance_Log').appendRow(["ATT-" + new Date().getTime(), payload.personal_id, payload.day_no, payload.time_slot, getThaiTime(), payload.note]);
-    return { status: 'success', message: 'บันทึกเวลาสำเร็จ' };
+    try {
+        // 🌟 เปลี่ยนมาใช้ getSheets()[0] เช่นเดียวกัน
+        var logSheet = SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheets()[0];
+        logSheet.appendRow(["ATT-" + new Date().getTime(), payload.personal_id, payload.day_no, payload.time_slot, getThaiTime(), payload.note]);
+        return { status: 'success', message: 'บันทึกเวลาสำเร็จ' };
+    } catch (error) {
+        return { status: 'error', message: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message };
+    }
 }
 
 function getExamData(personalId) {
