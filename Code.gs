@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 69.1 (Ultimate God Mode + Safe Routing + Cross-Sheet Eval Fixed 100%)
+ * VERSION: 70 (Ultimate God Mode + Safe Routing + Cross-Sheet Eval Fixed 100%)
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -201,14 +201,51 @@ function getSurveyData(payload) {
     return { status: 'success', questions: questions, speakers: speakers };
 }
 
+// ============================================================
+// 📊 ฟังก์ชันบันทึกการประเมิน (ปรับแก้ให้อ่าน/เขียนทะลุ Database ได้ 100%)
+// ============================================================
 function submitProjectEval(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['PROJECT']).getSheets()[0].appendRow(["PROJ-" + new Date().getTime(), payload.personal_id, payload.target_id, JSON.stringify(payload.answers), getThaiTime()]);
-    return { status: 'success' };
+    try {
+        var ss = SpreadsheetApp.openById(DB_SHARDS['PROJECT']);
+        // วิ่งหาชีตแรกสุดที่มีอยู่จริง ป้องกันบั๊ก getSheets()[0]
+        var sheet = ss.getSheets()[0]; 
+        
+        var logId = "PROJ-" + new Date().getTime();
+        var personalId = payload.personal_id || "Unknown";
+        var targetId = payload.target_id || "PROJECT";
+        var answersJson = JSON.stringify(payload.answers || {});
+        var timestamp = getThaiTime();
+
+        // เขียนข้อมูล 5 คอลัมน์ ให้ตรงกับหัวตารางใน CSV ของพี่เป๊ะๆ
+        // log_id | personal_id | target_id | answers_json | timestamp
+        sheet.appendRow([logId, personalId, targetId, answersJson, timestamp]);
+        
+        return { status: 'success' };
+    } catch (error) {
+        return { status: 'error', message: 'DB_PROJECT Error: ' + error.message };
+    }
 }
 
 function submitSpeakerEval(payload) {
-    SpreadsheetApp.openById(DB_SHARDS['SPEAKER']).getSheets()[0].appendRow(["SPK-" + new Date().getTime(), payload.personal_id, payload.target_id, JSON.stringify(payload.answers), getThaiTime()]);
-    return { status: 'success' };
+    try {
+        var ss = SpreadsheetApp.openById(DB_SHARDS['SPEAKER']);
+        // วิ่งหาชีตแรกสุดที่มีอยู่จริง ป้องกันบั๊ก getSheets()[0]
+        var sheet = ss.getSheets()[0]; 
+        
+        var logId = "SPK-" + new Date().getTime();
+        var personalId = payload.personal_id || "Unknown";
+        var targetId = payload.target_id || "Unknown_SPK";
+        var answersJson = JSON.stringify(payload.answers || {});
+        var timestamp = getThaiTime();
+
+        // เขียนข้อมูล 5 คอลัมน์ ให้ตรงกับหัวตารางใน CSV ของพี่เป๊ะๆ
+        // log_id | personal_id | target_id | answers_json | timestamp
+        sheet.appendRow([logId, personalId, targetId, answersJson, timestamp]);
+        
+        return { status: 'success' };
+    } catch (error) {
+        return { status: 'error', message: 'DB_SPEAKER Error: ' + error.message };
+    }
 }
 
 function getAssignmentData(personalId) {
