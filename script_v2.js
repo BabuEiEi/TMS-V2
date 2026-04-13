@@ -1584,10 +1584,12 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
-// 🌟 1. ดึงข้อมูลจาก API ของระบบเดิม (getEvaluationDashboardData)
+// ----------------------------------------
+// 📌 Admin: สรุปผลประเมิน (สรุปรายด้าน และ รวมทุกด้าน)
+// ----------------------------------------
 async function fetchEvaluationSummary() {
     const container = document.getElementById('evalReportContent');
-    if(container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
+    if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
     
     try {
         const res = await fetch(GAS_API_URL, {
@@ -1597,17 +1599,17 @@ async function fetchEvaluationSummary() {
         const result = await res.json();
         
         if (result.status === 'success') {
-            globalEvalData = result; // ใช้ตัวแปรของระบบเดิมที่มีข้อมูลครบถ้วน
-            renderEvaluationReport();
+            globalEvalData = result; // ใช้ข้อมูลจาก API เดิมที่สมบูรณ์แบบ
+            renderEvaluationReport(); // 🌟 เรียกชื่อฟังก์ชันให้ถูกต้อง
         } else {
-            if(container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
+            if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
         }
     } catch(e) {
-        if(container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง</div>`;
+        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง</div>`;
     }
 }
 
-// 🌟 2. ฟังก์ชันวาดหน้าจอ (ใช้ข้อมูลจาก globalEvalData)
+// 🌟 ฟังก์ชันเรนเดอร์หน้าจอที่ถูกต้อง
 function renderEvaluationReport() {
     if (!globalEvalData) return;
 
@@ -1615,19 +1617,20 @@ function renderEvaluationReport() {
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
     
-    // --- จัดการ Dropdown วิทยากร (ป้องกันบั๊กกดแล้วเด้งกลับ) ---
+    // --- จัดการ Dropdown วิทยากร ---
     if (evalType === 'SPEAKER_SURVEY') {
         speakerSelect.classList.remove('d-none');
-        let currentSpkVal = speakerSelect.value; // จำค่าที่ผู้ใช้เพิ่งกดเลือก
+        let currentSpkVal = speakerSelect.value; // จำค่าเดิมที่เลือกไว้
         
         let spkHtml = '';
         globalEvalData.speakers.forEach(spk => {
+            // ดึงชื่อและหัวข้อจาก API มาแสดงรวมกัน
             let displayText = spk.topic ? `${spk.name} (${spk.topic})` : spk.name;
             spkHtml += `<option value="${spk.id}">🎤 ${displayText}</option>`;
         });
         speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากร</option>`;
         
-        // คืนค่าที่ถูกเลือกไว้
+        // คืนค่าที่เลือกไว้เพื่อไม่ให้เด้งกลับไปคนแรก
         if (currentSpkVal && speakerSelect.querySelector(`option[value="${currentSpkVal}"]`)) {
             speakerSelect.value = currentSpkVal;
         }
@@ -1635,9 +1638,9 @@ function renderEvaluationReport() {
         speakerSelect.classList.add('d-none');
     }
 
-    // --- กรองข้อมูลตาม Target ---
+    // --- กรองข้อมูลตาม Target (โครงการ หรือ วิทยากรคนนั้นๆ) ---
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
-    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId);
+    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId);
     const totalN = targetSurveys.length;
 
     if(totalN === 0) {
@@ -1674,7 +1677,7 @@ function renderEvaluationReport() {
                 html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
                 let counts = {}; q.options.forEach(opt => counts[opt] = 0);
                 
-                // นับคำตอบ
+                // นับจำนวนคนตอบแต่ละตัวเลือก
                 targetSurveys.forEach(s => { 
                     const ans = s.answers[q.q_id]; 
                     if (ans) counts[ans] = (counts[ans] || 0) + 1; 
@@ -1714,6 +1717,8 @@ function renderEvaluationReport() {
                     let val = parseFloat(s.answers[q.q_id]); 
                     if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } 
                 });
+                
+                // คำนวณ Mean, SD รายข้อ
                 let mean = calcMean(scores); let sd = calcSD(scores, mean);
                 html += `<tr>
                     <td class="text-center">${idx + 1}</td>
@@ -1724,6 +1729,7 @@ function renderEvaluationReport() {
                 </tr>`;
             });
             
+            // สรุปผลรายหมวดหมู่
             let catMean = calcMean(catScores); let catSd = calcSD(catScores, catMean);
             html += `<tr class="table-info fw-bold">
                 <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
@@ -1733,6 +1739,7 @@ function renderEvaluationReport() {
             </tr>`;
         });
         
+        // สรุปรวมทุกด้าน
         let allMean = calcMean(allRatingScores); let allSd = calcSD(allRatingScores, allMean);
         html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
             <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
