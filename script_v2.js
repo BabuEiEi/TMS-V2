@@ -1243,49 +1243,80 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// 💾 EXPORT TO EXCEL LOGIC (รองรับปุ่มใน HTML ของคุณ)
+// 💾 EXPORT TO EXCEL (แยกชีตตามหมวดหมู่และชื่อวิทยากร)
 // ============================================================
 function exportFullReportToExcel() {
-    Swal.fire({title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    Swal.fire({
+        title: 'กำลังสร้างไฟล์ Excel...',
+        text: 'ระบบกำลังจัดระเบียบข้อมูลแยกตามชีต',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
     
     setTimeout(() => {
         try {
+            // 1. สร้างสมุดงานใหม่ (Workbook)
             let wb = XLSX.utils.book_new();
 
-            let statSheet = XLSX.utils.table_to_sheet(document.getElementById('exportStatTable'));
-            if(statSheet) XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
+            // --- ชีตที่ 1: สถิติผลคะแนน ---
+            let statTable = document.getElementById('exportStatTable');
+            if (statTable) {
+                let ws1 = XLSX.utils.table_to_sheet(statTable);
+                XLSX.utils.book_append_sheet(wb, ws1, "สถิติผลคะแนน");
+            }
 
-            let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
-            if(userSheet) XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
+            // --- ชีตที่ 2: ข้อมูลสรุปรายบุคคล ---
+            let userTable = document.getElementById('exportUserTable');
+            if (userTable) {
+                let ws2 = XLSX.utils.table_to_sheet(userTable);
+                XLSX.utils.book_append_sheet(wb, ws2, "ข้อมูลสรุปรายบุคคล");
+            }
 
+            // --- ชีตที่ 3: รายงานความพึงพอใจ (ตั้งชื่อตามวิทยากร/โครงการ) ---
             let evalTypeObj = document.getElementById('evalTypeSelector');
             let speakerObj = document.getElementById('evalSpeakerSelector');
-            let evalLabel = "ประเมิน";
-            if (evalTypeObj && evalTypeObj.value === 'PROJECT_SURVEY') {
-                evalLabel = "ประเมินโครงการ";
-            } else if (speakerObj && !speakerObj.classList.contains('d-none')) {
-                evalLabel = speakerObj.options[speakerObj.selectedIndex].text.replace("🎤 ", "");
-            }
+            let dynamicSheetName = "รายงานความพึงพอใจ"; // ชื่อเริ่มต้น
             
+            if (evalTypeObj && evalTypeObj.value === 'PROJECT_SURVEY') {
+                dynamicSheetName = "ประเมินโครงการ";
+            } else if (speakerObj && !speakerObj.classList.contains('d-none')) {
+                // ดึงชื่อวิทยากรมาตั้งชื่อชีต และตัดเครื่องหมาย 🎤 ออก
+                // หมายเหตุ: Excel จำกัดชื่อชีตไม่เกิน 31 ตัวอักษร
+                dynamicSheetName = speakerObj.options[speakerObj.selectedIndex].text
+                                   .replace("🎤 ", "")
+                                   .substring(0, 31); 
+            }
+
             let contentArea = document.getElementById('evalReportContent');
             if (contentArea) {
                 let tables = contentArea.querySelectorAll('table');
                 if (tables.length > 0) {
-                    let ws = XLSX.utils.aoa_to_sheet([[`รายงานผล: ${evalLabel}`], []]);
+                    // รวมตารางประเมินทั้งหมด (ตอนที่ 1, 2, 3) ลงในชีตเดียวแบบเรียงต่อกัน
+                    let ws3 = XLSX.utils.aoa_to_sheet([[`สรุปผล${dynamicSheetName}`], []]);
                     tables.forEach(table => {
                         let tempSheet = XLSX.utils.table_to_sheet(table);
                         let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
-                        XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); 
-                        XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1}); 
+                        XLSX.utils.sheet_add_aoa(ws3, tableData, {origin: -1}); // ต่อท้ายแถวล่างสุด
+                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});      // เว้นบรรทัดว่าง
                     });
-                    XLSX.utils.book_append_sheet(wb, ws, "รายงานความพึงพอใจ");
+                    XLSX.utils.book_append_sheet(wb, ws3, dynamicSheetName);
                 }
             }
 
-            XLSX.writeFile(wb, `TMS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-            Swal.close();
+            // 2. สั่งบันทึกไฟล์ (ระบุชื่อไฟล์ตามวันที่ปัจจุบัน)
+            let today = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `TMS_Report_Full_${today}.xlsx`);
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'ส่งออกข้อมูลสำเร็จ',
+                text: 'ไฟล์รายงานถูกแยกชีตเรียบร้อยแล้วครับ',
+                timer: 2000,
+                showConfirmButton: false
+            });
             
         } catch (error) {
+            console.error(error);
             Swal.fire('ผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้: ' + error.message, 'error');
         }
     }, 1000);
