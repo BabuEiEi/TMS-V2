@@ -333,11 +333,14 @@ async function openSurveyForm(type) {
     } catch (e) { contentArea.innerHTML = '<div class="alert alert-danger text-center">ดาวน์โหลดข้อมูลล้มเหลว</div>'; }
 }
 
-// 🌟 UI ผู้ใช้: Dropdown เลือกวิทยากรแบบเรียบง่ายและเป็นทางการ
+// ==========================================
+// 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown
+// ==========================================
 function renderSpeakerCards() {
     let selectionArea = document.getElementById("speakerSelectionArea");
     if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
-        selectionArea.innerHTML = `<div class="alert alert-warning text-center">ไม่มีวิทยากรที่เปิดให้ประเมินในขณะนี้</div>`; return;
+        selectionArea.innerHTML = `<div class="alert alert-warning text-center">ไม่มีวิทยากรที่เปิดให้ประเมินในขณะนี้</div>`; 
+        return;
     }
 
     let optionsHtml = '<option value="" disabled selected>-- กรุณาคลิกเลือกวิทยากรที่ต้องการประเมิน --</option>';
@@ -351,6 +354,8 @@ function renderSpeakerCards() {
         
         if (spkId && spkName) {
             let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+            
+            // ✅ แก้ไข: แค่เติม (ประเมินแล้ว) ต่อท้ายชื่อ แต่ยังให้แสดงใน Dropdown อยู่!
             if (spk.is_evaluated) {
                 optionsHtml += `<option value="${spkId}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
                 evaluatedCount++;
@@ -360,11 +365,7 @@ function renderSpeakerCards() {
         }
     });
 
-    if (evaluatedCount === globalSurveyData.speakers.length && globalSurveyData.speakers.length > 0) {
-        selectionArea.innerHTML = `<div class="alert alert-success text-center fw-bold shadow-sm"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
-        return;
-    }
-
+    // ✅ แก้ไข: ลบเงื่อนไขที่ถ้าประเมินครบแล้วจะซ่อนกล่องทั้งหมดออก เพื่อให้แสดงกล่องและข้อความสีเขียว
     let html = `
         <div class="text-start mt-2 mb-3">
             <label class="fw-bold mb-3 text-primary fs-6"><i class="bi bi-person-video3"></i> กรุณาเลือกวิทยากรที่ท่านต้องการประเมิน:</label>
@@ -372,12 +373,18 @@ function renderSpeakerCards() {
                 <select id="user-speaker-select" class="form-select form-select-lg shadow-sm border-info fw-bold text-dark flex-grow-1" style="cursor: pointer;">
                     ${optionsHtml}
                 </select>
-                <button class="btn btn-success btn-lg shadow-sm fw-bold px-4 rounded-pill flex-shrink-0" onclick="confirmSpeakerSelection()">
+                <button class="btn btn-success btn-lg shadow-sm fw-bold px-4 rounded-pill flex-shrink-0" onclick="confirmSpeakerSelection()" ${evaluatedCount === globalSurveyData.speakers.length ? 'disabled' : ''}>
                     เริ่มประเมิน <i class="bi bi-arrow-right-circle ms-1"></i>
                 </button>
             </div>
         </div>
     `;
+
+    // ถ้าประเมินครบทุกคนแล้ว ให้เติมข้อความสีเขียวเพิ่มเข้าไป
+    if (evaluatedCount === globalSurveyData.speakers.length && globalSurveyData.speakers.length > 0) {
+         html += `<div class="alert alert-success mt-3 text-center fw-bold shadow-sm"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
+    }
+
     selectionArea.innerHTML = html;
 }
 
