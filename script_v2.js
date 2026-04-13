@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 66.0 (Clean Database - No Weight Column)
+ * VERSION: 67.0 (Ultimate Edition - Full Dashboard & Dropdown Eval)
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -465,51 +465,66 @@ async function openSurveyForm(type) {
     }
 }
 
+// ==========================================
+// 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown
+// ==========================================
 function renderSpeakerCards() {
     let selectionArea = document.getElementById("speakerSelectionArea");
     if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
-        selectionArea.innerHTML = `<div class="alert alert-warning text-center">ไม่มีวิทยากร</div>`;
+        selectionArea.innerHTML = `<div class="alert alert-warning text-center">ไม่มีวิทยากรที่เปิดให้ประเมินในขณะนี้</div>`;
         return;
     }
 
-    let html = `<label class="form-label fw-bold">คลิกเลือกวิทยากร:</label><div class="row g-3">`;
-    let speakerHtml = '';
+    let optionsHtml = '<option value="" disabled selected>-- กรุณาคลิกเลือกวิทยากรที่ต้องการประเมิน --</option>';
+    let evaluatedCount = 0;
+
     globalSurveyData.speakers.forEach(spk => {
+        let displayText = spk.topic ? `${spk.name} (${spk.topic})` : spk.name;
+        
         if (spk.is_evaluated) {
-            speakerHtml += `
-            <div class="card mb-3 border-secondary shadow-sm" style="background-color: #f8f9fa;">
-                <div class="card-body text-start">
-                    <h6 class="text-secondary mb-1 fw-bold">วิทยากร: ${spk.name}</h6>
-                    <p class="small text-muted mb-3">หัวข้อ: ${spk.topic}</p>
-                    <button class="btn btn-secondary w-100 rounded-pill" disabled style="opacity: 0.8;">
-                        <i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรท่านนี้แล้ว
-                    </button>
-                </div>
-            </div>`;
+            optionsHtml += `<option value="${spk.id}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
+            evaluatedCount++;
         } else {
-            speakerHtml += `
-            <div class="card mb-3 border-primary shadow-sm" id="spk_card_${spk.id}">
-                <div class="card-body text-start">
-                    <h6 class="text-primary mb-1 fw-bold">วิทยากร: ${spk.name}</h6>
-                    <p class="small text-muted mb-3">หัวข้อ: ${spk.topic}</p>
-                    <button class="btn btn-primary w-100 rounded-pill" onclick="selectSpeaker('${spk.id}')">
-                        ⭐ คลิกเพื่อประเมิน
-                    </button>
-                </div>
-            </div>`;
+            optionsHtml += `<option value="${spk.id}">🎤 ${displayText}</option>`;
         }
     });
-    html += speakerHtml + `</div>`;
+
+    if (evaluatedCount === globalSurveyData.speakers.length) {
+        selectionArea.innerHTML = `<div class="alert alert-success text-center fw-bold"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
+        return;
+    }
+
+    let html = `
+        <div class="text-start mt-2 mb-3">
+            <label class="fw-bold mb-3 text-primary"><i class="bi bi-person-video3"></i> กรุณาเลือกวิทยากรที่ท่านต้องการประเมิน:</label>
+            <div class="d-flex flex-column flex-md-row gap-3">
+                <select id="user-speaker-select" class="form-select form-select-lg shadow-sm border-info fw-bold text-dark flex-grow-1" style="cursor: pointer;">
+                    ${optionsHtml}
+                </select>
+                <button class="btn btn-success btn-lg shadow-sm fw-bold px-4 rounded-pill flex-shrink-0" onclick="confirmSpeakerSelection()">
+                    เริ่มประเมิน <i class="bi bi-arrow-right-circle ms-1"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
     selectionArea.innerHTML = html;
+}
+
+window.confirmSpeakerSelection = function() {
+    let selectEl = document.getElementById("user-speaker-select");
+    let spkId = selectEl.value;
+    
+    if (!spkId) {
+        Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกชื่อวิทยากรจากเมนูก่อนครับ' });
+        return;
+    }
+    
+    selectSpeaker(spkId); 
 }
 
 function selectSpeaker(spkId) {
     selectedSpeakerId = spkId;
-    document.querySelectorAll('.speaker-card, .border-primary.bg-primary-subtle').forEach(card => {
-        card.classList.remove('border-primary', 'bg-primary-subtle');
-    });
-    let selectedCard = document.getElementById('spk_card_' + spkId);
-    if (selectedCard) selectedCard.classList.add('border-primary', 'bg-primary-subtle');
     let placeholder = document.getElementById("speakerPromptPlaceholder");
     if (placeholder) placeholder.classList.add("d-none");
 
@@ -828,7 +843,6 @@ let adminCurrentConfigSheet = "Attendance_Config";
 let adminConfigHeaders = [];
 let adminConfigRows = [];
 
-// 🌟 แปลงหัวตารางให้เป็นภาษาไทยที่เข้าใจง่าย (Header Mapping) ตอนนี้เหลือ 11 คอลัมน์แล้ว
 const CUSTOM_HEADERS = {
     'Users': ['รหัสประจำตัว', 'ชื่อ-นามสกุล', 'บทบาท', 'สังกัด/หน่วยงาน', 'Cluster', 'กลุ่มเป้าหมาย'],
     'Attendance_Config': ['รหัส', 'วันที่', 'ว/ด/ป', 'รหัสรอบ', 'ชื่อรอบ', 'เวลาเริ่มต้น', 'เวลาสิ้นสุด', 'เปิดใช้'],
@@ -851,15 +865,15 @@ function switchAdminTab(tabName) {
     
     if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
 
-    // 🌟 1. เพิ่ม Logic โหลดข้อมูลอัตโนมัติเมื่อสลับ Tab
     if (tabName === 'userManage') {
         loadAdminConfig('Users');
     } else if (tabName === 'systemControl') {
         loadAdminConfig('Attendance_Config');
+    } else if (tabName === 'reportManage' && !reportDataCache) {
+        loadReportDashboard();
     }
 }
 
-// ฟังก์ชันสำหรับ ย่อ/ขยาย Sidebar
 function toggleAdminSidebar() {
     const sidebar = document.getElementById('adminSidebar');
     if (sidebar) {
@@ -867,15 +881,21 @@ function toggleAdminSidebar() {
     }
 }
 
-// 1. ดึงข้อมูลจาก Sheets มาสร้างตาราง
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
     
-    // เลือก Container ให้ถูกตัว (ถ้าเป็น Users ให้ลง userTableContainer ถ้าเป็น Config อื่นๆ ให้ลงตัวเดิม)
     let containerId = (sheetName === 'Users') ? "userTableContainer" : "configTableContainer";
     let container = document.getElementById(containerId);
-    
-    // ... (ส่วนการสลับสีปุ่มเมนูคงเดิม) ...
+
+    document.querySelectorAll('.config-tab-btn').forEach(b => {
+        b.classList.remove('btn-primary', 'text-white');
+        b.classList.add('btn-outline-primary');
+    });
+    let activeTab = document.getElementById('tab_' + sheetName);
+    if(activeTab) {
+        activeTab.classList.remove('btn-outline-primary');
+        activeTab.classList.add('btn-primary', 'text-white');
+    }
 
     container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังดึงข้อมูลจากฐานข้อมูล...</p></div>`;
 
@@ -889,8 +909,6 @@ async function loadAdminConfig(sheetName) {
         if (result.status === 'success') {
             adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers;
             adminConfigRows = result.rows;
-            
-            // 🌟 2. ส่ง containerId ไปยังฟังก์ชันสร้างตารางด้วย
             renderAdminTable(containerId); 
         } else {
             container.innerHTML = `<div class="alert alert-danger text-center">${result.message}</div>`;
@@ -900,38 +918,28 @@ async function loadAdminConfig(sheetName) {
     }
 }
 
-// 2. สร้างตารางแบบอัตโนมัติตามจำนวนคอลัมน์
 function renderAdminTable(targetId = "configTableContainer") {
     let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
     
-    // 🌟 สร้างหัวตาราง (ดักซ่อนคอลัมน์)
     adminConfigHeaders.forEach((h, i) => {
-        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; // ข้ามคอลัมน์น้ำหนักคะแนน
-        if (adminCurrentConfigSheet === 'Users' && i >= 6) return; // 🌟 ขยายให้โชว์ถึงคอลัมน์ F (Index 5) ซ่อนตั้งแต่ G (Index 6)
-        
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; 
+        if (adminCurrentConfigSheet === 'Users' && i >= 6) return; 
         html += `<th>${h}</th>`;
     });
     html += '<th class="text-center border-start bg-light" style="position: sticky; right: 0; z-index: 2;">จัดการ</th></tr></thead><tbody>';
 
     if (adminConfigRows.length === 0) {
-        // ปรับ colspan ให้สอดคล้องกับคอลัมน์ที่โชว์
         let colSpan = adminConfigHeaders.length + 1;
         if (adminCurrentConfigSheet === 'Assignment_Config') colSpan -= 1;
-        if (adminCurrentConfigSheet === 'Users') colSpan = 7; // โชว์ 6 คอลัมน์ (A-F) + 1 ปุ่มจัดการ
-        
+        if (adminCurrentConfigSheet === 'Users') colSpan = 7; 
         html += `<tr><td colspan="${colSpan}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
     } else {
-        // 🌟 สร้างข้อมูลแต่ละแถว
         adminConfigRows.forEach(row => {
             html += '<tr>';
             row.forEach((cell, i) => {
-                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; // ข้ามข้อมูลคอลัมน์น้ำหนักคะแนน
-                if (adminCurrentConfigSheet === 'Users' && i >= 6) return; // 🌟 ขยายให้โชว์ข้อมูลถึงคอลัมน์ F 
-                
+                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; 
+                if (adminCurrentConfigSheet === 'Users' && i >= 6) return; 
                 let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell;
-                
-                // 🌟 (ลบโค้ดซ่อนดอกจันออกไปแล้ว ข้อมูล Cluster จะโชว์ปกติครับ)
-                
                 html += `<td>${displayCell}</td>`;
             });
             html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;">
@@ -940,14 +948,10 @@ function renderAdminTable(targetId = "configTableContainer") {
             </td></tr>`;
         });
     }
-    
     html += '</tbody></table></div>';
     document.getElementById(targetId).innerHTML = html;
 }
 
-// ============================================================
-// 🛠️ HELPER FUNCTIONS: ตัวช่วยจัดการเวลา วันที่ และ รูบริค
-// ============================================================
 function parseDateTimeValue(val) {
     let now = new Date();
     let d = now.toISOString().split('T')[0]; 
@@ -978,7 +982,6 @@ function parseDateTimeValue(val) {
     return { date: d, hh: h, mm: m };
 }
 
-// 🌟 สร้างแถวรูบริค
 window.getRubricRowHtml = function(id, name, raw, weight) {
     return `
     <tr id="rubric_row_${id}" class="rubric-row">
@@ -990,7 +993,6 @@ window.getRubricRowHtml = function(id, name, raw, weight) {
     `;
 };
 
-// 🌟 กดเพิ่มแถวรูบริค
 window.addRubricRow = function() {
     window.rubricRowCount = (window.rubricRowCount || 0) + 1;
     let tbody = document.getElementById('rubricTbody');
@@ -1000,7 +1002,6 @@ window.addRubricRow = function() {
     }
 };
 
-// 🌟 กดลบแถวรูบริค
 window.removeRubricRow = function(id) {
     let row = document.getElementById(`rubric_row_${id}`);
     if(row) {
@@ -1009,7 +1010,6 @@ window.removeRubricRow = function(id) {
     }
 };
 
-// 🌟 คำนวณคะแนนรวม และเซฟเป็น JSON อัตโนมัติ
 window.calcRubricTotal = function() {
     let rows = document.querySelectorAll('.rubric-row');
     let total = 0;
@@ -1029,37 +1029,30 @@ window.calcRubricTotal = function() {
     let finalTotal = total % 1 === 0 ? total : total.toFixed(2);
     if(display) display.innerText = finalTotal;
     
-    // 🌟 แก้ไข: อัปเดตช่องซ่อนของรูบริค (ตอนนี้น้องขยับมาอยู่ index 10 แล้ว)
     let hiddenInput = document.getElementById('cfgInput_10'); 
     if(hiddenInput) hiddenInput.value = JSON.stringify(rubricArray);
     
-    // 🪄 [เวทมนตร์] อัปเดตช่อง "คะแนนเต็ม" (อยู่ index 9 เหมือนเดิม)
     let totalScoreInput = document.getElementById('cfgInput_9');
     if(totalScoreInput) totalScoreInput.value = finalTotal;
 };
 
-// 🌟 ฟังก์ชันตัวช่วยสำหรับซ่อน/โชว์ Dropdown กลุ่มเป้าหมาย
+// 🌟 ฟังก์ชันซ่อน/โชว์ Dropdown กลุ่มเป้าหมาย สำหรับระบบเพิ่มผู้ใช้งาน
 window.handleUserRoleChange = function() {
     let roleDropdown = document.getElementById('cfgInput_2');
     if(!roleDropdown) return;
     
     let role = roleDropdown.value;
-    let targetContainer = document.getElementById('container_cfgInput_5'); // กล่องครอบ Dropdown กลุ่มเป้าหมาย
+    let targetContainer = document.getElementById('container_cfgInput_5');
     let targetInput = document.getElementById('cfgInput_5');
     
-    // 🌟 อัปเดตใหม่: ถ้าเป็น Admin หรือ Staff ให้ซ่อนช่องกลุ่มเป้าหมายทิ้ง
     if (role === 'Admin' || role === 'Staff') {
         if(targetContainer) targetContainer.style.display = 'none';
-        if(targetInput) targetInput.value = ''; // เคลียร์ค่าทิ้งด้วย
+        if(targetInput) targetInput.value = ''; 
     } else {
-        // 🌟 ส่วน Mentor และ Trainee จะเข้าเงื่อนไขนี้ (โชว์กล่องให้เลือก)
         if(targetContainer) targetContainer.style.display = 'block';
     }
 };
 
-// ============================================================
-// 3. ฟอร์มเพิ่ม/แก้ไขข้อมูล (Smart Form Generator)
-// ============================================================
 function openConfigForm(id = null) {
     let isNew = !id;
     let rowData = isNew ? Array(adminConfigHeaders.length).fill('') : adminConfigRows.find(r => r[0] == id);
@@ -1146,7 +1139,6 @@ function openConfigForm(id = null) {
             return `<input type="text" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${val}">`;
         };
 
-        // 🧠 Logic แปลงเครื่องมือให้ตรงกับข้อมูล
         if (adminCurrentConfigSheet === 'Attendance_Config') {
             if (i === 0) inputHtml = makeAutoId('ATT');
             else if (i === 1) inputHtml = makeDropdown(["1", "2", "3", "4", "5", "6", "7"]);
@@ -1183,15 +1175,12 @@ function openConfigForm(id = null) {
             if (i === 1) inputHtml = makeDropdown(["PROJECT_SURVEY", "SPEAKER_SURVEY", "TEST", "PRE_TEST", "POST_TEST"]);
             else inputHtml = makeText();
         } 
-        // 🌟 🌟 เพิ่ม Logic สำหรับชีต Users ตรงนี้ 🌟 🌟
         else if (adminCurrentConfigSheet === 'Users') {
             if (i === 2) {
-                // บทบาท
                 let opts = ["Admin", "Staff", "Mentor", "Trainee"].map(opt => `<option value="${opt}" ${opt === val ? 'selected' : ''}>${opt}</option>`).join('');
                 inputHtml = `<select id="cfgInput_${i}" class="form-select border-secondary shadow-sm" onchange="handleUserRoleChange()">${opts}</select>`;
             }
             else if (i === 5) {
-                // กลุ่มเป้าหมาย
                 let opts = ["", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"].map(opt => `<option value="${opt}" ${opt === val ? 'selected' : ''}>${opt === "" ? "-- ไม่ระบุ --" : opt}</option>`).join('');
                 inputHtml = `<select id="cfgInput_${i}" class="form-select border-secondary shadow-sm">${opts}</select>`;
             }
@@ -1206,7 +1195,6 @@ function openConfigForm(id = null) {
         } else {
             let labelHtml = (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`;
             
-            // 🌟 เพิ่ม id ให้กล่องครอบ เพื่อใช้ในการซ่อน/โชว์ด้วย handleUserRoleChange()
             html += `
                 <div class="mb-4" id="container_cfgInput_${i}">
                     ${labelHtml}
@@ -1228,7 +1216,7 @@ function openConfigForm(id = null) {
         confirmButtonColor: '#198754',
         didOpen: () => {
             if (adminCurrentConfigSheet === 'Assignment_Config') window.calcRubricTotal();
-            if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange(); // 🌟 รันฟังก์ชันเพื่อซ่อนกลุ่มเป้าหมายทันทีที่เปิดหน้าต่าง
+            if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange(); 
         },
         preConfirm: () => {
             let newData = [];
@@ -1238,7 +1226,6 @@ function openConfigForm(id = null) {
                 
                 if (el.type === 'datetime-local') val = val.replace('T', ' ');
 
-                // ข้ามการตรวจค่าว่างถ้าเป็นช่องที่โดนซ่อน หรือช่องกลุ่มเป้าหมาย (เผื่อ Admin/Staff ไม่ต้องกรอก)
                 let container = document.getElementById(`container_cfgInput_${i}`);
                 let isHidden = container && container.style.display === 'none';
                 
@@ -1255,7 +1242,6 @@ function openConfigForm(id = null) {
     });
 }
 
-// 4. สั่งบันทึกลงฐานข้อมูล
 async function saveConfigRow(rowData, isNew) {
     Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
     try {
@@ -1275,7 +1261,6 @@ async function saveConfigRow(rowData, isNew) {
     }
 }
 
-// 5. สั่งลบข้อมูลจากฐานข้อมูล
 async function deleteConfigRow(id) {
     const confirm = await Swal.fire({
         icon: 'warning', title: 'ยืนยันการลบ?', text: `ต้องการลบข้อมูลรหัส "${id}" ใช่หรือไม่? (ลบแล้วเรียกคืนไม่ได้)`,
@@ -1302,10 +1287,6 @@ async function deleteConfigRow(id) {
     }
 }
 
-// ============================================================
-// 📊 ADMIN EXCEL IMPORT / EXPORT (Powered by SheetJS)
-// ============================================================
-
 function openExcelMenu() {
     Swal.fire({
         title: 'จัดการข้อมูล Excel',
@@ -1326,14 +1307,9 @@ function openExcelMenu() {
 
 function exportConfigToExcel() {
     let rows = [adminConfigHeaders, ...adminConfigRows];
-    
-    // สร้าง Workbook และ Worksheet ด้วย SheetJS
     let wb = XLSX.utils.book_new();
     let ws = XLSX.utils.aoa_to_sheet(rows);
-    
     XLSX.utils.book_append_sheet(wb, ws, adminCurrentConfigSheet);
-    
-    // สั่งดาวน์โหลดไฟล์ .xlsx
     XLSX.writeFile(wb, `${adminCurrentConfigSheet}_Export.xlsx`);
 }
 
@@ -1345,18 +1321,11 @@ function handleExcelImport(event) {
     reader.onload = async function(e) {
         let data = new Uint8Array(e.target.result);
         let workbook = XLSX.read(data, {type: 'array'});
-        
-        // ดึงข้อมูลจากชีตแรกสุดของไฟล์ Excel
         let firstSheetName = workbook.SheetNames[0];
         let worksheet = workbook.Sheets[firstSheetName];
-        
-        // แปลงข้อมูลเป็น Array 2 มิติ
         let rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
         
-        // ถ้ารายการแรกเป็นหัวตาราง ให้ตัดทิ้ง
         if(rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift(); 
-
-        // กรองแถวว่างทิ้ง
         rows = rows.filter(r => r.join('').trim() !== '');
 
         if(rows.length === 0) {
@@ -1377,7 +1346,7 @@ function handleExcelImport(event) {
         if(confirm.isConfirmed) uploadExcelToGAS(rows);
         event.target.value = ''; 
     };
-    reader.readAsArrayBuffer(file); // อ่านไฟล์เป็น ArrayBuffer สำหรับ Excel
+    reader.readAsArrayBuffer(file); 
 }
 
 async function uploadExcelToGAS(rowsData) {
@@ -1408,7 +1377,6 @@ async function uploadExcelToGAS(rowsData) {
 let reportDataCache = null;
 let examChartInstance = null;
 
-// ฟังก์ชันคณิตศาสตร์: หาค่าเฉลี่ย และ SD
 const calcMean = arr => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
 const calcSD = (arr, mean) => arr.length <= 1 ? 0 : Math.sqrt(arr.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / (arr.length - 1));
 
@@ -1436,13 +1404,10 @@ async function loadReportDashboard() {
 function processAndRenderReport() {
     let { users, attendance, exam, assignment, survey, examConfig, assignConfig } = reportDataCache;
 
-    // 1. คัดเฉพาะคนที่บทบาทเป็น "Trainee" (ผู้อบรม)
     let trainees = users.filter(u => u['บทบาท'] === 'Trainee');
     let totalTrainee = trainees.length;
-    
     document.getElementById('repTotalTrainee').innerText = totalTrainee;
 
-    // 2. จัดกลุ่มข้อมูลแยกตามรายบุคคล (Data Joining)
     let userDataMap = {};
     trainees.forEach(u => {
         userDataMap[u['รหัสประจำตัว']] = {
@@ -1453,11 +1418,8 @@ function processAndRenderReport() {
         };
     });
 
-    // ประมวลผลสอบ
     let preScores = [], postScores = [];
     let passPostCount = 0;
-    
-    // หาเกณฑ์ผ่านจาก Config (สมมติใช้แถวแรกของ POST)
     let postConfig = examConfig.find(c => c['ประเภทการสอบ'] === 'POST');
     let passingCriteria = postConfig ? parseFloat(postConfig['เกณฑ์การผ่าน']) : 60;
 
@@ -1465,14 +1427,11 @@ function processAndRenderReport() {
         let pid = e.personal_id;
         if(userDataMap[pid]) {
             let score = parseFloat(e.score) || 0;
-            let percent = (score / (parseFloat(e.max_score) || 1)) * 100;
-            
             if(e.test_type === 'PRE' && userDataMap[pid].preScore === null) {
                 userDataMap[pid].preScore = score;
                 preScores.push(score);
             }
             if(e.test_type === 'POST') {
-                // เก็บแต้มที่ดีที่สุด
                 if(userDataMap[pid].postScore === null || score > userDataMap[pid].postScore) {
                     userDataMap[pid].postScore = score;
                 }
@@ -1480,11 +1439,10 @@ function processAndRenderReport() {
         }
     });
 
-    // สรุป Post-Test (อัปเดตแต้มที่ดีที่สุดลง Array และเช็กผ่าน)
     Object.values(userDataMap).forEach(u => {
         if(u.postScore !== null) {
             postScores.push(u.postScore);
-            let pct = (u.postScore / (postConfig ? parseFloat(postConfig['คะแนนเต็ม'] || 100) : 100)) * 100; // สมมติ 100
+            let pct = (u.postScore / (postConfig ? parseFloat(postConfig['คะแนนเต็ม'] || 100) : 100)) * 100;
             if(pct >= passingCriteria) passPostCount++;
         }
     });
@@ -1493,7 +1451,6 @@ function processAndRenderReport() {
     document.getElementById('repTotalPost').innerText = postScores.length;
     document.getElementById('repPassPost').innerText = passPostCount;
 
-    // ประมวลผลเวลาเรียน, ส่งงาน, ประเมิน (คำนวณเบื้องต้น)
     attendance.forEach(a => { if(userDataMap[a.personal_id]) userDataMap[a.personal_id].attCount++; });
     assignment.forEach(a => { if(userDataMap[a.personal_id] && (a.status === 'ตรวจแล้ว' || a.status === 'รอตรวจ')) userDataMap[a.personal_id].assignScore += (parseFloat(a.score) || 0); });
     survey.forEach(s => { 
@@ -1503,7 +1460,6 @@ function processAndRenderReport() {
         }
     });
 
-    // 3. คำนวณสถิติ
     let preMean = calcMean(preScores), postMean = calcMean(postScores);
     let statHtml = `
         <tr><td>คะแนนเฉลี่ย (Mean)</td><td class="text-center fw-bold text-info">${preMean.toFixed(2)}</td><td class="text-center fw-bold text-success">${postMean.toFixed(2)}</td></tr>
@@ -1513,7 +1469,6 @@ function processAndRenderReport() {
     `;
     document.getElementById('statTableBody').innerHTML = statHtml;
 
-    // 4. วาดกราฟเปรียบเทียบ
     let ctx = document.getElementById('examChart').getContext('2d');
     if(examChartInstance) examChartInstance.destroy();
     examChartInstance = new Chart(ctx, {
@@ -1528,7 +1483,6 @@ function processAndRenderReport() {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
 
-    // 5. สร้างตารางรายบุคคล
     let tableHtml = '';
     Object.keys(userDataMap).forEach(pid => {
         let u = userDataMap[pid];
@@ -1557,25 +1511,16 @@ function processAndRenderReport() {
     if(tableHtml === '') tableHtml = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
     document.getElementById('repUserTableBody').innerHTML = tableHtml;
 
-    // ปิด Loading
     document.getElementById('reportLoading').classList.add('d-none');
     document.getElementById('reportContent').classList.remove('d-none');
 }
 
-// 🌟 ผูกการโหลด Report เมื่อสลับแท็บ
-const originalSwitchAdminTab = window.switchAdminTab;
-window.switchAdminTab = function(tabName) {
-    originalSwitchAdminTab(tabName); // เรียกฟังก์ชันเดิม
-    if (tabName === 'reportManage' && !reportDataCache) {
-        loadReportDashboard();
-    }
-};
-
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis)
 // ============================================================
 
-// แปลผลค่าเฉลี่ย
+let globalEvalData = null;
+
 function getRatingMeaning(mean) {
     if (mean >= 4.50) return "มากที่สุด";
     if (mean >= 3.50) return "มาก";
@@ -1584,9 +1529,6 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
-// ----------------------------------------
-// 📌 Admin: สรุปผลประเมิน (สรุปรายด้าน และ รวมทุกด้าน)
-// ----------------------------------------
 async function fetchEvaluationSummary() {
     const container = document.getElementById('evalReportContent');
     if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
@@ -1599,8 +1541,8 @@ async function fetchEvaluationSummary() {
         const result = await res.json();
         
         if (result.status === 'success') {
-            globalEvalData = result; // ใช้ข้อมูลจาก API เดิมที่สมบูรณ์แบบ
-            renderEvaluationReport(); // 🌟 เรียกชื่อฟังก์ชันให้ถูกต้อง
+            globalEvalData = result; 
+            renderEvaluationReport(); 
         } else {
             if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
         }
@@ -1609,7 +1551,6 @@ async function fetchEvaluationSummary() {
     }
 }
 
-// 🌟 ฟังก์ชันเรนเดอร์หน้าจอที่ถูกต้อง
 function renderEvaluationReport() {
     if (!globalEvalData) return;
 
@@ -1617,20 +1558,23 @@ function renderEvaluationReport() {
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
     
-    // --- จัดการ Dropdown วิทยากร ---
     if (evalType === 'SPEAKER_SURVEY') {
         speakerSelect.classList.remove('d-none');
-        let currentSpkVal = speakerSelect.value; // จำค่าเดิมที่เลือกไว้
+        let currentSpkVal = speakerSelect.value;
         
         let spkHtml = '';
         globalEvalData.speakers.forEach(spk => {
-            // ดึงชื่อและหัวข้อจาก API มาแสดงรวมกัน
-            let displayText = spk.topic ? `${spk.name} (${spk.topic})` : spk.name;
-            spkHtml += `<option value="${spk.id}">🎤 ${displayText}</option>`;
+            let spkId = spk.id || spk.spk_id || spk['รหัส'];
+            let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'];
+            let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'];
+            
+            if (spkId && spkName) {
+                let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+                spkHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
+            }
         });
         speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากร</option>`;
         
-        // คืนค่าที่เลือกไว้เพื่อไม่ให้เด้งกลับไปคนแรก
         if (currentSpkVal && speakerSelect.querySelector(`option[value="${currentSpkVal}"]`)) {
             speakerSelect.value = currentSpkVal;
         }
@@ -1638,9 +1582,8 @@ function renderEvaluationReport() {
         speakerSelect.classList.add('d-none');
     }
 
-    // --- กรองข้อมูลตาม Target (โครงการ หรือ วิทยากรคนนั้นๆ) ---
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
-    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId);
+    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId);
     const totalN = targetSurveys.length;
 
     if(totalN === 0) {
@@ -1648,20 +1591,38 @@ function renderEvaluationReport() {
         return;
     }
 
-    // --- คัดกรองคำถามเฉพาะประเภทที่เลือก ---
+    let parsedSurveys = targetSurveys.map(s => {
+       let ansObj = {};
+       if (s.answers && typeof s.answers === 'object') ansObj = s.answers;
+       else if (s.answers && typeof s.answers === 'string') { try { ansObj = JSON.parse(s.answers); } catch(e){} }
+       else if (s.answers_json) { try { ansObj = JSON.parse(s.answers_json); } catch(e){} }
+       return { ...s, parsedAnswers: ansObj };
+    });
+
     let targetQuestions = [];
     for (let qId in globalEvalData.questions) { 
-        if (globalEvalData.questions[qId].type === evalType) {
-            targetQuestions.push({ q_id: qId, ...globalEvalData.questions[qId] }); 
+        let qData = globalEvalData.questions[qId];
+        let qType = qData.type || qData.q_type || qData['ประเภท (Pre/Post/Survey)'];
+        if (qType === evalType) {
+            let cat = qData.category || qData.q_category || qData['หมวดหมู่'];
+            let txt = qData.text || qData.question || qData['คำถาม'];
+            let inputType = qData.inputType || qData.input_type || 'CHOICE';
+            
+            if(!qData.inputType && !qData.input_type) {
+                let opts = [qData['ตัวเลือก A'], qData['ตัวเลือก B'], qData['ตัวเลือก C'], qData['ตัวเลือก D'], qData['ตัวเลือก E']].filter(o=>o);
+                if(opts[0]==='TEXT') inputType = 'TEXT';
+                else if(opts.every(o=>!isNaN(o))) inputType = 'RATING';
+            }
+            let options = qData.options || [qData['ตัวเลือก A'], qData['ตัวเลือก B'], qData['ตัวเลือก C'], qData['ตัวเลือก D'], qData['ตัวเลือก E']].filter(o=>o && o!=='TEXT');
+            
+            targetQuestions.push({ q_id: qId, category: cat, text: txt, inputType: inputType, options: options }); 
         }
     }
 
     let categories = [...new Set(targetQuestions.map(q => q.category))];
     let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
 
-    // ==========================================
-    // 📊 ตอนที่ 1: ข้อมูลพื้นฐาน (CHOICE)
-    // ==========================================
+    // ตอนที่ 1: ข้อมูลพื้นฐาน
     let choiceCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'CHOICE'));
     if (choiceCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลทั่วไป (ข้อมูลพื้นฐาน)</h6>`;
@@ -1675,27 +1636,27 @@ function renderEvaluationReport() {
             
             choiceQs.forEach(q => {
                 html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
-                let counts = {}; q.options.forEach(opt => counts[opt] = 0);
+                let counts = {}; 
+                if(q.options) q.options.forEach(opt => counts[opt] = 0);
                 
-                // นับจำนวนคนตอบแต่ละตัวเลือก
-                targetSurveys.forEach(s => { 
-                    const ans = s.answers[q.q_id]; 
+                parsedSurveys.forEach(s => { 
+                    const ans = s.parsedAnswers[q.q_id]; 
                     if (ans) counts[ans] = (counts[ans] || 0) + 1; 
                 });
                 
-                q.options.forEach(opt => {
-                    let c = counts[opt] || 0; 
-                    let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
-                    html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
-                });
+                if(q.options) {
+                    q.options.forEach(opt => {
+                        let c = counts[opt] || 0; 
+                        let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
+                        html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
+                    });
+                }
             });
             html += `</tbody></table></div>`;
         });
     }
 
-    // ==========================================
-    // 📈 ตอนที่ 2: ความพึงพอใจ (RATING)
-    // ==========================================
+    // ตอนที่ 2: ความพึงพอใจ
     let ratingCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'RATING'));
     if (ratingCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลความพึงพอใจ (เชิงปริมาณ)</h6>`;
@@ -1713,70 +1674,91 @@ function renderEvaluationReport() {
             let catScores = [];
             ratingQs.forEach((q, idx) => {
                 let scores = [];
-                targetSurveys.forEach(s => { 
-                    let val = parseFloat(s.answers[q.q_id]); 
+                parsedSurveys.forEach(s => { 
+                    let val = parseFloat(s.parsedAnswers[q.q_id]); 
                     if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } 
                 });
                 
-                // คำนวณ Mean, SD รายข้อ
-                let mean = calcMean(scores); let sd = calcSD(scores, mean);
+                let mean = 0, sd = 0; const count = scores.length;
+                if(count > 0) { 
+                    mean = scores.reduce((a,b)=>a+b, 0) / count; 
+                    let variance = 0; 
+                    if(count > 1) variance = scores.reduce((a,b)=>a+Math.pow(b-mean, 2), 0) / (count-1); 
+                    sd = Math.sqrt(variance); 
+                }
+
                 html += `<tr>
                     <td class="text-center">${idx + 1}</td>
                     <td class="text-start ps-4">${q.text}</td>
-                    <td class="text-center fw-bold text-primary">${scores.length > 0 ? mean.toFixed(2) : '-'}</td>
-                    <td class="text-center text-muted">${scores.length > 0 ? sd.toFixed(2) : '-'}</td>
-                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${scores.length > 0 ? getRatingMeaning(mean) : '-'}</span></td>
+                    <td class="text-center fw-bold text-primary">${count > 0 ? mean.toFixed(2) : '-'}</td>
+                    <td class="text-center text-muted">${count > 0 ? sd.toFixed(2) : '-'}</td>
+                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${count > 0 ? getRatingMeaning(mean) : '-'}</span></td>
                 </tr>`;
             });
             
-            // สรุปผลรายหมวดหมู่
-            let catMean = calcMean(catScores); let catSd = calcSD(catScores, catMean);
+            const catCount = catScores.length; let catMean = 0, catSd = 0;
+            if(catCount > 0) { 
+                catMean = catScores.reduce((a,b)=>a+b, 0) / catCount; 
+                let catVariance = 0; 
+                if(catCount > 1) catVariance = catScores.reduce((a,b)=>a+Math.pow(b-catMean, 2), 0) / (catCount-1); 
+                catSd = Math.sqrt(catVariance); 
+            }
             html += `<tr class="table-info fw-bold">
                 <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
-                <td class="text-center text-primary">${catScores.length > 0 ? catMean.toFixed(2) : '-'}</td>
-                <td class="text-center text-muted">${catScores.length > 0 ? catSd.toFixed(2) : '-'}</td>
-                <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catScores.length > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
+                <td class="text-center text-primary">${catCount > 0 ? catMean.toFixed(2) : '-'}</td>
+                <td class="text-center text-muted">${catCount > 0 ? catSd.toFixed(2) : '-'}</td>
+                <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catCount > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
             </tr>`;
         });
         
-        // สรุปรวมทุกด้าน
-        let allMean = calcMean(allRatingScores); let allSd = calcSD(allRatingScores, allMean);
+        const allCount = allRatingScores.length; let allMean = 0, allSd = 0;
+        if(allCount > 0) { 
+            allMean = allRatingScores.reduce((a,b)=>a+b, 0) / allCount; 
+            let allVariance = 0; 
+            if(allCount > 1) allVariance = allRatingScores.reduce((a,b)=>a+Math.pow(b-allMean, 2), 0) / (allCount-1); 
+            allSd = Math.sqrt(allVariance); 
+        }
         html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
             <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
-            <td class="text-center text-primary fs-6">${allRatingScores.length > 0 ? allMean.toFixed(2) : '-'}</td>
-            <td class="text-center text-muted fs-6">${allRatingScores.length > 0 ? allSd.toFixed(2) : '-'}</td>
-            <td class="text-center"><span class="badge ${allMean >= 3.5 ? 'bg-primary' : 'bg-warning text-dark'} fs-6 shadow-sm">${allRatingScores.length > 0 ? getRatingMeaning(allMean) : '-'}</span></td>
+            <td class="text-center text-primary fs-6">${allCount > 0 ? allMean.toFixed(2) : '-'}</td>
+            <td class="text-center text-muted fs-6">${allCount > 0 ? allSd.toFixed(2) : '-'}</td>
+            <td class="text-center"><span class="badge ${allMean >= 3.5 ? 'bg-primary' : 'bg-warning text-dark'} fs-6 shadow-sm">${allCount > 0 ? getRatingMeaning(allMean) : '-'}</span></td>
         </tr>`;
         html += `</tbody></table></div>`;
     }
 
-    // ==========================================
-    // 💬 ตอนที่ 3: ข้อเสนอแนะ (TEXT)
-    // ==========================================
+    // ตอนที่ 3: ข้อเสนอแนะ
     let textCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'TEXT'));
     if (textCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)</h6>`;
+        let textResponses = [];
         textCategories.forEach(cat => {
             let textQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'TEXT');
-            textQs.forEach((q, i) => {
+            textQs.forEach(q => {
                 let texts = []; 
-                targetSurveys.forEach(s => { 
-                    let ans = s.answers[q.q_id];
+                parsedSurveys.forEach(s => { 
+                    const ans = s.parsedAnswers[q.q_id]; 
                     if(ans && ans.trim() !== '') texts.push(ans.trim()); 
                 });
-                
-                html += `<div class="card border-0 shadow-sm rounded-3 mb-3 bg-light"><div class="card-body py-3"><h6 class="fw-bold text-primary mb-2">${i+1}. ${q.text}</h6><ul class="mb-0 text-muted small ps-3">`;
-                texts.forEach(txt => { html += `<li class="mb-1">${txt}</li>`; });
-                if (texts.length === 0) html += `<li>- ไม่มีข้อเสนอแนะ -</li>`;
-                html += `</ul></div></div>`;
+                textResponses.push({ question: q.text, answers: texts });
             });
         });
+        
+        html += `<div class="accordion" id="textAccordion">`;
+        textResponses.forEach((tr, i) => {
+            const collapseId = `collapse-text-${i}`;
+            html += `<div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden"><h2 class="accordion-header" id="heading-${collapseId}"><button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true" aria-controls="${collapseId}">${i+1}. ${tr.question}</button></h2><div id="${collapseId}" class="accordion-collapse collapse show" aria-labelledby="heading-${collapseId}"><div class="accordion-body p-0"><ul class="list-group list-group-flush">`;
+            if(tr.answers.length === 0) { html += `<li class="list-group-item text-muted text-center small py-3">- ไม่มีผู้ให้ข้อเสนอแนะ -</li>`; } 
+            else { tr.answers.forEach(ans => { html += `<li class="list-group-item small px-4"><i class="bi bi-arrow-right-short text-success fs-5"></i> ${ans}</li>`; }); }
+            html += `</ul></div></div></div>`;
+        });
+        html += `</div>`;
     }
 
     contentArea.innerHTML = html;
 }
 
-// 🌟 ผูกคำสั่งให้ดึงข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ "ผลประเมินวิทยากร/โครงการ"
+// โหลดข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ
 document.addEventListener('DOMContentLoaded', () => {
     const evalTabBtn = document.getElementById('evaluation-tab');
     if(evalTabBtn) {
@@ -1796,38 +1778,29 @@ function exportFullReportToExcel() {
         try {
             let wb = XLSX.utils.book_new();
 
-            // 1. ชีต สถิติภาพรวม (ดึงจากตาราง HTML ที่แสดงผล)
             let statSheet = XLSX.utils.table_to_sheet(document.getElementById('exportStatTable'));
             XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
 
-            // 2. ชีต ข้อมูลรายบุคคล (ดึงจากตาราง HTML)
             let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
             XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
 
-            // 3. ปรับโครงสร้างหน้าเว็บชั่วคราวเพื่อ Export เฉพาะตารางประเมินได้ง่ายขึ้น
             let evalType = document.getElementById('evalTypeSelector').value;
             let evalLabel = evalType === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
             
-            // หาตารางทั้งหมดในหน้า Report
             let contentArea = document.getElementById('evalReportContent');
             let tables = contentArea.querySelectorAll('table');
             
             if (tables.length > 0) {
-                // สร้าง Sheet ใหม่แบบว่างๆ
                 let ws = XLSX.utils.aoa_to_sheet([[`รายงานผล: ${evalLabel}`], []]);
-                
-                // ก๊อปปี้ข้อมูลทุกตารางมาเรียงต่อกัน
                 tables.forEach(table => {
                     let tempSheet = XLSX.utils.table_to_sheet(table);
                     let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
-                    XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); // ต่อท้ายตาราง
-                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1}); // เว้นบรรทัด
+                    XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); 
+                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1}); 
                 });
-
                 XLSX.utils.book_append_sheet(wb, ws, "รายงานความพึงพอใจ");
             }
 
-            // สั่งดาวน์โหลด
             XLSX.writeFile(wb, `TMS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
             Swal.close();
             
