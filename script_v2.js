@@ -468,6 +468,9 @@ async function openSurveyForm(type) {
 // ==========================================
 // 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown
 // ==========================================
+// ==========================================
+// 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown (รองรับภาษาไทย)
+// ==========================================
 function renderSpeakerCards() {
     let selectionArea = document.getElementById("speakerSelectionArea");
     if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
@@ -479,24 +482,33 @@ function renderSpeakerCards() {
     let evaluatedCount = 0;
 
     globalSurveyData.speakers.forEach(spk => {
-        let displayText = spk.topic ? `${spk.name} (${spk.topic})` : spk.name;
+        // 🛡️ ปรับให้ดึงข้อมูลแบบยืดหยุ่น รองรับคีย์ทั้งภาษาไทยและอังกฤษจากระบบเก่า/ใหม่
+        let keys = Object.keys(spk);
+        let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
+        let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
+        let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
         
-        if (spk.is_evaluated) {
-            optionsHtml += `<option value="${spk.id}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
-            evaluatedCount++;
-        } else {
-            optionsHtml += `<option value="${spk.id}">🎤 ${displayText}</option>`;
+        if (spkId && spkName) {
+            let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+            
+            if (spk.is_evaluated) {
+                optionsHtml += `<option value="${spkId}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
+                evaluatedCount++;
+            } else {
+                optionsHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
+            }
         }
     });
 
-    if (evaluatedCount === globalSurveyData.speakers.length) {
-        selectionArea.innerHTML = `<div class="alert alert-success text-center fw-bold"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
+    // ตรวจสอบว่าประเมินครบทุกคนหรือยัง
+    if (evaluatedCount === globalSurveyData.speakers.length && globalSurveyData.speakers.length > 0) {
+        selectionArea.innerHTML = `<div class="alert alert-success text-center fw-bold shadow-sm"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
         return;
     }
 
     let html = `
         <div class="text-start mt-2 mb-3">
-            <label class="fw-bold mb-3 text-primary"><i class="bi bi-person-video3"></i> กรุณาเลือกวิทยากรที่ท่านต้องการประเมิน:</label>
+            <label class="fw-bold mb-3 text-primary fs-6"><i class="bi bi-person-video3"></i> กรุณาเลือกวิทยากรที่ท่านต้องการประเมิน:</label>
             <div class="d-flex flex-column flex-md-row gap-3">
                 <select id="user-speaker-select" class="form-select form-select-lg shadow-sm border-info fw-bold text-dark flex-grow-1" style="cursor: pointer;">
                     ${optionsHtml}
@@ -516,7 +528,7 @@ window.confirmSpeakerSelection = function() {
     let spkId = selectEl.value;
     
     if (!spkId) {
-        Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาเลือกชื่อวิทยากรจากเมนูก่อนครับ' });
+        Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาคลิกเลือกชื่อวิทยากรจากเมนูก่อนครับ' });
         return;
     }
     
