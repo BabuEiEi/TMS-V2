@@ -89,27 +89,40 @@ function backToDashboard(currentId) {
 }
 
 // ============================================================
-// [#ATT_LOGIC]: ระบบลงเวลา 
+// [#ATT_LOGIC]: ระบบลงเวลา (อัปเกรดการจัดรูปแบบเวลาป้องกัน Error)
 // ============================================================
 async function openAttendanceForm() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("attendanceSection").classList.remove("d-none");
     let btnContainer = document.getElementById("attendanceButtonsContainer");
     btnContainer.innerHTML = `<div class="text-center my-5"><div class="spinner-border text-info"></div></div>`;
+    
     try {
         let response = await fetch(GAS_API_URL, {
             method: 'POST', body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: localStorage.getItem("tms_personal_id") } })
         });
         let result = await response.json();
-        if (result.status === 'success') { renderAttendanceButtons(result.schedule, result.userLogs); }
-    } catch (error) { btnContainer.innerHTML = `<div class="alert alert-danger text-center">ไม่สามารถดึงข้อมูลได้</div>`; }
+        
+        if (result.status === 'success') { 
+            renderAttendanceButtons(result.schedule, result.userLogs); 
+        } else {
+            // 🌟 ถ้าระบบหลังบ้านส่ง Error มา จะได้รู้สาเหตุชัดเจนครับ
+            btnContainer.innerHTML = `<div class="alert alert-danger text-center shadow-sm"><b>เกิดข้อผิดพลาด:</b> ${result.message}</div>`;
+        }
+    } catch (error) { 
+        btnContainer.innerHTML = `<div class="alert alert-danger text-center shadow-sm">ไม่สามารถดึงข้อมูลได้ (การเชื่อมต่อขัดข้อง)</div>`; 
+    }
 }
 
 function renderAttendanceButtons(schedule, userLogs) {
     let btnContainer = document.getElementById("attendanceButtonsContainer");
     btnContainer.innerHTML = '';
     const now = new Date();
-    if (!schedule || schedule.length === 0) { btnContainer.innerHTML = `<div class="alert alert-info text-center">ไม่มีรอบลงเวลา</div>`; return; }
+    
+    if (!schedule || schedule.length === 0) { 
+        btnContainer.innerHTML = `<div class="alert alert-info text-center shadow-sm rounded-4 py-4">ยังไม่มีรอบลงเวลาที่เปิดใช้งานในขณะนี้ครับ</div>`; 
+        return; 
+    }
 
     schedule.forEach(slot => {
         let key = slot.day_no + '_' + slot.slot_id;
@@ -117,13 +130,18 @@ function renderAttendanceButtons(schedule, userLogs) {
         let thaiDate = formatThaiDate(slot.date);
         let timeRange = "(" + slot.start_time + " - " + slot.end_time + ")";
         let baseDisplay = "วันที่ " + slot.day_no + " | " + thaiDate + " " + timeRange;
-        let endDateTime = new Date(slot.date + "T" + slot.end_time + ":00");
+        
+        // 🌟 FIX: เติมเลข 0 ด้านหน้าเวลาให้ครบ 5 หลัก (เช่น 9:49 -> 09:49) ป้องกัน Invalid Date Error
+        let safeEndTime = slot.end_time.toString().trim();
+        if (safeEndTime.length < 5) safeEndTime = safeEndTime.padStart(5, '0');
+        let endDateTime = new Date(slot.date + "T" + safeEndTime + ":00");
 
         if (loggedData) {
             let logTime = new Date(loggedData);
             let logTimeString = logTime.getHours().toString().padStart(2, '0') + ':' + logTime.getMinutes().toString().padStart(2, '0');
             let isLogLate = logTime > endDateTime;
             let lateMark = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
+            
             btnContainer.innerHTML += `
                 <div class="card mb-3 p-4 bg-light border-0 rounded-4 text-center shadow-sm opacity-75">
                     <div class="fw-bold text-secondary mb-2">✔️ ${slot.slot_label} บันทึกสำเร็จ</div>
@@ -134,6 +152,7 @@ function renderAttendanceButtons(schedule, userLogs) {
             let btnClass = isCurrentlyLate ? 'btn-warning text-dark' : 'btn-success text-white';
             let statusSuffix = isCurrentlyLate ? ' (สาย)' : '';
             let currentStatus = isCurrentlyLate ? 'สาย' : 'ตรงเวลา';
+            
             btnContainer.innerHTML += `
                 <button class="btn ${btnClass} w-100 mb-3 p-4 fw-bold rounded-4 shadow" onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${currentStatus}')">
                     <span style="font-size: 1.2rem;">📌 ลงเวลา: ${slot.slot_label}${statusSuffix}</span><br>
