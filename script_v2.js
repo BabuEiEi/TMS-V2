@@ -455,9 +455,26 @@ async function submitRealSurvey() {
 
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval', payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target } }) });
-        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ' }).then(() => { backToDashboard('surveySection'); });
-    } catch (e) { Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้', 'error'); }
+        // 🌟 เพิ่มระบบอ่านการตอบกลับ (Response) จากเซิร์ฟเวอร์
+        const response = await fetch(GAS_API_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                action: currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval', 
+                payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target } 
+            }) 
+        });
+        
+        const result = await response.json();
+        
+        // 🌟 เช็คให้ชัวร์ว่าเซิร์ฟเวอร์ตอบกลับมาว่า success จริงๆ ค่อยเด้ง Pop-up เขียว
+        if (result.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ' }).then(() => { backToDashboard('surveySection'); });
+        } else {
+            Swal.fire('บันทึกไม่สำเร็จ', 'สาเหตุ: ' + result.message, 'error');
+        }
+    } catch (e) { 
+        Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่', 'error'); 
+    }
 }
 
 // ============================================================
