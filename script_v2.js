@@ -540,7 +540,7 @@ function renderSurveyQuestions() {
                             <label class="rating-btn-label shadow-sm" for="sq_${q.id}_${opt}">${opt}</label>
                         </div>`;
                 });
-                optionsHtml += `</div><div class="rating-desc-text"><span>มาก (5)</span><span>น้อย (1)</span></div></div>`;
+                optionsHtml += `</div><div class="rating-desc-text"><span>มากที่สุด (5)</span><span>น้อยที่สุด (1)</span></div></div>`;
             } else if (q.options[0] === 'TEXT') {
                 optionsHtml = `<textarea class="form-control rounded-4 shadow-sm" name="sq_${q.id}" rows="3"></textarea>`;
             } else {
