@@ -1525,7 +1525,7 @@ function processAndRenderReport() {
 }
 
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - REWRITTEN
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED 100%
 // ============================================================
 
 function getRatingMeaning(mean) {
@@ -1536,20 +1536,31 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
-// 🌟 เปลี่ยนมาใช้ข้อมูลจาก Cache ที่โหลดมาแล้ว แทนการยิง API ใหม่ให้ซ้ำซ้อน
+// 🌟 ดึงข้อมูลจาก API ของพี่บาบูที่ทำงานข้ามไฟล์ Sheet ได้อย่างสมบูรณ์แบบ
 async function fetchEvaluationSummary() {
     const container = document.getElementById('evalReportContent');
-    if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังคำนวณทางสถิติ...</div></div>';
+    if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
     
-    if (!reportDataCache) {
-        await loadReportDashboard(); 
-    } else {
-        renderEvaluationReport();
+    try {
+        const res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getEvaluationDashboardData' })
+        });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
+            globalEvalData = result; // ใช้ข้อมูลจาก API เดิม
+            renderEvaluationReport(); 
+        } else {
+            if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
+        }
+    } catch(e) {
+        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง</div>`;
     }
 }
 
 function renderEvaluationReport() {
-    if (!reportDataCache || !reportDataCache.survey) return;
+    if (!globalEvalData) return;
 
     let evalType = document.getElementById('evalTypeSelector').value;
     let speakerSelect = document.getElementById('evalSpeakerSelector');
@@ -1561,11 +1572,12 @@ function renderEvaluationReport() {
         let currentSpkVal = speakerSelect.value;
         
         let spkHtml = '';
-        reportDataCache.speakers.forEach(spk => {
+        globalEvalData.speakers.forEach(spk => {
+            // รองรับทั้งคีย์อังกฤษ (ระบบเก่า) และคีย์ไทย (ระบบใหม่)
             let keys = Object.keys(spk);
-            let spkId = spk[keys[0]];   // รหัส
-            let spkName = spk[keys[1]]; // ชื่อ
-            let spkTopic = spk[keys[2]];// หัวข้อ
+            let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
+            let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
+            let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
             
             if (spkId && spkName) {
                 let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
@@ -1584,12 +1596,8 @@ function renderEvaluationReport() {
     // --- 2. กรอง Log การประเมิน ---
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
     
-    const targetSurveys = reportDataCache.survey.filter(s => {
-        let sKeys = Object.keys(s);
-        let sTarget = s[sKeys[2]]; // คอลัมน์ที่ 3 (Index 2) คือ target_id
-        return sTarget === targetId;
-    });
-    
+    // กรอง Survey ให้ตรงกับ Target ID
+    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId);
     const totalN = targetSurveys.length;
 
     if(totalN === 0) {
@@ -1597,40 +1605,43 @@ function renderEvaluationReport() {
         return;
     }
 
+    // แปลง String JSON ของคำตอบให้เป็น Object
     let parsedSurveys = targetSurveys.map(s => {
        let ansObj = {};
-       let sKeys = Object.keys(s);
-       let ansRaw = s[sKeys[3]]; // คอลัมน์ที่ 4 (Index 3) คือ answers_json
-       if (typeof ansRaw === 'object') ansObj = ansRaw;
-       else if (typeof ansRaw === 'string') { try { ansObj = JSON.parse(ansRaw); } catch(e){} }
+       if (s.answers && typeof s.answers === 'object') ansObj = s.answers;
+       else if (s.answers && typeof s.answers === 'string') { try { ansObj = JSON.parse(s.answers); } catch(e){} }
+       else if (s.answers_json) { try { ansObj = JSON.parse(s.answers_json); } catch(e){} }
        return { ...s, parsedAnswers: ansObj };
     });
 
-    // --- 3. ดึงคำถามจาก Questions_Bank ---
+    // --- 3. ดึงและจัดรูปแบบคำถามจาก Questions_Bank ---
     let targetQuestions = [];
-    reportDataCache.questions.forEach(qData => {
-        let keys = Object.keys(qData);
-        let qId = qData[keys[0]];   
-        let qType = qData[keys[1]]; 
+    for (let qId in globalEvalData.questions) { 
+        let qData = globalEvalData.questions[qId];
+        let qType = qData.type || qData.q_type || qData['ประเภท (Pre/Post/Survey)'];
         
         if (qType === evalType) {
-            let cat = qData[keys[2]]; // หมวดหมู่
-            let txt = qData[keys[3]]; // คำถาม
-            let opts = [qData[keys[4]], qData[keys[5]], qData[keys[6]], qData[keys[7]], qData[keys[8]]].filter(o => o && o.toString().trim() !== "");
+            let cat = qData.category || qData.q_category || qData['หมวดหมู่'];
+            let txt = qData.text || qData.question || qData['คำถาม'];
             
-            let inputType = 'CHOICE';
-            if(opts[0] === 'TEXT') inputType = 'TEXT';
-            else if(opts.length > 0 && opts.every(o => !isNaN(o))) inputType = 'RATING';
+            // อ่านค่าตัวเลือกอัตโนมัติ
+            let opts = [qData.opt_a || qData['ตัวเลือก A'], qData.opt_b || qData['ตัวเลือก B'], qData.opt_c || qData['ตัวเลือก C'], qData.opt_d || qData['ตัวเลือก D'], qData.opt_e || qData['ตัวเลือก E']].filter(o=>o);
             
-            let options = opts.filter(o => o !== 'TEXT');
+            let inputType = qData.inputType || qData.input_type || 'CHOICE';
+            if(!qData.inputType && !qData.input_type) {
+                if(opts[0] === 'TEXT') inputType = 'TEXT';
+                else if(opts.length > 0 && opts.every(o => !isNaN(o))) inputType = 'RATING';
+            }
+            let options = qData.options || opts.filter(o => o !== 'TEXT');
+            
             targetQuestions.push({ q_id: qId, category: cat, text: txt, inputType: inputType, options: options }); 
         }
-    });
+    }
 
     let categories = [...new Set(targetQuestions.map(q => q.category))];
     let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
 
-    // --- 4. สร้างตารางตอนที่ 1 (CHOICE) ---
+    // === ตอนที่ 1: ข้อมูลพื้นฐาน (CHOICE) ===
     let choiceCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'CHOICE'));
     if (choiceCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลทั่วไป (ข้อมูลพื้นฐาน)</h6>`;
@@ -1645,24 +1656,26 @@ function renderEvaluationReport() {
             choiceQs.forEach(q => {
                 html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
                 let counts = {}; 
-                q.options.forEach(opt => counts[opt] = 0);
+                if(q.options) q.options.forEach(opt => counts[opt] = 0);
                 
                 parsedSurveys.forEach(s => { 
                     const ans = s.parsedAnswers[q.q_id]; 
                     if (ans) counts[ans] = (counts[ans] || 0) + 1; 
                 });
                 
-                q.options.forEach(opt => {
-                    let c = counts[opt] || 0; 
-                    let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
-                    html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
-                });
+                if(q.options) {
+                    q.options.forEach(opt => {
+                        let c = counts[opt] || 0; 
+                        let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
+                        html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
+                    });
+                }
             });
             html += `</tbody></table></div>`;
         });
     }
 
-    // --- 5. สร้างตารางตอนที่ 2 (RATING) ---
+    // === ตอนที่ 2: ความพึงพอใจ (RATING) ===
     let ratingCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'RATING'));
     if (ratingCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลความพึงพอใจ (เชิงปริมาณ)</h6>`;
@@ -1685,36 +1698,55 @@ function renderEvaluationReport() {
                     if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } 
                 });
                 
-                let mean = calcMean(scores); let sd = calcSD(scores, mean);
+                let mean = 0, sd = 0; const count = scores.length;
+                if(count > 0) { 
+                    mean = scores.reduce((a,b)=>a+b, 0) / count; 
+                    let variance = 0; 
+                    if(count > 1) variance = scores.reduce((a,b)=>a+Math.pow(b-mean, 2), 0) / (count-1); 
+                    sd = Math.sqrt(variance); 
+                }
+
                 html += `<tr>
                     <td class="text-center">${idx + 1}</td>
                     <td class="text-start ps-4">${q.text}</td>
-                    <td class="text-center fw-bold text-primary">${scores.length > 0 ? mean.toFixed(2) : '-'}</td>
-                    <td class="text-center text-muted">${scores.length > 0 ? sd.toFixed(2) : '-'}</td>
-                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${scores.length > 0 ? getRatingMeaning(mean) : '-'}</span></td>
+                    <td class="text-center fw-bold text-primary">${count > 0 ? mean.toFixed(2) : '-'}</td>
+                    <td class="text-center text-muted">${count > 0 ? sd.toFixed(2) : '-'}</td>
+                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${count > 0 ? getRatingMeaning(mean) : '-'}</span></td>
                 </tr>`;
             });
             
-            let catMean = calcMean(catScores); let catSd = calcSD(catScores, catMean);
+            const catCount = catScores.length; let catMean = 0, catSd = 0;
+            if(catCount > 0) { 
+                catMean = catScores.reduce((a,b)=>a+b, 0) / catCount; 
+                let catVariance = 0; 
+                if(catCount > 1) catVariance = catScores.reduce((a,b)=>a+Math.pow(b-catMean, 2), 0) / (catCount-1); 
+                catSd = Math.sqrt(catVariance); 
+            }
             html += `<tr class="table-info fw-bold">
                 <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
-                <td class="text-center text-primary">${catScores.length > 0 ? catMean.toFixed(2) : '-'}</td>
-                <td class="text-center text-muted">${catScores.length > 0 ? catSd.toFixed(2) : '-'}</td>
-                <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catScores.length > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
+                <td class="text-center text-primary">${catCount > 0 ? catMean.toFixed(2) : '-'}</td>
+                <td class="text-center text-muted">${catCount > 0 ? catSd.toFixed(2) : '-'}</td>
+                <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catCount > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
             </tr>`;
         });
         
-        let allMean = calcMean(allRatingScores); let allSd = calcSD(allRatingScores, allMean);
+        const allCount = allRatingScores.length; let allMean = 0, allSd = 0;
+        if(allCount > 0) { 
+            allMean = allRatingScores.reduce((a,b)=>a+b, 0) / allCount; 
+            let allVariance = 0; 
+            if(allCount > 1) allVariance = allRatingScores.reduce((a,b)=>a+Math.pow(b-allMean, 2), 0) / (allCount-1); 
+            allSd = Math.sqrt(allVariance); 
+        }
         html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
             <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
-            <td class="text-center text-primary fs-6">${allRatingScores.length > 0 ? allMean.toFixed(2) : '-'}</td>
-            <td class="text-center text-muted fs-6">${allRatingScores.length > 0 ? allSd.toFixed(2) : '-'}</td>
-            <td class="text-center"><span class="badge ${allMean >= 3.5 ? 'bg-primary' : 'bg-warning text-dark'} fs-6 shadow-sm">${allRatingScores.length > 0 ? getRatingMeaning(allMean) : '-'}</span></td>
+            <td class="text-center text-primary fs-6">${allCount > 0 ? allMean.toFixed(2) : '-'}</td>
+            <td class="text-center text-muted fs-6">${allCount > 0 ? allSd.toFixed(2) : '-'}</td>
+            <td class="text-center"><span class="badge ${allMean >= 3.5 ? 'bg-primary' : 'bg-warning text-dark'} fs-6 shadow-sm">${allCount > 0 ? getRatingMeaning(allMean) : '-'}</span></td>
         </tr>`;
         html += `</tbody></table></div>`;
     }
 
-    // --- 6. สร้างตารางตอนที่ 3 (TEXT) ---
+    // === ตอนที่ 3: ข้อเสนอแนะ (TEXT) ===
     let textCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'TEXT'));
     if (textCategories.length > 0) {
         html += `<h6 class="fw-bold text-dark mt-4 mb-3">3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)</h6>`;
@@ -1745,18 +1777,12 @@ function renderEvaluationReport() {
     contentArea.innerHTML = html;
 }
 
-// ผูกการทำงานเวลาโหลดข้อมูลหลักเสร็จ ให้เรนเดอร์แท็บนี้ด้วย
-const originalProcessAndRenderReport = window.processAndRenderReport;
-window.processAndRenderReport = function() {
-    if(originalProcessAndRenderReport) originalProcessAndRenderReport();
-    renderEvaluationReport();
-};
-
+// โหลดข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ
 document.addEventListener('DOMContentLoaded', () => {
     const evalTabBtn = document.getElementById('evaluation-tab');
     if(evalTabBtn) {
         evalTabBtn.addEventListener('click', () => {
-            if(!reportDataCache) fetchEvaluationSummary();
+            if(!globalEvalData) fetchEvaluationSummary();
         });
     }
 });
