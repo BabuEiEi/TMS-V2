@@ -1,6 +1,6 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 68.0 (Ultimate Edition - Full Dashboard & Dropdown Eval + Cache Fixed)
+ * VERSION: 69.0 (Ultimate Edition - Pop-up Speaker Selection + Admin Report Fix)
  * AUTHOR: วิ (AI Assistant)
  */
 
@@ -24,9 +24,6 @@ function formatThaiDate(dateStr) {
     return day + " " + month + " " + year;
 }
 
-// ============================================================
-// [#NAV_LOGIC]: ระบบล็อกอินและนำทาง
-// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
     let savedId = localStorage.getItem("tms_personal_id");
     if (savedId) {
@@ -299,108 +296,120 @@ async function submitRealExam(isAuto = false) {
 }
 
 // ============================================================
-// [#SURVEY_LOGIC]: ระบบประเมิน (ฝั่งผู้เข้าอบรมทำประเมิน)
+// 🌟 [#SURVEY_LOGIC]: ระบบประเมิน (POP-UP สไตล์)
 // ============================================================
 async function openSurveyForm(type) {
-    currentSurveyType = type; selectedSpeakerId = null;
-    document.getElementById("dashboardSection").classList.add("d-none");
-    document.getElementById("surveySection").classList.remove("d-none");
-    let contentArea = document.getElementById("surveyContentArea");
-    contentArea.innerHTML = '';
-    document.getElementById("surveyTitleLabel").innerText = type === 'PROJECT_SURVEY' ? 'ประเมินภาพรวมโครงการ' : 'ประเมินวิทยากร';
-    document.getElementById("btnSubmitSurvey").classList.add("d-none");
+    currentSurveyType = type;
+    selectedSpeakerId = null;
 
-    if (type === 'PROJECT_SURVEY') {
-        document.getElementById("speakerSelectionArea").classList.add("d-none");
-        contentArea.innerHTML = `<div class="text-center p-5 my-5"><div class="spinner-border text-success"></div></div>`;
+    if (type === 'SPEAKER_SURVEY') {
+        Swal.fire({ title: 'กำลังโหลดข้อมูลวิทยากร...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        
+        try {
+            let response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type, personal_id: localStorage.getItem("tms_personal_id") } })
+            });
+            globalSurveyData = await response.json();
+            Swal.close();
+
+            if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
+                Swal.fire('แจ้งเตือน', 'ยังไม่มีวิทยากรที่เปิดให้ประเมินในขณะนี้ครับ', 'warning');
+                return;
+            }
+
+            let optionsHtml = '<option value="" disabled selected>-- กรุณาคลิกเลือกวิทยากรที่ต้องการประเมิน --</option>';
+            let evaluatedCount = 0;
+
+            globalSurveyData.speakers.forEach(spk => {
+                let keys = Object.keys(spk);
+                let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
+                let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
+                let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
+
+                if (spkId && spkName) {
+                    let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+                    if (spk.is_evaluated) {
+                        optionsHtml += `<option value="${spkId}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
+                        evaluatedCount++;
+                    } else {
+                        optionsHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
+                    }
+                }
+            });
+
+            if (evaluatedCount === globalSurveyData.speakers.length && globalSurveyData.speakers.length > 0) {
+                Swal.fire('เยี่ยมยอด!', 'ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ 🎉', 'success');
+                return;
+            }
+
+            let html = `
+                <div class="text-start mt-2 mb-3">
+                    <label class="fw-bold mb-2 text-secondary"><i class="bi bi-person-lines-fill"></i> รายชื่อวิทยากร (เฉพาะที่เปิดประเมินขณะนี้):</label>
+                    <select id="swal-speaker-select" class="form-select form-select-lg shadow-sm border-warning fw-bold text-primary" style="cursor: pointer;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+            `;
+
+            const { value: selectedId } = await Swal.fire({
+                title: 'ประเมินวิทยากร',
+                html: html,
+                showCancelButton: true,
+                confirmButtonText: 'เริ่มทำแบบประเมิน <i class="bi bi-arrow-right-circle ms-1"></i>',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#198754',
+                preConfirm: () => {
+                    const spkId = document.getElementById('swal-speaker-select').value;
+                    if (!spkId) {
+                        Swal.showValidationMessage('⚠️ กรุณาคลิกเลือกวิทยากรจากเมนูก่อนครับ');
+                        return false;
+                    }
+                    return spkId;
+                }
+            });
+
+            if (selectedId) {
+                selectedSpeakerId = selectedId;
+                document.getElementById("dashboardSection").classList.add("d-none");
+                document.getElementById("surveySection").classList.remove("d-none");
+                
+                let spkObj = globalSurveyData.speakers.find(s => {
+                    let keys = Object.keys(s);
+                    return (s.id || s.spk_id || s['รหัส'] || s[keys[0]]) === selectedId;
+                });
+                
+                let spkName = spkObj ? (spkObj.name || spkObj.spk_name || spkObj['ชื่อวิทยากร'] || spkObj[Object.keys(spkObj)[1]]) : '';
+                document.getElementById("surveyTitleLabel").innerText = `ประเมินวิทยากร: ${spkName}`;
+                
+                renderSurveyQuestions();
+                document.getElementById("btnSubmitSurvey").classList.remove("d-none");
+            }
+        } catch (e) {
+            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อข้อมูลได้', 'error');
+        }
+
     } else {
-        let selectionArea = document.getElementById("speakerSelectionArea");
-        selectionArea.classList.remove("d-none");
-        selectionArea.innerHTML = `<div class="text-center p-4"><div class="spinner-border text-primary"></div></div>`;
-    }
+        // สำหรับ PROJECT_SURVEY
+        document.getElementById("dashboardSection").classList.add("d-none");
+        document.getElementById("surveySection").classList.remove("d-none");
+        let contentArea = document.getElementById("surveyContentArea");
+        contentArea.innerHTML = `<div class="text-center p-5 my-5"><div class="spinner-border text-success"></div></div>`;
+        document.getElementById("surveyTitleLabel").innerText = 'ประเมินภาพรวมโครงการ';
+        document.getElementById("btnSubmitSurvey").classList.add("d-none");
 
-    try {
-        let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type, personal_id: localStorage.getItem("tms_personal_id") } }) });
-        globalSurveyData = await response.json();
-
-        if (type === 'SPEAKER_SURVEY') {
-            renderSpeakerCards();
-            contentArea.innerHTML = `<div id="speakerPromptPlaceholder" class="text-center p-5 fade-in">กรุณาเลือกวิทยากร</div>`;
-        } else {
+        try {
+            let response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type, personal_id: localStorage.getItem("tms_personal_id") } })
+            });
+            globalSurveyData = await response.json();
             renderSurveyQuestions();
             document.getElementById("btnSubmitSurvey").classList.remove("d-none");
+        } catch (e) {
+            contentArea.innerHTML = '<div class="alert alert-danger text-center">ดาวน์โหลดข้อมูลล้มเหลว</div>';
         }
-    } catch (e) { contentArea.innerHTML = '<div class="alert alert-danger text-center">ดาวน์โหลดข้อมูลล้มเหลว</div>'; }
-}
-
-// ==========================================
-// 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown
-// ==========================================
-function renderSpeakerCards() {
-    let selectionArea = document.getElementById("speakerSelectionArea");
-    if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
-        selectionArea.innerHTML = `<div class="alert alert-warning text-center">ไม่มีวิทยากรที่เปิดให้ประเมินในขณะนี้</div>`; 
-        return;
     }
-
-    let optionsHtml = '<option value="" disabled selected>-- กรุณาคลิกเลือกวิทยากรที่ต้องการประเมิน --</option>';
-    let evaluatedCount = 0;
-
-    globalSurveyData.speakers.forEach(spk => {
-        let keys = Object.keys(spk);
-        let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
-        let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
-        let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
-        
-        if (spkId && spkName) {
-            let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
-            
-            // ✅ แก้ไข: แค่เติม (ประเมินแล้ว) ต่อท้ายชื่อ แต่ยังให้แสดงใน Dropdown อยู่!
-            if (spk.is_evaluated) {
-                optionsHtml += `<option value="${spkId}" disabled>✅ ประเมินแล้ว: ${displayText}</option>`;
-                evaluatedCount++;
-            } else {
-                optionsHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
-            }
-        }
-    });
-
-    // ✅ แก้ไข: ลบเงื่อนไขที่ถ้าประเมินครบแล้วจะซ่อนกล่องทั้งหมดออก เพื่อให้แสดงกล่องและข้อความสีเขียว
-    let html = `
-        <div class="text-start mt-2 mb-3">
-            <label class="fw-bold mb-3 text-primary fs-6"><i class="bi bi-person-video3"></i> กรุณาเลือกวิทยากรที่ท่านต้องการประเมิน:</label>
-            <div class="d-flex flex-column flex-md-row gap-3">
-                <select id="user-speaker-select" class="form-select form-select-lg shadow-sm border-info fw-bold text-dark flex-grow-1" style="cursor: pointer;">
-                    ${optionsHtml}
-                </select>
-                <button class="btn btn-success btn-lg shadow-sm fw-bold px-4 rounded-pill flex-shrink-0" onclick="confirmSpeakerSelection()" ${evaluatedCount === globalSurveyData.speakers.length ? 'disabled' : ''}>
-                    เริ่มประเมิน <i class="bi bi-arrow-right-circle ms-1"></i>
-                </button>
-            </div>
-        </div>
-    `;
-
-    // ถ้าประเมินครบทุกคนแล้ว ให้เติมข้อความสีเขียวเพิ่มเข้าไป
-    if (evaluatedCount === globalSurveyData.speakers.length && globalSurveyData.speakers.length > 0) {
-         html += `<div class="alert alert-success mt-3 text-center fw-bold shadow-sm"><i class="bi bi-check-circle-fill"></i> ท่านได้ประเมินวิทยากรครบทุกท่านแล้วครับ เยี่ยมยอดมาก!</div>`;
-    }
-
-    selectionArea.innerHTML = html;
-}
-
-window.confirmSpeakerSelection = function() {
-    let selectEl = document.getElementById("user-speaker-select");
-    let spkId = selectEl.value;
-    if (!spkId) { Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณาคลิกเลือกชื่อวิทยากรจากเมนูก่อนครับ' }); return; }
-    selectSpeaker(spkId); 
-}
-
-function selectSpeaker(spkId) {
-    selectedSpeakerId = spkId;
-    let placeholder = document.getElementById("speakerPromptPlaceholder");
-    if (placeholder) placeholder.classList.add("d-none");
-    renderSurveyQuestions();
-    document.getElementById("btnSubmitSurvey").classList.remove("d-none");
 }
 
 function renderSurveyQuestions() {
@@ -617,7 +626,7 @@ function switchAdminTab(tabName) {
 
     if (tabName === 'userManage') { loadAdminConfig('Users'); } 
     else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); } 
-    else if (tabName === 'reportManage') { loadReportDashboard(); }
+    else if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
 }
 
 function toggleAdminSidebar() { const sidebar = document.getElementById('adminSidebar'); if (sidebar) { sidebar.classList.toggle('collapsed'); } }
@@ -945,8 +954,10 @@ function processAndRenderReport() {
 }
 
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED 100%
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis)
 // ============================================================
+
+let globalEvalData = null;
 
 function getRatingMeaning(mean) {
     if (mean >= 4.50) return "มากที่สุด";
