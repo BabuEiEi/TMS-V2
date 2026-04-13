@@ -1,8 +1,8 @@
 /**
  * PROJECT: TMS-V2
- * VERSION: 60.0 (Ultimate God Mode + Safe Routing)
+ * VERSION: 60.1 (Ultimate God Mode + Safe Routing + Cross-Sheet Eval)
  * AUTHOR: วิ (AI Assistant)
- * DESCRIPTION: รวมทุกระบบ (User, Exam, Survey, Assignment, Attendance, Admin CRUD)
+ * DESCRIPTION: รวมทุกระบบ (User, Exam, Survey, Assignment, Attendance, Admin CRUD, Report Dashboard)
  */
 
 const DB_SHARDS = {
@@ -46,13 +46,15 @@ function doPost(e) {
     else if (action === 'getAdminConfigs') { result = getAdminConfigs(); } 
     else if (action === 'updateConfigStatus') { result = updateConfigStatus(payload); }
     else if (action === 'manageConfig') { result = manageConfig(payload); }
-
-    // 🌟 🌟 วางตรงนี้ครับ: จุดที่ 1 สำหรับระบบ Report Dashboard 🌟 🌟
+    
+    // 🌟 เปิดท่อเชื่อมให้ระบบหน้าบ้านดึงข้อมูลประเมินข้ามชีตได้
+    else if (action === 'getEvaluationDashboardData') { result = getEvaluationDashboardData(); }
+    
+    // 🌟 โหลดข้อมูลดิบมหาศาลสำหรับ Dashboard สถิติ
     else if (action === 'getDashboardReport') {
       try {
         var ss = SpreadsheetApp.getActiveSpreadsheet();
         
-        // ฟังก์ชันช่วยดึงข้อมูลและแปลงเป็น JSON Array
         var getSheetData = function(sheetName) {
           var sheet = ss.getSheetByName(sheetName);
           if(!sheet) return [];
@@ -102,7 +104,6 @@ function getUserProfile(personalId) {
     var sheet = masterSs.getSheetByName('Users');
     var data = sheet.getDataRange().getDisplayValues();
 
-    // 🚨 แบบ Case-Insensitive และตัดช่องว่าง
     var searchId = personalId.toString().trim().toLowerCase();
 
     for (var i = 1; i < data.length; i++) {
@@ -188,7 +189,7 @@ function submitExam(payload) {
 }
 
 // ============================================================
-// 📊 [SURVEY LOGIC] ระบบประเมิน
+// 📊 [SURVEY LOGIC] ระบบประเมิน (สำหรับผู้ใช้กรอก)
 // ============================================================
 function getSurveyData(payload) {
     var surveyType = payload.survey_type || ""; 
@@ -445,7 +446,6 @@ function manageConfig(payload) {
   if (action === "GET") {
     return { status: 'success', headers: headers, rows: data.slice(1) };
   }
-  
   else if (action === "SAVE") {
     var rowData = payload.rowData;
     var isNew = payload.isNew;
@@ -466,7 +466,6 @@ function manageConfig(payload) {
     }
     return { status: 'success', message: 'บันทึกข้อมูลเรียบร้อย' };
   }
-  
   else if (action === "DELETE") {
     var id = payload.id.toString().trim();
     for (var j = 1; j < data.length; j++) {
@@ -477,20 +476,17 @@ function manageConfig(payload) {
     }
     return { status: 'error', message: 'ไม่พบข้อมูลที่ต้องการลบ' };
   }
-  // 📥 โหมดนำเข้าไฟล์ Excel (Import & Overwrite)
-    else if (action === "IMPORT_EXCEL") {
+  else if (action === "IMPORT_EXCEL") {
       var excelData = payload.excelData;
       if (!excelData || excelData.length === 0) return { status: 'error', message: 'ไม่มีข้อมูลสำหรับนำเข้า' };
       
       var lastRow = sheet.getLastRow();
       var lastCol = sheet.getLastColumn();
       
-      // 1. ลบข้อมูลเดิมทิ้งทั้งหมด (แต่เว้นหัวตารางไว้แถวที่ 1)
       if (lastRow > 1) {
         sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
       }
       
-      // 2. เคลียร์ข้อมูลว่างๆ และจัดให้มีจำนวนคอลัมน์เท่ากับหัวตารางเป๊ะๆ (ป้องกัน Error)
       var cleanData = excelData.map(function(row) {
         var newRow = [];
         for(var i=0; i<lastCol; i++) {
@@ -499,9 +495,90 @@ function manageConfig(payload) {
         return newRow;
       });
 
-      // 3. เขียนข้อมูลชุดใหม่ทับลงไป
       sheet.getRange(2, 1, cleanData.length, lastCol).setValues(cleanData);
       return { status: 'success', message: 'นำเข้าข้อมูลใหม่ ' + cleanData.length + ' รายการเรียบร้อย' };
-    }
+  }
   return { status: 'error', message: 'คำสั่ง Database ผิดพลาด' };
+}
+
+// ============================================================
+// 📊 [REPORT API] ระบบดึงข้อมูลข้ามชีตเพื่อทำ Dashboard ประเมิน
+// ============================================================
+function getEvaluationDashboardData() {
+    var masterSs = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // 1. ดึงวิทยากรทั้งหมด
+    var spkSheet = masterSs.getSheetByName('Speakers_Config');
+    var speakers = [];
+    if(spkSheet) {
+        var spkData = spkSheet.getDataRange().getDisplayValues();
+        for (var i = 1; i < spkData.length; i++) {
+            if (spkData[i][0]) {
+                speakers.push({
+                    id: spkData[i][0],
+                    name: spkData[i][1],
+                    topic: spkData[i][2]
+                });
+            }
+        }
+    }
+
+    // 2. ดึงคลังคำถามแบบประเมินทั้งหมด
+    var qbSheet = masterSs.getSheetByName('Questions_Bank');
+    var questions = {};
+    if(qbSheet) {
+        var qbData = qbSheet.getDataRange().getDisplayValues();
+        for (var j = 1; j < qbData.length; j++) {
+            var type = qbData[j][1];
+            if (type === 'PROJECT_SURVEY' || type === 'SPEAKER_SURVEY') {
+                questions[qbData[j][0]] = {
+                    type: type,
+                    category: qbData[j][2],
+                    text: qbData[j][3],
+                    inputType: qbData[j][4] === 'TEXT' ? 'TEXT' : (qbData[j][4] ? 'CHOICE' : 'RATING'),
+                    options: [qbData[j][4], qbData[j][5], qbData[j][6], qbData[j][7], qbData[j][8]].filter(function(e) { return e && e !== 'TEXT'; })
+                };
+            }
+        }
+    }
+
+    // 3. ดึง Log การประเมินจากชีตแยกระบบ
+    var surveys = [];
+    
+    try {
+        var projSheet = SpreadsheetApp.openById(DB_SHARDS['PROJECT']).getSheets()[0];
+        var projData = projSheet.getDataRange().getDisplayValues();
+        for (var p = 1; p < projData.length; p++) {
+            if (projData[p][0]) {
+                surveys.push({
+                    logId: projData[p][0],
+                    personalId: projData[p][1],
+                    targetId: 'PROJECT', 
+                    answers: projData[p][2] 
+                });
+            }
+        }
+    } catch(e) {} 
+
+    try {
+        var spkLogSheet = SpreadsheetApp.openById(DB_SHARDS['SPEAKER']).getSheets()[0];
+        var spkLogData = spkLogSheet.getDataRange().getDisplayValues();
+        for (var s = 1; s < spkLogData.length; s++) {
+            if (spkLogData[s][0]) {
+                surveys.push({
+                    logId: spkLogData[s][0],
+                    personalId: spkLogData[s][1],
+                    targetId: spkLogData[s][2], 
+                    answers: spkLogData[s][3] 
+                });
+            }
+        }
+    } catch(e) {} 
+
+    return {
+        status: 'success',
+        speakers: speakers,
+        questions: questions,
+        surveys: surveys
+    };
 }
