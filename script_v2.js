@@ -1570,3 +1570,160 @@ window.switchAdminTab = function(tabName) {
         loadReportDashboard();
     }
 };
+
+// ============================================================
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis)
+// ============================================================
+
+// แปลผลค่าเฉลี่ย
+function getRatingMeaning(mean) {
+    if (mean >= 4.50) return "มากที่สุด";
+    if (mean >= 3.50) return "มาก";
+    if (mean >= 2.50) return "ปานกลาง";
+    if (mean >= 1.50) return "น้อย";
+    return "น้อยที่สุด";
+}
+
+function renderEvaluationReport() {
+    if (!reportDataCache || !reportDataCache.survey) return;
+
+    let evalType = document.getElementById('evalTypeSelector').value;
+    let speakerSelect = document.getElementById('evalSpeakerSelector');
+    let contentArea = document.getElementById('evalReportContent');
+    
+    // โชว์/ซ่อน Dropdown เลือกวิทยากร
+    if (evalType === 'SPEAKER_SURVEY') {
+        speakerSelect.classList.remove('d-none');
+        if (speakerSelect.options.length === 0) {
+            let spkHtml = '';
+            reportDataCache.speakers.forEach(s => {
+                spkHtml += `<option value="${s['รหัส']}">${s['ชื่อวิทยากร']}</option>`;
+            });
+            speakerSelect.innerHTML = spkHtml;
+        }
+    } else {
+        speakerSelect.classList.add('d-none');
+    }
+
+    let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
+    
+    // กรอง Log คำตอบที่ตรงกับเงื่อนไข
+    let filteredLogs = reportDataCache.survey.filter(s => s.survey_type === evalType && s.target_id === targetId);
+    let totalN = filteredLogs.length;
+
+    if (totalN === 0) {
+        contentArea.innerHTML = `<div class="alert alert-warning text-center py-4">ยังไม่มีผู้ตอบแบบประเมินในหัวข้อนี้</div>`;
+        return;
+    }
+
+    // แปลง String JSON เป็น Object
+    let answersList = filteredLogs.map(s => {
+        try { return JSON.parse(s.answers); } catch(e) { return {}; }
+    });
+
+    // ดึงคำถามจากฐานข้อมูล
+    let questions = reportDataCache.questions.filter(q => q['ประเภท (Pre/Post/Survey)'] === evalType);
+    
+    let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
+    
+    // แบ่งคำถามเป็น 2 ส่วน: เชิงปริมาณ (ตัวเลข) และ เชิงคุณภาพ (ข้อความ)
+    let quantHtml = `
+    <h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลเชิงปริมาณ (ระดับความพึงพอใจ)</h6>
+    <div class="table-responsive bg-white rounded-3 border mb-4">
+        <table class="table table-hover table-bordered align-middle small mb-0" id="exportEvalTable">
+            <thead class="table-light text-center">
+                <tr>
+                    <th style="width: 5%;">ข้อที่</th>
+                    <th class="text-start" style="width: 55%;">รายการประเมิน</th>
+                    <th style="width: 10%;">N</th>
+                    <th style="width: 10%;">ค่าเฉลี่ย (x̄)</th>
+                    <th style="width: 10%;">S.D.</th>
+                    <th style="width: 10%;">แปลผล</th>
+                </tr>
+            </thead>
+            <tbody>`;
+            
+    let qualHtml = `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะ/ความคิดเห็น)</h6>`;
+    let qIndex = 1;
+
+    questions.forEach(q => {
+        let qId = q['รหัสคำถาม'];
+        let qText = q['คำถาม'];
+        let isText = q['ตัวเลือก A'] === 'TEXT';
+        
+        let validAnswers = [];
+        answersList.forEach(ans => {
+            if (ans[qId] !== undefined && ans[qId] !== "") validAnswers.push(ans[qId]);
+        });
+
+        if (isText) {
+            qualHtml += `<div class="card border-0 shadow-sm rounded-3 mb-3 bg-light"><div class="card-body py-3"><h6 class="fw-bold text-primary mb-2">${qText}</h6><ul class="mb-0 text-muted small ps-3">`;
+            validAnswers.forEach(txt => { qualHtml += `<li class="mb-1">${txt}</li>`; });
+            if (validAnswers.length === 0) qualHtml += `<li>- ไม่มีข้อเสนอแนะ -</li>`;
+            qualHtml += `</ul></div></div>`;
+        } else {
+            // คำนวณ Mean, SD สำหรับตัวเลข
+            let numAnswers = validAnswers.map(v => parseFloat(v)).filter(v => !isNaN(v));
+            let n = numAnswers.length;
+            let mean = calcMean(numAnswers);
+            let sd = calcSD(numAnswers, mean);
+            let meaning = getRatingMeaning(mean);
+
+            quantHtml += `
+                <tr>
+                    <td class="text-center">${qIndex++}</td>
+                    <td>${qText}</td>
+                    <td class="text-center">${n}</td>
+                    <td class="text-center fw-bold text-primary">${n > 0 ? mean.toFixed(2) : '-'}</td>
+                    <td class="text-center text-muted">${n > 0 ? sd.toFixed(2) : '-'}</td>
+                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${n > 0 ? meaning : '-'}</span></td>
+                </tr>`;
+        }
+    });
+
+    quantHtml += `</tbody></table></div>`;
+    contentArea.innerHTML = html + quantHtml + qualHtml;
+}
+
+// ผูกการทำงานเวลาโหลดข้อมูลหลักเสร็จ ให้เรนเดอร์แท็บนี้ด้วย
+const originalProcessAndRenderReport = window.processAndRenderReport;
+window.processAndRenderReport = function() {
+    if(originalProcessAndRenderReport) originalProcessAndRenderReport();
+    renderEvaluationReport();
+};
+
+// ============================================================
+// 💾 EXPORT TO EXCEL LOGIC (รวมข้อมูลทั้งหมดลงไฟล์เดียว)
+// ============================================================
+function exportFullReportToExcel() {
+    Swal.fire({title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    
+    setTimeout(() => {
+        try {
+            let wb = XLSX.utils.book_new();
+
+            // 1. ชีต สถิติภาพรวม (ดึงจากตาราง HTML ที่แสดงผล)
+            let statSheet = XLSX.utils.table_to_sheet(document.getElementById('exportStatTable'));
+            XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
+
+            // 2. ชีต ข้อมูลรายบุคคล (ดึงจากตาราง HTML)
+            let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
+            XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
+
+            // 3. ชีต ประเมิน (ดึงตารางปัจจุบันที่โชว์อยู่)
+            let evalTable = document.getElementById('exportEvalTable');
+            if (evalTable) {
+                let evalLabel = document.getElementById('evalTypeSelector').value === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
+                let evalSheet = XLSX.utils.table_to_sheet(evalTable);
+                XLSX.utils.book_append_sheet(wb, evalSheet, evalLabel);
+            }
+
+            // สั่งดาวน์โหลด
+            XLSX.writeFile(wb, `TMS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            Swal.close();
+            
+        } catch (error) {
+            Swal.fire('ผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้: ' + error.message, 'error');
+        }
+    }, 1000);
+}
