@@ -1591,23 +1591,34 @@ function renderEvaluationReport() {
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
     
-    // โชว์/ซ่อน Dropdown เลือกวิทยากร
+    // 🛡️ ป้องกันบั๊กกรณีข้อมูลวิทยากรยังไม่ถูกโหลด
+    if (evalType === 'SPEAKER_SURVEY' && !reportDataCache.speakers) {
+        Swal.fire('แจ้งเตือน', 'กรุณากดปุ่ม "อัปเดตข้อมูล" ด้านบนขวาก่อนครับ', 'warning');
+        document.getElementById('evalTypeSelector').value = 'PROJECT_SURVEY';
+        return;
+    }
+
+    // 🌟 1. ปรับ Dropdown ให้แสดง "ชื่อวิทยากร (หัวข้อบรรยาย)" ตามที่พี่บาบูต้องการ
     if (evalType === 'SPEAKER_SURVEY') {
         speakerSelect.classList.remove('d-none');
-        if (speakerSelect.options.length === 0) {
-            let spkHtml = '';
-            reportDataCache.speakers.forEach(s => {
-                spkHtml += `<option value="${s['รหัส']}">${s['ชื่อวิทยากร']}</option>`;
-            });
-            speakerSelect.innerHTML = spkHtml;
-        }
+        let spkHtml = '';
+        reportDataCache.speakers.forEach(s => {
+            let keys = Object.keys(s);
+            let spkId = s[keys[0]];   // รหัส
+            let spkName = s[keys[1]]; // ชื่อวิทยากร
+            let spkTopic = s[keys[2]]; // หัวข้อบรรยาย
+            
+            if (spkId && spkName) {
+                let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+                spkHtml += `<option value="${spkId}">${displayText}</option>`;
+            }
+        });
+        speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากรในระบบ</option>`;
     } else {
         speakerSelect.classList.add('d-none');
     }
 
     let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
-    
-    // กรอง Log คำตอบที่ตรงกับเงื่อนไข
     let filteredLogs = reportDataCache.survey.filter(s => s.survey_type === evalType && s.target_id === targetId);
     let totalN = filteredLogs.length;
 
@@ -1616,73 +1627,126 @@ function renderEvaluationReport() {
         return;
     }
 
-    // แปลง String JSON เป็น Object
+    // แปลงคำตอบ
     let answersList = filteredLogs.map(s => {
         try { return JSON.parse(s.answers); } catch(e) { return {}; }
     });
 
-    // ดึงคำถามจากฐานข้อมูล
-    let questions = reportDataCache.questions.filter(q => q['ประเภท (Pre/Post/Survey)'] === evalType);
-    
-    let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
-    
-    // แบ่งคำถามเป็น 2 ส่วน: เชิงปริมาณ (ตัวเลข) และ เชิงคุณภาพ (ข้อความ)
-    let quantHtml = `
-    <h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลเชิงปริมาณ (ระดับความพึงพอใจ)</h6>
-    <div class="table-responsive bg-white rounded-3 border mb-4">
-        <table class="table table-hover table-bordered align-middle small mb-0" id="exportEvalTable">
-            <thead class="table-light text-center">
-                <tr>
-                    <th style="width: 5%;">ข้อที่</th>
-                    <th class="text-start" style="width: 55%;">รายการประเมิน</th>
-                    <th style="width: 10%;">N</th>
-                    <th style="width: 10%;">ค่าเฉลี่ย (x̄)</th>
-                    <th style="width: 10%;">S.D.</th>
-                    <th style="width: 10%;">แปลผล</th>
-                </tr>
-            </thead>
-            <tbody>`;
-            
-    let qualHtml = `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะ/ความคิดเห็น)</h6>`;
-    let qIndex = 1;
-
-    questions.forEach(q => {
-        let qId = q['รหัสคำถาม'];
-        let qText = q['คำถาม'];
-        let isText = q['ตัวเลือก A'] === 'TEXT';
+    // 🌟 2. ดึงคำถามและจำแนกประเภท (CHOICE, RATING, TEXT)
+    let rawQuestions = reportDataCache.questions.filter(q => q[Object.keys(q)[1]] === evalType);
+    let targetQuestions = rawQuestions.map(q => {
+        let keys = Object.keys(q);
+        let opts = [q[keys[4]], q[keys[5]], q[keys[6]], q[keys[7]], q[keys[8]]].filter(o => o && o.toString().trim() !== "");
         
-        let validAnswers = [];
-        answersList.forEach(ans => {
-            if (ans[qId] !== undefined && ans[qId] !== "") validAnswers.push(ans[qId]);
-        });
-
-        if (isText) {
-            qualHtml += `<div class="card border-0 shadow-sm rounded-3 mb-3 bg-light"><div class="card-body py-3"><h6 class="fw-bold text-primary mb-2">${qText}</h6><ul class="mb-0 text-muted small ps-3">`;
-            validAnswers.forEach(txt => { qualHtml += `<li class="mb-1">${txt}</li>`; });
-            if (validAnswers.length === 0) qualHtml += `<li>- ไม่มีข้อเสนอแนะ -</li>`;
-            qualHtml += `</ul></div></div>`;
-        } else {
-            // คำนวณ Mean, SD สำหรับตัวเลข
-            let numAnswers = validAnswers.map(v => parseFloat(v)).filter(v => !isNaN(v));
-            let n = numAnswers.length;
-            let mean = calcMean(numAnswers);
-            let sd = calcSD(numAnswers, mean);
-            let meaning = getRatingMeaning(mean);
-
-            quantHtml += `
-                <tr>
-                    <td class="text-center">${qIndex++}</td>
-                    <td>${qText}</td>
-                    <td class="text-center">${n}</td>
-                    <td class="text-center fw-bold text-primary">${n > 0 ? mean.toFixed(2) : '-'}</td>
-                    <td class="text-center text-muted">${n > 0 ? sd.toFixed(2) : '-'}</td>
-                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${n > 0 ? meaning : '-'}</span></td>
-                </tr>`;
-        }
+        let type = 'CHOICE';
+        if (opts[0] === 'TEXT') type = 'TEXT';
+        else if (opts.length > 0 && opts.every(opt => !isNaN(opt))) type = 'RATING';
+        
+        return { q_id: q[keys[0]], category: q[keys[2]], text: q[keys[3]], inputType: type, options: opts };
     });
 
-    quantHtml += `</tbody></table></div>`;
-    contentArea.innerHTML = html + quantHtml + qualHtml;
+    let categories = [...new Set(targetQuestions.map(q => q.category))];
+    let html = `<div class="alert alert-info border-info text-dark shadow-sm mb-4"><i class="bi bi-people-fill me-2"></i>จำนวนผู้ตอบแบบประเมินทั้งหมด: <b>${totalN}</b> คน</div>`;
+
+    // ==========================================
+    // 📊 ตอนที่ 1: ข้อมูลทั่วไป (CHOICE) -> แสดง จำนวน / ร้อยละ
+    // ==========================================
+    let choiceCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'CHOICE'));
+    if (choiceCategories.length > 0) {
+        html += `<h6 class="fw-bold text-dark mt-4 mb-3">1. ข้อมูลทั่วไป (ข้อมูลพื้นฐาน)</h6>`;
+        choiceCategories.forEach(cat => {
+            let choiceQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'CHOICE');
+            html += `<div class="table-responsive bg-white rounded-3 border mb-4">
+                <table class="table table-bordered align-middle small mb-0">
+                    <thead class="table-light text-center">
+                        <tr><th class="text-start ps-4">รายการประเมิน</th><th style="width: 15%;">จำนวน (คน)</th><th style="width: 15%;">ร้อยละ (%)</th></tr>
+                    </thead><tbody>`;
+            
+            choiceQs.forEach(q => {
+                html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
+                let counts = {}; q.options.forEach(opt => counts[opt] = 0);
+                answersList.forEach(ans => { if (ans[q.q_id]) counts[ans[q.q_id]] = (counts[ans[q.q_id]] || 0) + 1; });
+                
+                q.options.forEach(opt => {
+                    let c = counts[opt] || 0; 
+                    let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
+                    html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
+                });
+            });
+            html += `</tbody></table></div>`;
+        });
+    }
+
+    // ==========================================
+    // 📈 ตอนที่ 2: ความพึงพอใจ (RATING) -> แสดง Mean, S.D., แปลผล + สรุปรายด้าน
+    // ==========================================
+    let ratingCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'RATING'));
+    if (ratingCategories.length > 0) {
+        html += `<h6 class="fw-bold text-dark mt-4 mb-3">2. ข้อมูลความพึงพอใจ (เชิงปริมาณ)</h6>`;
+        html += `<div class="table-responsive bg-white rounded-3 border mb-4">
+            <table class="table table-hover table-bordered align-middle small mb-0">
+                <thead class="table-light text-center">
+                    <tr><th style="width: 5%;">ข้อที่</th><th class="text-start" style="width: 55%;">รายการประเมิน</th><th style="width: 10%;">ค่าเฉลี่ย (x̄)</th><th style="width: 10%;">S.D.</th><th style="width: 20%;">แปลผล</th></tr>
+                </thead><tbody>`;
+        
+        let allRatingScores = [];
+        ratingCategories.forEach(cat => {
+            let ratingQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'RATING');
+            html += `<tr class="table-secondary"><td colspan="5" class="fw-bold text-success text-start ps-3"><i class="bi bi-folder2-open"></i> ${cat}</td></tr>`;
+            
+            let catScores = [];
+            ratingQs.forEach((q, idx) => {
+                let scores = [];
+                answersList.forEach(ans => { let val = parseFloat(ans[q.q_id]); if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } });
+                let mean = calcMean(scores); let sd = calcSD(scores, mean);
+                html += `<tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td class="text-start ps-4">${q.text}</td>
+                    <td class="text-center fw-bold text-primary">${scores.length > 0 ? mean.toFixed(2) : '-'}</td>
+                    <td class="text-center text-muted">${scores.length > 0 ? sd.toFixed(2) : '-'}</td>
+                    <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${scores.length > 0 ? getRatingMeaning(mean) : '-'}</span></td>
+                </tr>`;
+            });
+            // สรุปรายหมวดหมู่ (Category Mean)
+            let catMean = calcMean(catScores); let catSd = calcSD(catScores, catMean);
+            html += `<tr class="table-info fw-bold">
+                <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
+                <td class="text-center text-primary">${catScores.length > 0 ? catMean.toFixed(2) : '-'}</td>
+                <td class="text-center text-muted">${catScores.length > 0 ? catSd.toFixed(2) : '-'}</td>
+                <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catScores.length > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
+            </tr>`;
+        });
+        
+        // สรุปรวมทุกด้าน (Total Mean)
+        let allMean = calcMean(allRatingScores); let allSd = calcSD(allRatingScores, allMean);
+        html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
+            <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
+            <td class="text-center text-primary fs-6">${allRatingScores.length > 0 ? allMean.toFixed(2) : '-'}</td>
+            <td class="text-center text-muted fs-6">${allRatingScores.length > 0 ? allSd.toFixed(2) : '-'}</td>
+            <td class="text-center"><span class="badge ${allMean >= 3.5 ? 'bg-primary' : 'bg-warning text-dark'} fs-6 shadow-sm">${allRatingScores.length > 0 ? getRatingMeaning(allMean) : '-'}</span></td>
+        </tr>`;
+        html += `</tbody></table></div>`;
+    }
+
+    // ==========================================
+    // 💬 ตอนที่ 3: ข้อเสนอแนะ (TEXT)
+    // ==========================================
+    let textCategories = categories.filter(cat => targetQuestions.some(q => q.category === cat && q.inputType === 'TEXT'));
+    if (textCategories.length > 0) {
+        html += `<h6 class="fw-bold text-dark mt-4 mb-3">3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)</h6>`;
+        textCategories.forEach(cat => {
+            let textQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'TEXT');
+            textQs.forEach((q, i) => {
+                let texts = []; answersList.forEach(ans => { if(ans[q.q_id] && ans[q.q_id].trim() !== '') texts.push(ans[q.q_id].trim()); });
+                html += `<div class="card border-0 shadow-sm rounded-3 mb-3 bg-light"><div class="card-body py-3"><h6 class="fw-bold text-primary mb-2">${i+1}. ${q.text}</h6><ul class="mb-0 text-muted small ps-3">`;
+                texts.forEach(txt => { html += `<li class="mb-1">${txt}</li>`; });
+                if (texts.length === 0) html += `<li>- ไม่มีข้อเสนอแนะ -</li>`;
+                html += `</ul></div></div>`;
+            });
+        });
+    }
+
+    contentArea.innerHTML = html;
 }
 
 // ผูกการทำงานเวลาโหลดข้อมูลหลักเสร็จ ให้เรนเดอร์แท็บนี้ด้วย
@@ -1710,12 +1774,27 @@ function exportFullReportToExcel() {
             let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
             XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
 
-            // 3. ชีต ประเมิน (ดึงตารางปัจจุบันที่โชว์อยู่)
-            let evalTable = document.getElementById('exportEvalTable');
-            if (evalTable) {
-                let evalLabel = document.getElementById('evalTypeSelector').value === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
-                let evalSheet = XLSX.utils.table_to_sheet(evalTable);
-                XLSX.utils.book_append_sheet(wb, evalSheet, evalLabel);
+            // 3. ปรับโครงสร้างหน้าเว็บชั่วคราวเพื่อ Export เฉพาะตารางประเมินได้ง่ายขึ้น
+            let evalType = document.getElementById('evalTypeSelector').value;
+            let evalLabel = evalType === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
+            
+            // หาตารางทั้งหมดในหน้า Report
+            let contentArea = document.getElementById('evalReportContent');
+            let tables = contentArea.querySelectorAll('table');
+            
+            if (tables.length > 0) {
+                // สร้าง Sheet ใหม่แบบว่างๆ
+                let ws = XLSX.utils.aoa_to_sheet([[`รายงานผล: ${evalLabel}`], []]);
+                
+                // ก๊อปปี้ข้อมูลทุกตารางมาเรียงต่อกัน
+                tables.forEach(table => {
+                    let tempSheet = XLSX.utils.table_to_sheet(table);
+                    let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
+                    XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); // ต่อท้ายตาราง
+                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1}); // เว้นบรรทัด
+                });
+
+                XLSX.utils.book_append_sheet(wb, ws, "รายงานความพึงพอใจ");
             }
 
             // สั่งดาวน์โหลด
