@@ -468,9 +468,6 @@ async function openSurveyForm(type) {
 // ==========================================
 // 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown
 // ==========================================
-// ==========================================
-// 🌟 ปรับปรุง: เปลี่ยนหน้าเลือกวิทยากรเป็น Dropdown (รองรับภาษาไทย)
-// ==========================================
 function renderSpeakerCards() {
     let selectionArea = document.getElementById("speakerSelectionArea");
     if (!globalSurveyData.speakers || globalSurveyData.speakers.length === 0) {
