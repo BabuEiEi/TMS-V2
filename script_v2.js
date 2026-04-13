@@ -954,7 +954,7 @@ function processAndRenderReport() {
 }
 
 // ============================================================
-// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis)
+// 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - FIXED HTML BINDINGS
 // ============================================================
 
 let globalEvalData = null;
@@ -967,8 +967,9 @@ function getRatingMeaning(mean) {
     return "น้อยที่สุด";
 }
 
+// 🌟 ดึงข้อมูลจากฐานข้อมูล
 async function fetchEvaluationSummary() {
-    const container = document.getElementById('evalReportContent');
+    const container = document.getElementById('eval-detail-container');
     if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
     
     try {
@@ -980,49 +981,51 @@ async function fetchEvaluationSummary() {
         
         if (result.status === 'success') {
             globalEvalData = result; 
-            renderEvaluationReport(); 
+            
+            // 🌟 อัปเดต Dropdown ให้ตรงกับ HTML ID เดิมของพี่บาบูเป๊ะๆ
+            const select = document.getElementById('eval-target-select');
+            if(select) {
+                let currentVal = select.value;
+                let html = '<option value="PROJECT">📌 ประเมินภาพรวมโครงการ</option>';
+                
+                if (globalEvalData.speakers) {
+                    globalEvalData.speakers.forEach(spk => {
+                        let keys = Object.keys(spk);
+                        let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
+                        let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
+                        let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
+                        if (spkId && spkName) {
+                            let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
+                            html += `<option value="${spkId}">🎤 ${displayText}</option>`;
+                        }
+                    });
+                }
+                select.innerHTML = html;
+                
+                if (currentVal && select.querySelector(`option[value="${currentVal}"]`)) {
+                    select.value = currentVal;
+                }
+            }
+            
+            renderEvaluationDetail(); // เรียกใช้งานตาราง
         } else {
             if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
         }
     } catch(e) {
-        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง</div>`;
+        if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง หรือไม่ได้ Deploy Code.gs เป็นเวอร์ชันใหม่</div>`;
     }
 }
 
-function renderEvaluationReport() {
+// 🌟 สร้างตารางข้อมูล
+function renderEvaluationDetail() {
     if (!globalEvalData) return;
 
-    let evalType = document.getElementById('evalTypeSelector').value;
-    let speakerSelect = document.getElementById('evalSpeakerSelector');
-    let contentArea = document.getElementById('evalReportContent');
+    let targetId = document.getElementById('eval-target-select').value;
+    let contentArea = document.getElementById('eval-detail-container');
     
-    if (evalType === 'SPEAKER_SURVEY') {
-        speakerSelect.classList.remove('d-none');
-        let currentSpkVal = speakerSelect.value;
-        
-        let spkHtml = '';
-        globalEvalData.speakers.forEach(spk => {
-            let keys = Object.keys(spk);
-            let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
-            let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
-            let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
-            
-            if (spkId && spkName) {
-                let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
-                spkHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
-            }
-        });
-        speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากร</option>`;
-        
-        if (currentSpkVal && speakerSelect.querySelector(`option[value="${currentSpkVal}"]`)) {
-            speakerSelect.value = currentSpkVal;
-        }
-    } else {
-        speakerSelect.classList.add('d-none');
-    }
-
-    let targetId = evalType === 'PROJECT_SURVEY' ? 'PROJECT' : speakerSelect.value;
-    const targetSurveys = globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId);
+    let evalType = targetId === 'PROJECT' ? 'PROJECT_SURVEY' : 'SPEAKER_SURVEY';
+    
+    const targetSurveys = globalEvalData.surveys ? globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId) : [];
     const totalN = targetSurveys.length;
 
     if(totalN === 0) {
@@ -1046,7 +1049,6 @@ function renderEvaluationReport() {
         if (qType === evalType) {
             let cat = qData.category || qData.q_category || qData['หมวดหมู่'];
             let txt = qData.text || qData.question || qData['คำถาม'];
-            
             let opts = [qData.opt_a || qData['ตัวเลือก A'], qData.opt_b || qData['ตัวเลือก B'], qData.opt_c || qData['ตัวเลือก C'], qData.opt_d || qData['ตัวเลือก D'], qData.opt_e || qData['ตัวเลือก E']].filter(o=>o);
             
             let inputType = qData.inputType || qData.input_type || 'CHOICE';
@@ -1055,7 +1057,6 @@ function renderEvaluationReport() {
                 else if(opts.length > 0 && opts.every(o => !isNaN(o))) inputType = 'RATING';
             }
             let options = qData.options || opts.filter(o => o !== 'TEXT');
-            
             targetQuestions.push({ q_id: qId, category: cat, text: txt, inputType: inputType, options: options }); 
         }
     }
@@ -1199,58 +1200,41 @@ function renderEvaluationReport() {
     contentArea.innerHTML = html;
 }
 
-// โหลดข้อมูลอัตโนมัติเมื่อกดเข้าแท็บ
-const originalSwitchAdminTab = window.switchAdminTab;
-window.switchAdminTab = function(tabName) {
-    if(originalSwitchAdminTab) originalSwitchAdminTab(tabName);
-    if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    const evalTabBtn = document.getElementById('evaluation-tab');
-    if(evalTabBtn) {
-        evalTabBtn.addEventListener('click', () => {
-            if(!globalEvalData) fetchEvaluationSummary();
-        });
-    }
-});
-
-// ============================================================
-// 💾 EXPORT TO EXCEL LOGIC (รวมข้อมูลทั้งหมดลงไฟล์เดียว)
-// ============================================================
-function exportFullReportToExcel() {
+// 🌟 เปลี่ยนชื่อให้ตรงกับความสามารถจริงๆ ของน้องครับ
+function exportEvaluationToExcel() {
     Swal.fire({title: 'กำลังสร้างไฟล์ Excel...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-    
     setTimeout(() => {
         try {
             let wb = XLSX.utils.book_new();
-
-            let statSheet = XLSX.utils.table_to_sheet(document.getElementById('exportStatTable'));
-            XLSX.utils.book_append_sheet(wb, statSheet, "สถิติผลคะแนน");
-
-            let userSheet = XLSX.utils.table_to_sheet(document.getElementById('exportUserTable'));
-            XLSX.utils.book_append_sheet(wb, userSheet, "ข้อมูลสรุปรายบุคคล");
-
-            let evalType = document.getElementById('evalTypeSelector').value;
-            let evalLabel = evalType === 'PROJECT_SURVEY' ? 'ประเมินโครงการ' : 'ประเมินวิทยากร';
             
-            let contentArea = document.getElementById('evalReportContent');
+            // ดึงชื่อหัวข้อประเมินมาทำชื่อชีตหรือหัวไฟล์
+            let selectObj = document.getElementById('eval-target-select');
+            let evalLabel = selectObj ? selectObj.options[selectObj.selectedIndex].text : "Report";
+            
+            // ระบุ Container ที่เก็บตารางประเมิน (ชื่อ ID ต้องตรงกับใน index.html)
+            let contentArea = document.getElementById('eval-detail-container');
             let tables = contentArea.querySelectorAll('table');
             
             if (tables.length > 0) {
-                let ws = XLSX.utils.aoa_to_sheet([[`รายงานผล: ${evalLabel}`], []]);
+                // สร้างแผ่นงาน (Worksheet)
+                let ws = XLSX.utils.aoa_to_sheet([[`รายงานผลการประเมิน: ${evalLabel}`], []]);
+                
+                // วนลูปกวาดทุกตารางในหน้านั้นมาใส่ใน Excel
                 tables.forEach(table => {
                     let tempSheet = XLSX.utils.table_to_sheet(table);
                     let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
-                    XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); 
-                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1}); 
+                    XLSX.utils.sheet_add_aoa(ws, tableData, {origin: -1}); // ต่อท้ายแถวล่างสุด
+                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});      // เว้นช่องว่างระหว่างตาราง
                 });
-                XLSX.utils.book_append_sheet(wb, ws, "รายงานความพึงพอใจ");
-            }
 
-            XLSX.writeFile(wb, `TMS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-            Swal.close();
-            
+                XLSX.utils.book_append_sheet(wb, ws, "Evaluation_Result");
+                
+                // สั่ง Save เป็นนามสกุล .xlsx (นี่แหละครับไฟล์ Excel แท้ๆ)
+                XLSX.writeFile(wb, `TMS_Evaluation_${new Date().getTime()}.xlsx`);
+                Swal.close();
+            } else {
+                Swal.fire('ไม่พบข้อมูล', 'กรุณาเลือกรายการประเมินก่อนส่งออกครับ', 'warning');
+            }
         } catch (error) {
             Swal.fire('ผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้: ' + error.message, 'error');
         }
