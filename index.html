@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 
     <style>
@@ -291,11 +292,107 @@
                 </div>
                 
                 <div id="adminTab_reportManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
-                    <div class="card-body p-5 text-center text-muted">
-                        <h4 class="fw-bold text-dark">📑 ระบบสรุปรายงานผล</h4>
-                        <div class="py-5">
-                            <i class="bi bi-file-earmark-bar-graph text-secondary" style="font-size: 5rem;"></i>
-                            <p class="mt-3 fs-5">ระบบกำลังรวบรวมข้อมูลคะแนนและเวลาเรียนเพื่อส่งออกรายงาน</p>
+                    <div class="card-body p-4 p-md-5">
+                        
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
+                            <h4 class="fw-bold text-dark mb-0">📊 Dashboard & สรุปรายงานผล</h4>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-info rounded-pill px-4 shadow-sm fw-bold" onclick="loadReportDashboard()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> อัปเดตข้อมูล
+                                </button>
+                                <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="alert('ระบบ Export Excel เชิงลึก จะมาในเฟส 2 ครับ!')">
+                                    <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        <ul class="nav nav-pills mb-4" id="reportTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active rounded-pill fw-bold px-4" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">📈 สถิติภาพรวม & รายบุคคล</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="evaluation-tab" data-bs-toggle="pill" data-bs-target="#evaluation" type="button" role="tab">📋 ผลประเมินวิทยากร/โครงการ (เฟส 2)</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="reportTabsContent">
+                            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                                <div id="reportLoading" class="text-center py-5 text-muted">
+                                    <div class="spinner-border text-primary mb-3"></div><p>กำลังประมวลผลข้อมูลมหาศาล...</p>
+                                </div>
+
+                                <div id="reportContent" class="d-none">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">👥 ผู้อบรม (Trainee)</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalTrainee">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">📝 ผู้เข้าสอบ Pre-Test</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalPre">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-dark border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">🏆 ผู้เข้าสอบ Post-Test</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalPost">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">✅ สอบผ่านเกณฑ์</h6>
+                                                <h2 class="mb-0 fw-bold" id="repPassPost">0</h2>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-4 mb-5">
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-light">
+                                                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-calculator"></i> สถิติผลคะแนนการทดสอบ</h6>
+                                                <table class="table table-sm table-borderless">
+                                                    <thead class="border-bottom"><tr><th>รายการ</th><th class="text-center">Pre-Test</th><th class="text-center">Post-Test</th></tr></thead>
+                                                    <tbody id="statTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-light">
+                                                <canvas id="examChart" style="max-height: 250px;"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">ตารางสรุปผลรายบุคคล</h5>
+                                    <div class="table-responsive bg-white rounded-3 border">
+                                        <table class="table table-hover align-middle small text-nowrap mb-0">
+                                            <thead class="table-light text-center align-top">
+                                                <tr>
+                                                    <th>รหัส</th>
+                                                    <th class="text-start">ชื่อ-นามสกุล / สังกัด</th>
+                                                    <th>เวลาเรียน</th>
+                                                    <th>Pre-Test</th>
+                                                    <th>Post-Test</th>
+                                                    <th>ภาระงาน</th>
+                                                    <th>รวมคะแนน</th>
+                                                    <th>ประเมินวิทยากร</th>
+                                                    <th>ประเมินโครงการ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="repUserTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="evaluation" role="tabpanel">
+                                <div class="text-center py-5 text-muted">
+                                    <i class="bi bi-tools text-secondary" style="font-size: 4rem;"></i>
+                                    <h5 class="mt-3 fw-bold">ระบบประมวลผลความพึงพอใจและ Export กำลังก่อสร้าง (เฟส 2)</h5>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

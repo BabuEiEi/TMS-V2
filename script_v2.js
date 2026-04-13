@@ -1401,3 +1401,172 @@ async function uploadExcelToGAS(rowsData) {
         Swal.fire('ขัดข้อง', 'การเชื่อมต่อล้มเหลว', 'error');
     }
 }
+
+// ============================================================
+// 📊 REPORT & DASHBOARD LOGIC (Phase 1)
+// ============================================================
+let reportDataCache = null;
+let examChartInstance = null;
+
+// ฟังก์ชันคณิตศาสตร์: หาค่าเฉลี่ย และ SD
+const calcMean = arr => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
+const calcSD = (arr, mean) => arr.length <= 1 ? 0 : Math.sqrt(arr.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / (arr.length - 1));
+
+async function loadReportDashboard() {
+    document.getElementById('reportLoading').classList.remove('d-none');
+    document.getElementById('reportContent').classList.add('d-none');
+
+    try {
+        let res = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getDashboardReport' })
+        });
+        reportDataCache = await res.json();
+        
+        if (reportDataCache.status === 'success') {
+            processAndRenderReport();
+        } else {
+            Swal.fire('ผิดพลาด', reportDataCache.message, 'error');
+        }
+    } catch (e) {
+        Swal.fire('ขัดข้อง', 'เชื่อมต่อระบบ Report ล้มเหลว', 'error');
+    }
+}
+
+function processAndRenderReport() {
+    let { users, attendance, exam, assignment, survey, examConfig, assignConfig } = reportDataCache;
+
+    // 1. คัดเฉพาะคนที่บทบาทเป็น "Trainee" (ผู้อบรม)
+    let trainees = users.filter(u => u['บทบาท'] === 'Trainee');
+    let totalTrainee = trainees.length;
+    
+    document.getElementById('repTotalTrainee').innerText = totalTrainee;
+
+    // 2. จัดกลุ่มข้อมูลแยกตามรายบุคคล (Data Joining)
+    let userDataMap = {};
+    trainees.forEach(u => {
+        userDataMap[u['รหัสประจำตัว']] = {
+            name: u['ชื่อ-นามสกุล'],
+            org: u['สังกัด/หน่วยงาน'],
+            attCount: 0, preScore: null, postScore: null, assignScore: 0,
+            evalSpeaker: false, evalProject: false
+        };
+    });
+
+    // ประมวลผลสอบ
+    let preScores = [], postScores = [];
+    let passPostCount = 0;
+    
+    // หาเกณฑ์ผ่านจาก Config (สมมติใช้แถวแรกของ POST)
+    let postConfig = examConfig.find(c => c['ประเภทการสอบ'] === 'POST');
+    let passingCriteria = postConfig ? parseFloat(postConfig['เกณฑ์การผ่าน']) : 60;
+
+    exam.forEach(e => {
+        let pid = e.personal_id;
+        if(userDataMap[pid]) {
+            let score = parseFloat(e.score) || 0;
+            let percent = (score / (parseFloat(e.max_score) || 1)) * 100;
+            
+            if(e.test_type === 'PRE' && userDataMap[pid].preScore === null) {
+                userDataMap[pid].preScore = score;
+                preScores.push(score);
+            }
+            if(e.test_type === 'POST') {
+                // เก็บแต้มที่ดีที่สุด
+                if(userDataMap[pid].postScore === null || score > userDataMap[pid].postScore) {
+                    userDataMap[pid].postScore = score;
+                }
+            }
+        }
+    });
+
+    // สรุป Post-Test (อัปเดตแต้มที่ดีที่สุดลง Array และเช็กผ่าน)
+    Object.values(userDataMap).forEach(u => {
+        if(u.postScore !== null) {
+            postScores.push(u.postScore);
+            let pct = (u.postScore / (postConfig ? parseFloat(postConfig['คะแนนเต็ม'] || 100) : 100)) * 100; // สมมติ 100
+            if(pct >= passingCriteria) passPostCount++;
+        }
+    });
+
+    document.getElementById('repTotalPre').innerText = preScores.length;
+    document.getElementById('repTotalPost').innerText = postScores.length;
+    document.getElementById('repPassPost').innerText = passPostCount;
+
+    // ประมวลผลเวลาเรียน, ส่งงาน, ประเมิน (คำนวณเบื้องต้น)
+    attendance.forEach(a => { if(userDataMap[a.personal_id]) userDataMap[a.personal_id].attCount++; });
+    assignment.forEach(a => { if(userDataMap[a.personal_id] && (a.status === 'ตรวจแล้ว' || a.status === 'รอตรวจ')) userDataMap[a.personal_id].assignScore += (parseFloat(a.score) || 0); });
+    survey.forEach(s => { 
+        if(userDataMap[s.personal_id]) {
+            if(s.survey_type === 'PROJECT_SURVEY') userDataMap[s.personal_id].evalProject = true;
+            if(s.survey_type === 'SPEAKER_SURVEY') userDataMap[s.personal_id].evalSpeaker = true;
+        }
+    });
+
+    // 3. คำนวณสถิติ
+    let preMean = calcMean(preScores), postMean = calcMean(postScores);
+    let statHtml = `
+        <tr><td>คะแนนเฉลี่ย (Mean)</td><td class="text-center fw-bold text-info">${preMean.toFixed(2)}</td><td class="text-center fw-bold text-success">${postMean.toFixed(2)}</td></tr>
+        <tr><td>คะแนนสูงสุด (Max)</td><td class="text-center">${preScores.length ? Math.max(...preScores) : 0}</td><td class="text-center">${postScores.length ? Math.max(...postScores) : 0}</td></tr>
+        <tr><td>คะแนนต่ำสุด (Min)</td><td class="text-center">${preScores.length ? Math.min(...preScores) : 0}</td><td class="text-center">${postScores.length ? Math.min(...postScores) : 0}</td></tr>
+        <tr><td>ส่วนเบี่ยงเบนมาตรฐาน (SD)</td><td class="text-center text-muted">${calcSD(preScores, preMean).toFixed(2)}</td><td class="text-center text-muted">${calcSD(postScores, postMean).toFixed(2)}</td></tr>
+    `;
+    document.getElementById('statTableBody').innerHTML = statHtml;
+
+    // 4. วาดกราฟเปรียบเทียบ
+    let ctx = document.getElementById('examChart').getContext('2d');
+    if(examChartInstance) examChartInstance.destroy();
+    examChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['คะแนนเฉลี่ย', 'คะแนนสูงสุด', 'คะแนนต่ำสุด'],
+            datasets: [
+                { label: 'Pre-Test', data: [preMean.toFixed(2), preScores.length ? Math.max(...preScores) : 0, preScores.length ? Math.min(...preScores) : 0], backgroundColor: '#0dcaf0' },
+                { label: 'Post-Test', data: [postMean.toFixed(2), postScores.length ? Math.max(...postScores) : 0, postScores.length ? Math.min(...postScores) : 0], backgroundColor: '#198754' }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // 5. สร้างตารางรายบุคคล
+    let tableHtml = '';
+    Object.keys(userDataMap).forEach(pid => {
+        let u = userDataMap[pid];
+        let preBadge = u.preScore !== null ? `<span class="badge bg-info">${u.preScore}</span>` : '<span class="text-muted">-</span>';
+        let postBadge = u.postScore !== null ? `<span class="badge bg-success">${u.postScore}</span>` : '<span class="text-muted">-</span>';
+        let totalScore = (u.postScore || 0) + u.assignScore;
+        
+        let spkEval = u.evalSpeaker ? '✔️' : '❌';
+        let prjEval = u.evalProject ? '✔️' : '❌';
+
+        tableHtml += `
+            <tr>
+                <td class="text-center text-muted">${pid}</td>
+                <td><div class="fw-bold text-primary">${u.name}</div><div class="small text-muted" style="font-size: 0.75rem;">${u.org}</div></td>
+                <td class="text-center">${u.attCount} ครั้ง</td>
+                <td class="text-center">${preBadge}</td>
+                <td class="text-center">${postBadge}</td>
+                <td class="text-center text-primary fw-bold">${u.assignScore}</td>
+                <td class="text-center text-danger fw-bold fs-6">${totalScore}</td>
+                <td class="text-center">${spkEval}</td>
+                <td class="text-center">${prjEval}</td>
+            </tr>
+        `;
+    });
+
+    if(tableHtml === '') tableHtml = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
+    document.getElementById('repUserTableBody').innerHTML = tableHtml;
+
+    // ปิด Loading
+    document.getElementById('reportLoading').classList.add('d-none');
+    document.getElementById('reportContent').classList.remove('d-none');
+}
+
+// 🌟 ผูกการโหลด Report เมื่อสลับแท็บ
+const originalSwitchAdminTab = window.switchAdminTab;
+window.switchAdminTab = function(tabName) {
+    originalSwitchAdminTab(tabName); // เรียกฟังก์ชันเดิม
+    if (tabName === 'reportManage' && !reportDataCache) {
+        loadReportDashboard();
+    }
+};
