@@ -33,7 +33,8 @@ function doPost(e) {
     else if (action === 'getAssignmentData') { result = getAssignmentData(payload.personal_id); }
     else if (action === 'submitAssignment') { result = submitAssignment(payload); }
     else if (action === 'cancelAssignment') { result = cancelAssignment(payload); }
-    
+    else if (action === 'getAttendanceData') { result = getAttendanceData(payload.personal_id); }
+
     // Admin
     else if (action === 'getAdminConfigs') { result = getAdminConfigs(); } 
     else if (action === 'updateConfigStatus') { result = updateConfigStatus(payload); }
