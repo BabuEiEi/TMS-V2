@@ -952,12 +952,19 @@ function processAndRenderReport() {
     document.getElementById('repTotalPost').innerText = postScores.length;
     document.getElementById('repPassPost').innerText = passPostCount;
 
-    attendance.forEach(a => { if(userDataMap[a.personal_id]) userDataMap[a.personal_id].attCount++; });
+    attendance.forEach(a => {
+        if(userDataMap[a.personal_id]) {
+            let note = String(a.note || a[Object.keys(a)[5]] || '').toLowerCase();
+            if (!note.includes('ลาป่วย') && !note.includes('ลากิจ')) {
+                userDataMap[a.personal_id].attCount++;
+            }
+        }
+    });
     assignment.forEach(a => { if(userDataMap[a.personal_id] && (a.status === 'ตรวจแล้ว' || a.status === 'รอตรวจ')) userDataMap[a.personal_id].assignScore += (parseFloat(a.score) || 0); });
-    survey.forEach(s => { 
+    survey.forEach(s => {
         if(userDataMap[s.personal_id]) {
             if(s.survey_type === 'PROJECT_SURVEY') userDataMap[s.personal_id].evalProject = true;
-            if(s.survey_type === 'SPEAKER_SURVEY') userDataMap[s.personal_id].evalSpeaker = true;
+            if(s.survey_type === 'SPEAKER_SURVEY') userDataMap[s.personal_id].evalSpeakerCount = (userDataMap[s.personal_id].evalSpeakerCount || 0) + 1;
         }
     });
 
@@ -990,7 +997,9 @@ function processAndRenderReport() {
         let preBadge = u.preScore !== null ? `<span class="badge bg-info">${u.preScore}</span>` : '<span class="text-muted">-</span>';
         let postBadge = u.postScore !== null ? `<span class="badge bg-success">${u.postScore}</span>` : '<span class="text-muted">-</span>';
         let totalScore = (u.postScore || 0) + u.assignScore;
-        let spkEval = u.evalSpeaker ? '✔️' : '❌'; let prjEval = u.evalProject ? '✔️' : '❌';
+        let spkCount = u.evalSpeakerCount || 0;
+        let spkEval = spkCount > 0 ? `<span class="badge bg-success">${spkCount}</span>` : '❌';
+        let prjEval = u.evalProject ? '✔️' : '❌';
 
         tableHtml += `<tr><td class="text-center text-muted">${pid}</td><td><div class="fw-bold text-primary">${u.name}</div><div class="small text-muted" style="font-size: 0.75rem;">${u.area || '-'}</div></td><td class="small">${u.org || '-'}</td><td class="text-center">${u.attCount} ครั้ง</td><td class="text-center">${preBadge}</td><td class="text-center">${postBadge}</td><td class="text-center text-primary fw-bold">${u.assignScore}</td><td class="text-center text-danger fw-bold fs-6">${totalScore}</td><td class="text-center">${spkEval}</td><td class="text-center">${prjEval}</td></tr>`;
     });
