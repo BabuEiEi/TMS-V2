@@ -715,6 +715,19 @@ function renderAdminTable(targetId = "configTableContainer") {
     document.getElementById(targetId).innerHTML = html;
 }
 
+function filterUserTable() {
+    let keyword = document.getElementById('userSearchInput').value.trim().toLowerCase();
+    if (!keyword) { renderAdminTable('userTableContainer'); return; }
+    let filtered = adminConfigRows.filter(row => {
+        // Search in personal_id(0), name(1), Area_Service(3), group_target(5)
+        return [0, 1, 3, 5].some(i => row[i] && String(row[i]).toLowerCase().includes(keyword));
+    });
+    let backup = adminConfigRows;
+    adminConfigRows = filtered;
+    renderAdminTable('userTableContainer');
+    adminConfigRows = backup;
+}
+
 function parseDateTimeValue(val) {
     let now = new Date(); let d = now.toISOString().split('T')[0]; let h = String(now.getHours()).padStart(2, '0'); let m = String(now.getMinutes()).padStart(2, '0');
     if (val && val.trim() !== '') {
