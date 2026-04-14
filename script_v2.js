@@ -1010,7 +1010,11 @@ function renderTaskEvalTab() {
     if (!reportDataCache || reportDataCache.status !== 'success') return;
     let { users, assignment, survey, assignConfig, speakers } = reportDataCache;
 
+    let keyword = (document.getElementById('taskEvalSearchInput')?.value || '').trim().toLowerCase();
     let trainees = users.filter(u => String(u['role']).toUpperCase() === 'TRAINEE');
+    if (keyword) {
+        trainees = trainees.filter(u => [u['personal_id'], u['name'], u['Area_Service'], u['group_target']].some(v => v && String(v).toLowerCase().includes(keyword)));
+    }
     let assignments = assignConfig || [];
     let speakerList = (speakers || []).filter(s => s['spk_id']);
 
