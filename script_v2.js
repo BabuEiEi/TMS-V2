@@ -990,6 +990,85 @@ function processAndRenderReport() {
 }
 
 // ============================================================
+// 📝 ภาระงานและประเมินวิทยากร รายบุคคล
+// ============================================================
+
+function renderTaskEvalTab() {
+    if (!reportDataCache || reportDataCache.status !== 'success') return;
+    let { users, assignment, survey, assignConfig, speakers } = reportDataCache;
+
+    let trainees = users.filter(u => String(u['role']).toUpperCase() === 'TRAINEE');
+    let assignments = assignConfig || [];
+    let speakerList = (speakers || []).filter(s => s['spk_id']);
+
+    // Build header
+    let thHtml = '<tr><th>รหัสประจำตัว</th><th class="text-start">ชื่อ-นามสกุล</th><th class="text-start">กลุ่มเป้าหมาย</th>';
+    assignments.forEach(a => {
+        thHtml += `<th class="text-center"><div>${a['assign_id']}</div><div class="small text-muted" style="font-size:0.65rem; white-space:normal; max-width:100px;">${a['assign_title'] || ''}</div></th>`;
+    });
+    speakerList.forEach(s => {
+        thHtml += `<th class="text-center"><div>${s['spk_id']}</div><div class="small text-muted" style="font-size:0.65rem; white-space:normal; max-width:100px;">${s['spk_name'] || ''}</div></th>`;
+    });
+    thHtml += '</tr>';
+    document.getElementById('taskEvalThead').innerHTML = thHtml;
+
+    // Build assignment lookup: personal_id -> assign_id -> { score, status }
+    let assignMap = {};
+    (assignment || []).forEach(a => {
+        let pid = a['personal_id'];
+        let aid = a['assign_id'];
+        if (!assignMap[pid]) assignMap[pid] = {};
+        assignMap[pid][aid] = { score: parseFloat(a['score']) || 0, status: a['status'] || '' };
+    });
+
+    // Build survey lookup: personal_id -> spk_id -> true
+    let surveyMap = {};
+    (survey || []).forEach(s => {
+        if (s['survey_type'] === 'SPEAKER_SURVEY') {
+            let pid = s['personal_id'];
+            let sid = s['speaker_id'] || s['spk_id'] || '';
+            if (!surveyMap[pid]) surveyMap[pid] = {};
+            surveyMap[pid][sid] = true;
+        }
+    });
+
+    // Build rows
+    let tbHtml = '';
+    trainees.forEach(u => {
+        let pid = u['personal_id'];
+        tbHtml += `<tr>`;
+        tbHtml += `<td class="text-center text-muted">${pid}</td>`;
+        tbHtml += `<td><div class="fw-bold text-primary">${u['name']}</div><div class="small text-muted" style="font-size:0.75rem;">${u['Area_Service'] || '-'}</div></td>`;
+        tbHtml += `<td class="small">${u['group_target'] || '-'}</td>`;
+
+        assignments.forEach(a => {
+            let aid = a['assign_id'];
+            let data = assignMap[pid] && assignMap[pid][aid];
+            if (data) {
+                let badge = data.status === 'ตรวจแล้ว' ? 'bg-success' : data.status === 'รอตรวจ' ? 'bg-warning text-dark' : 'bg-secondary';
+                tbHtml += `<td class="text-center"><span class="badge ${badge}">${data.score}</span><div class="small text-muted" style="font-size:0.6rem;">${data.status}</div></td>`;
+            } else {
+                tbHtml += `<td class="text-center text-muted">-</td>`;
+            }
+        });
+
+        speakerList.forEach(s => {
+            let sid = s['spk_id'];
+            let done = surveyMap[pid] && surveyMap[pid][sid];
+            tbHtml += `<td class="text-center">${done ? '✔️' : '❌'}</td>`;
+        });
+
+        tbHtml += `</tr>`;
+    });
+
+    if (tbHtml === '') {
+        let colSpan = 3 + assignments.length + speakerList.length;
+        tbHtml = `<tr><td colspan="${colSpan}" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
+    }
+    document.getElementById('taskEvalTbody').innerHTML = tbHtml;
+}
+
+// ============================================================
 // 📋 PHASE 2: ระบบประมวลผลการประเมิน (Survey Analysis) - ULTIMATE FIX
 // ============================================================
 

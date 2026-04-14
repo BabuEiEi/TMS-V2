@@ -311,6 +311,9 @@
                                 <button class="nav-link active rounded-pill fw-bold px-4" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">📈 สถิติภาพรวม & รายบุคคล</button>
                             </li>
                             <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="taskeval-tab" data-bs-toggle="pill" data-bs-target="#taskeval" type="button" role="tab" onclick="renderTaskEvalTab()">📝 ภาระงานและประเมิน</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
                                 <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="evaluation-tab" data-bs-toggle="pill" data-bs-target="#evaluation" type="button" role="tab">📋 ผลประเมินวิทยากร/โครงการ</button>
                             </li>
                         </ul>
@@ -389,6 +392,16 @@
                                 </div>
                             </div>
                             
+                            <div class="tab-pane fade" id="taskeval" role="tabpanel">
+                                <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">ภาระงานและประเมินวิทยากร รายบุคคล</h5>
+                                <div class="table-responsive bg-white rounded-3 border">
+                                    <table class="table table-hover align-middle small text-nowrap mb-0">
+                                        <thead class="table-light text-center align-top" id="taskEvalThead"></thead>
+                                        <tbody id="taskEvalTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <div class="tab-pane fade" id="evaluation" role="tabpanel">
                                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
                                     <h5 class="fw-bold text-primary border-start border-4 border-primary ps-2 mb-0">ผลการวิเคราะห์ความพึงพอใจ</h5>
