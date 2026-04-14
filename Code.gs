@@ -107,7 +107,8 @@ function doPost(e) {
           examConfig: getSheetData('Exam_Config'),
           assignConfig: getSheetData('Assignment_Config'),
           questions: getSheetData('Questions_Bank'),
-          speakers: getSheetData('Speakers_Config')
+          speakers: getSheetData('Speakers_Config'),
+          attendanceConfig: getSheetData('Attendance_Config')
         };
       } catch (err) {
         result = { status: 'error', message: err.toString() };

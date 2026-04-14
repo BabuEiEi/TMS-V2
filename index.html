@@ -314,6 +314,9 @@
                                 <button class="nav-link active rounded-pill fw-bold px-4" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">📈 สถิติภาพรวม & รายบุคคล</button>
                             </li>
                             <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="attendance-tab" data-bs-toggle="pill" data-bs-target="#attendanceReport" type="button" role="tab" onclick="renderAttendanceTab()">🕐 สถิติการลงเวลา</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
                                 <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="taskeval-tab" data-bs-toggle="pill" data-bs-target="#taskeval" type="button" role="tab" onclick="renderTaskEvalTab()">📝 ภาระงานและประเมิน</button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -395,6 +398,24 @@
                                 </div>
                             </div>
                             
+                            <div class="tab-pane fade" id="attendanceReport" role="tabpanel">
+                                <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">สถิติการลงเวลา รายบุคคล</h5>
+                                <div class="mb-3">
+                                    <input type="text" id="attSearchInput" class="form-control rounded-pill shadow-sm" placeholder="🔍 ค้นหา รหัสประจำตัว, ชื่อ, คลัสเตอร์, กลุ่ม..." oninput="renderAttendanceTab()">
+                                </div>
+                                <div class="d-flex flex-wrap gap-3 mb-3 p-3 bg-light rounded-3 border small">
+                                    <span class="fw-bold text-secondary">คำอธิบายสัญลักษณ์:</span>
+                                    <span><span class="text-success fw-bold">✔</span> ลงเวลาแล้ว</span>
+                                    <span class="text-muted">- ยังไม่ลงเวลา</span>
+                                </div>
+                                <div class="table-responsive bg-white rounded-3 border">
+                                    <table class="table table-hover table-bordered align-middle small text-nowrap mb-0" id="exportAttendanceTable">
+                                        <thead id="attThead"></thead>
+                                        <tbody id="attTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <div class="tab-pane fade" id="taskeval" role="tabpanel">
                                 <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">ภาระงานและประเมินวิทยากร รายบุคคล</h5>
                                 <div class="mb-3">

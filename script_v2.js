@@ -1003,6 +1003,109 @@ function processAndRenderReport() {
 }
 
 // ============================================================
+// 🕐 สถิติการลงเวลา รายบุคคล
+// ============================================================
+
+function renderAttendanceTab() {
+    if (!reportDataCache || reportDataCache.status !== 'success') return;
+    let { users, attendance, attendanceConfig } = reportDataCache;
+
+    let keyword = (document.getElementById('attSearchInput')?.value || '').trim().toLowerCase();
+    let trainees = users.filter(u => String(u['role']).toUpperCase() === 'TRAINEE');
+    if (keyword) {
+        trainees = trainees.filter(u => [u['personal_id'], u['name'], u['Cluster'], u['group_target']].some(v => v && String(v).toLowerCase().includes(keyword)));
+    }
+
+    let configs = (attendanceConfig || []).filter(c => String(c['is_active (เปิดใช้)'] || c['is_active']).toUpperCase() === 'TRUE');
+
+    // Group configs by day_no
+    let dayMap = {};
+    configs.forEach(c => {
+        let dayNo = c['day_no (วันที่)'] || c['day_no'] || '';
+        let date = c['date (ว/ด/ป)'] || c['date'] || '';
+        let slotId = c['slot_id (รหัสรอบ)'] || c['slot_id'] || '';
+        let slotLabel = c['slot_label (ชื่อรอบ)'] || c['slot_label'] || '';
+        if (!dayMap[dayNo]) dayMap[dayNo] = { date: date, slots: [] };
+        dayMap[dayNo].slots.push({ slotId, slotLabel });
+    });
+
+    let dayKeys = Object.keys(dayMap).sort((a, b) => parseInt(a) - parseInt(b));
+    let totalSlots = configs.length;
+
+    // Build header - 2 rows
+    let thRow1 = '<tr class="table-light text-center"><th rowspan="2" class="align-middle">รหัส</th><th rowspan="2" class="align-middle">ชื่อ-สกุล</th><th rowspan="2" class="align-middle">คลัสเตอร์</th><th rowspan="2" class="align-middle">กลุ่ม</th>';
+    let thRow2 = '<tr class="table-primary text-center">';
+
+    dayKeys.forEach(dayNo => {
+        let d = dayMap[dayNo];
+        let dateStr = d.date;
+        try {
+            let dt = new Date(dateStr);
+            if (!isNaN(dt)) {
+                let thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+                let buddhistYear = (dt.getFullYear() + 543).toString().slice(-2);
+                dateStr = dt.getDate() + ' ' + thaiMonths[dt.getMonth()] + ' ' + buddhistYear;
+            }
+        } catch(e) {}
+        thRow1 += `<th colspan="${d.slots.length}" class="align-middle text-center">วันที่ ${dayNo}<br><span class="small text-muted">(${dateStr})</span></th>`;
+        d.slots.forEach(s => {
+            let shortLabel = s.slotLabel.replace('รอบ', '');
+            thRow2 += `<th>${shortLabel}</th>`;
+        });
+    });
+
+    thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">รวม<br>(ครั้ง)</th>';
+    thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">ร้อยละ<br>(%)</th>';
+    thRow1 += '</tr>';
+    thRow2 += '</tr>';
+
+    document.getElementById('attThead').innerHTML = thRow1 + thRow2;
+
+    // Build attendance lookup: personal_id -> "dayNo_slotId" -> true
+    let attMap = {};
+    (attendance || []).forEach(a => {
+        let pid = a['personal_id'] || a[Object.keys(a)[1]] || '';
+        let dNo = a['day_no'] || a[Object.keys(a)[2]] || '';
+        let slot = a['time_slot'] || a['slot_id'] || a[Object.keys(a)[3]] || '';
+        let key = String(dNo) + '_' + String(slot);
+        if (!attMap[pid]) attMap[pid] = {};
+        attMap[pid][key] = true;
+    });
+
+    // Build rows
+    let tbHtml = '';
+    trainees.forEach(u => {
+        let pid = u['personal_id'];
+        let count = 0;
+        tbHtml += '<tr>';
+        tbHtml += `<td class="text-center text-muted">${pid}</td>`;
+        tbHtml += `<td><div class="fw-bold text-primary">${u['name']}</div><div class="small text-muted" style="font-size:0.75rem;">${u['Area_Service'] || '-'}</div></td>`;
+        tbHtml += `<td class="small">${u['Cluster'] || '-'}</td>`;
+        tbHtml += `<td class="small">${u['group_target'] || '-'}</td>`;
+
+        dayKeys.forEach(dayNo => {
+            dayMap[dayNo].slots.forEach(s => {
+                let key = String(dayNo) + '_' + String(s.slotId);
+                let checked = attMap[pid] && attMap[pid][key];
+                if (checked) count++;
+                tbHtml += `<td class="text-center">${checked ? '<span class="text-success fw-bold">✔</span>' : '<span class="text-muted">-</span>'}</td>`;
+            });
+        });
+
+        let pct = totalSlots > 0 ? ((count / totalSlots) * 100).toFixed(1) : '0.0';
+        tbHtml += `<td class="text-center fw-bold text-primary">${count}</td>`;
+        tbHtml += `<td class="text-center fw-bold ${parseFloat(pct) >= 80 ? 'text-success' : 'text-danger'}">${pct}</td>`;
+        tbHtml += '</tr>';
+    });
+
+    if (tbHtml === '') {
+        let colSpan = 4 + totalSlots + 2;
+        tbHtml = `<tr><td colspan="${colSpan}" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
+    }
+    document.getElementById('attTbody').innerHTML = tbHtml;
+}
+
+// ============================================================
 // 📝 ภาระงานและประเมินวิทยากร รายบุคคล
 // ============================================================
 
@@ -1435,7 +1538,18 @@ function exportFullReportToExcel() {
                 }
             }
 
-            // --- ชีตที่ 4: ภาระงานและประเมินวิทยากร ---
+            // --- ชีตที่ 4: สถิติการลงเวลา ---
+            let attTable = document.getElementById('exportAttendanceTable');
+            if (attTable && attTable.querySelector('tbody').children.length > 0) {
+                let attSearch = document.getElementById('attSearchInput');
+                let prevAttSearch = attSearch ? attSearch.value : '';
+                if (attSearch) { attSearch.value = ''; renderAttendanceTab(); }
+                let wsAtt = XLSX.utils.table_to_sheet(document.getElementById('exportAttendanceTable'));
+                XLSX.utils.book_append_sheet(wb, wsAtt, "สถิติการลงเวลา");
+                if (attSearch) { attSearch.value = prevAttSearch; renderAttendanceTab(); }
+            }
+
+            // --- ชีตที่ 5: ภาระงานและประเมินวิทยากร ---
             let taskEvalTable = document.getElementById('exportTaskEvalTable');
             if (taskEvalTable && taskEvalTable.querySelector('tbody').children.length > 0) {
                 // เคลียร์ค้นหาก่อน export เพื่อให้ได้ข้อมูลครบ
