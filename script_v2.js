@@ -1435,6 +1435,18 @@ function exportFullReportToExcel() {
                 }
             }
 
+            // --- ชีตที่ 4: ภาระงานและประเมินวิทยากร ---
+            let taskEvalTable = document.getElementById('exportTaskEvalTable');
+            if (taskEvalTable && taskEvalTable.querySelector('tbody').children.length > 0) {
+                // เคลียร์ค้นหาก่อน export เพื่อให้ได้ข้อมูลครบ
+                let searchInput = document.getElementById('taskEvalSearchInput');
+                let prevSearch = searchInput ? searchInput.value : '';
+                if (searchInput) { searchInput.value = ''; renderTaskEvalTab(); }
+                let ws4 = XLSX.utils.table_to_sheet(document.getElementById('exportTaskEvalTable'));
+                XLSX.utils.book_append_sheet(wb, ws4, "ภาระงานและประเมิน");
+                if (searchInput) { searchInput.value = prevSearch; renderTaskEvalTab(); }
+            }
+
             // 2. สั่งบันทึกไฟล์ (ระบุชื่อไฟล์ตามวันที่ปัจจุบัน)
             let today = new Date().toISOString().split('T')[0];
             XLSX.writeFile(wb, `TMS_Report_Full_${today}.xlsx`);
