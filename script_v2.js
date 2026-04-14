@@ -1093,28 +1093,16 @@ function renderAttendanceTab() {
                 let record = attMap[pid] && attMap[pid][key];
                 if (record) {
                     count++;
-                    // เช็คว่ามีหมายเหตุลา
-                    if (record.note && record.note !== '') {
+                    let note = record.note.toLowerCase();
+                    if (note.includes('ลาป่วย') || note.includes('ลากิจ')) {
+                        // มีหมายเหตุลา
                         tbHtml += `<td class="text-center"><span class="badge bg-info text-dark" title="${record.note}">ลา</span></td>`;
+                    } else if (note.includes('[สาย]')) {
+                        // สาย
+                        tbHtml += `<td class="text-center"><span class="text-warning fw-bold" title="${record.note}">✔</span></td>`;
                     } else {
-                        // เช็คว่าสายไหม (ลงเวลาหลัง end_time)
-                        let isLate = false;
-                        try {
-                            let logTime = record.timestamp;
-                            // timestamp format: dd/MM/yyyy HH:mm:ss — extract HH:mm
-                            let timeMatch = logTime.match(/(\d{1,2}):(\d{2})(:\d{2})?$/);
-                            let endMatch = String(s.endTime).match(/(\d{1,2}):(\d{2})/);
-                            if (timeMatch && endMatch) {
-                                let logMin = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
-                                let endMin = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
-                                if (logMin > endMin) isLate = true;
-                            }
-                        } catch(e) {}
-                        if (isLate) {
-                            tbHtml += `<td class="text-center"><span class="text-warning fw-bold" title="สาย (${record.timestamp})">✔</span></td>`;
-                        } else {
-                            tbHtml += `<td class="text-center"><span class="text-success fw-bold">✔</span></td>`;
-                        }
+                        // ตรงเวลา
+                        tbHtml += `<td class="text-center"><span class="text-success fw-bold">✔</span></td>`;
                     }
                 } else {
                     tbHtml += `<td class="text-center"><span class="text-muted">-</span></td>`;
