@@ -1025,8 +1025,9 @@ function renderAttendanceTab() {
         let date = c['date (ว/ด/ป)'] || c['date'] || '';
         let slotId = c['slot_id (รหัสรอบ)'] || c['slot_id'] || '';
         let slotLabel = c['slot_label (ชื่อรอบ)'] || c['slot_label'] || '';
+        let endTime = c['end_time (สิ้นสุด)'] || c['end_time'] || '';
         if (!dayMap[dayNo]) dayMap[dayNo] = { date: date, slots: [] };
-        dayMap[dayNo].slots.push({ slotId, slotLabel });
+        dayMap[dayNo].slots.push({ slotId, slotLabel, endTime });
     });
 
     let dayKeys = Object.keys(dayMap).sort((a, b) => parseInt(a) - parseInt(b));
@@ -1061,15 +1062,18 @@ function renderAttendanceTab() {
 
     document.getElementById('attThead').innerHTML = thRow1 + thRow2;
 
-    // Build attendance lookup: personal_id -> "dayNo_slotId" -> true
+    // Build attendance lookup: personal_id -> "dayNo_slotId" -> { timestamp, note }
     let attMap = {};
     (attendance || []).forEach(a => {
-        let pid = a['personal_id'] || a[Object.keys(a)[1]] || '';
-        let dNo = a['day_no'] || a[Object.keys(a)[2]] || '';
-        let slot = a['time_slot'] || a['slot_id'] || a[Object.keys(a)[3]] || '';
+        let keys = Object.keys(a);
+        let pid = a['personal_id'] || a[keys[1]] || '';
+        let dNo = a['day_no'] || a[keys[2]] || '';
+        let slot = a['time_slot'] || a['slot_id'] || a[keys[3]] || '';
+        let timestamp = a['timestamp'] || a[keys[4]] || '';
+        let note = a['note'] || a[keys[5]] || '';
         let key = String(dNo) + '_' + String(slot);
         if (!attMap[pid]) attMap[pid] = {};
-        attMap[pid][key] = true;
+        attMap[pid][key] = { timestamp: String(timestamp), note: String(note).trim() };
     });
 
     // Build rows
@@ -1086,9 +1090,35 @@ function renderAttendanceTab() {
         dayKeys.forEach(dayNo => {
             dayMap[dayNo].slots.forEach(s => {
                 let key = String(dayNo) + '_' + String(s.slotId);
-                let checked = attMap[pid] && attMap[pid][key];
-                if (checked) count++;
-                tbHtml += `<td class="text-center">${checked ? '<span class="text-success fw-bold">✔</span>' : '<span class="text-muted">-</span>'}</td>`;
+                let record = attMap[pid] && attMap[pid][key];
+                if (record) {
+                    count++;
+                    // เช็คว่ามีหมายเหตุลา
+                    if (record.note && record.note !== '') {
+                        tbHtml += `<td class="text-center"><span class="badge bg-info text-dark" title="${record.note}">ลา</span></td>`;
+                    } else {
+                        // เช็คว่าสายไหม (ลงเวลาหลัง end_time)
+                        let isLate = false;
+                        try {
+                            let logTime = record.timestamp;
+                            // timestamp format: dd/MM/yyyy HH:mm:ss — extract HH:mm
+                            let timeMatch = logTime.match(/(\d{1,2}):(\d{2})(:\d{2})?$/);
+                            let endMatch = String(s.endTime).match(/(\d{1,2}):(\d{2})/);
+                            if (timeMatch && endMatch) {
+                                let logMin = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+                                let endMin = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
+                                if (logMin > endMin) isLate = true;
+                            }
+                        } catch(e) {}
+                        if (isLate) {
+                            tbHtml += `<td class="text-center"><span class="text-warning fw-bold" title="สาย (${record.timestamp})">✔</span></td>`;
+                        } else {
+                            tbHtml += `<td class="text-center"><span class="text-success fw-bold">✔</span></td>`;
+                        }
+                    }
+                } else {
+                    tbHtml += `<td class="text-center"><span class="text-muted">-</span></td>`;
+                }
             });
         });
 
