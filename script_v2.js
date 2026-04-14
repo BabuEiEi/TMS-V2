@@ -910,7 +910,7 @@ function processAndRenderReport() {
 
     let userDataMap = {};
     trainees.forEach(u => {
-        userDataMap[u['personal_id']] = { name: u['name'], org: u['Area_Service'], attCount: 0, preScore: null, postScore: null, assignScore: 0, evalSpeaker: false, evalProject: false };
+        userDataMap[u['personal_id']] = { name: u['name'], org: u['group_target'], attCount: 0, preScore: null, postScore: null, assignScore: 0, evalSpeaker: false, evalProject: false };
     });
 
     let preScores = [], postScores = [];
