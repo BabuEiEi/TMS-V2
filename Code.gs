@@ -60,13 +60,50 @@ function doPost(e) {
           });
         };
 
+        // ดึง Logs จาก DB ภายนอก (DB_SHARDS)
+        var getExternalData = function(shardKey, sheetName) {
+          try {
+            var extSs = SpreadsheetApp.openById(DB_SHARDS[shardKey]);
+            var sheet = sheetName ? extSs.getSheetByName(sheetName) : extSs.getSheets()[0];
+            if(!sheet) return [];
+            var data = sheet.getDataRange().getDisplayValues();
+            if(data.length <= 1) return [];
+            var headers = data.shift();
+            return data.map(function(row) {
+              var obj = {};
+              headers.forEach(function(h, i) { obj[h] = row[i]; });
+              return obj;
+            });
+          } catch(e) { return []; }
+        };
+
+        // ดึง attendance logs
+        var attendanceLogs = getExternalData('ATTENDANCE');
+
+        // ดึง exam logs จาก Test_Scores
+        var examLogs = getExternalData('EXAM', 'Test_Scores');
+
+        // ดึง assignment logs จาก Assignment_Log
+        var assignmentLogs = getExternalData('ASSIGNMENT', 'Assignment_Log');
+
+        // ดึง survey logs (project + speaker)
+        var surveyLogs = [];
+        var projLogs = getExternalData('PROJECT');
+        projLogs.forEach(function(r) {
+          surveyLogs.push({ personal_id: r.personal_id || r[Object.keys(r)[1]], survey_type: 'PROJECT_SURVEY', speaker_id: '' });
+        });
+        var spkLogs = getExternalData('SPEAKER');
+        spkLogs.forEach(function(r) {
+          surveyLogs.push({ personal_id: r.personal_id || r[Object.keys(r)[1]], survey_type: 'SPEAKER_SURVEY', speaker_id: r.speaker_id || r.spk_id || r[Object.keys(r)[2]] || '' });
+        });
+
         result = {
           status: 'success',
           users: getSheetData('Users'),
-          attendance: getSheetData('Attendance_Logs'),
-          exam: getSheetData('Exam_Logs'),
-          assignment: getSheetData('Assignment_Logs'),
-          survey: getSheetData('Survey_Logs'),
+          attendance: attendanceLogs,
+          exam: examLogs,
+          assignment: assignmentLogs,
+          survey: surveyLogs,
           examConfig: getSheetData('Exam_Config'),
           assignConfig: getSheetData('Assignment_Config'),
           questions: getSheetData('Questions_Bank'),
