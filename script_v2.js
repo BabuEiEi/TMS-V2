@@ -979,7 +979,7 @@ function processAndRenderReport() {
         let totalScore = (u.postScore || 0) + u.assignScore;
         let spkEval = u.evalSpeaker ? '✔️' : '❌'; let prjEval = u.evalProject ? '✔️' : '❌';
 
-        tableHtml += `<tr><td class="text-center text-muted">${pid}</td><td><div class="fw-bold text-primary">${u.name}</div><div class="small text-muted" style="font-size: 0.75rem;">${u.org}</div></td><td class="text-center">${u.attCount} ครั้ง</td><td class="text-center">${preBadge}</td><td class="text-center">${postBadge}</td><td class="text-center text-primary fw-bold">${u.assignScore}</td><td class="text-center text-danger fw-bold fs-6">${totalScore}</td><td class="text-center">${spkEval}</td><td class="text-center">${prjEval}</td></tr>`;
+        tableHtml += `<tr><td class="text-center text-muted">${pid}</td><td><div class="fw-bold text-primary">${u.name}</div></td><td class="small text-muted">${u.org || '-'}</td><td class="text-center">${u.attCount} ครั้ง</td><td class="text-center">${preBadge}</td><td class="text-center">${postBadge}</td><td class="text-center text-primary fw-bold">${u.assignScore}</td><td class="text-center text-danger fw-bold fs-6">${totalScore}</td><td class="text-center">${spkEval}</td><td class="text-center">${prjEval}</td></tr>`;
     });
 
     if(tableHtml === '') tableHtml = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
