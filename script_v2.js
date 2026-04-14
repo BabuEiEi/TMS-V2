@@ -529,7 +529,7 @@ function renderAssignmentDashboard() {
         let showLateWarning = sub ? (sub.is_late === 'TRUE' || sub.is_late === true) : isLateDeadline;
         let lateBadge = showLateWarning ? `<span class="badge bg-danger ms-2">ส่งงานช้า</span>` : '';
 
-        let taskInfo = `<div class="fw-bold text-dark fs-6">${asn.title} ${lateBadge}</div><div class="text-muted small my-1" style="white-space: pre-wrap; word-break: break-word;">${asn.description}</div><div class="text-danger fw-bold small mt-2">⏰ กำหนดส่ง: ${formatThaiDate(asn.end_datetime)} เวลา ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')} น.</div>`;
+        let taskInfo = `<div class="fw-bold text-dark fs-6">${asn.title} ${lateBadge}</div><div class="text-muted small my-1" style="word-break: break-word;">${asn.description}</div><div class="text-danger fw-bold small mt-2">⏰ กำหนดส่ง: ${formatThaiDate(asn.end_datetime)} เวลา ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')} น.</div>`;
 
         let statusBadge = ''; let actionBtn = ''; let feedbackText = sub && sub.feedback ? sub.feedback : '-';
 
@@ -793,7 +793,7 @@ function openConfigForm(id = null) {
         } else if (adminCurrentConfigSheet === 'Speakers_Config') {
             if (i === 0) inputHtml = makeAutoId('SPK'); else if (i === 3 || i === 4) inputHtml = makeDateTimePicker(); else if (i === 5) inputHtml = makeDropdown(["TRUE", "FALSE"]); else inputHtml = makeText();
         } else if (adminCurrentConfigSheet === 'Assignment_Config') {
-            if (i === 0) inputHtml = makeAutoId('ASN'); else if (i === 3) inputHtml = makeDropdown(["LINK", "FILE"]); else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]); else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]); else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`; else if (i === 10) inputHtml = makeRubricEditor(); else if (i === 2) inputHtml = makeText(true); else inputHtml = makeText();
+            if (i === 0) inputHtml = makeAutoId('ASN'); else if (i === 3) inputHtml = makeDropdown(["LINK", "FILE"]); else if (i === 5 || i === 6) inputHtml = makeDateTimePicker(); else if (i === 7) inputHtml = makeDropdown(["TRUE", "FALSE"]); else if (i === 8) inputHtml = makeDropdown(["ALL", "ศึกษานิเทศก์", "ผู้บริหาร", "ครู"]); else if (i === 9) inputHtml = `<input type="number" id="cfgInput_${i}" class="form-control bg-light text-primary fw-bold border-secondary shadow-sm" value="${val}" readonly>`; else if (i === 10) inputHtml = makeRubricEditor(); else if (i === 2) inputHtml = `<div id="quillEditor" style="min-height:150px;">${val}</div><input type="hidden" id="cfgInput_${i}" value="">`; else inputHtml = makeText();
         } else if (adminCurrentConfigSheet === 'Questions_Bank') {
             if (i === 1) inputHtml = makeDropdown(["PROJECT_SURVEY", "SPEAKER_SURVEY", "TEST", "PRE_TEST", "POST_TEST"]); else inputHtml = makeText();
         } else if (adminCurrentConfigSheet === 'Users') {
@@ -809,8 +809,34 @@ function openConfigForm(id = null) {
 
     Swal.fire({
         title: isNew ? '✨ เพิ่มข้อมูลใหม่' : '✏️ แก้ไขข้อมูล', html: html, width: '800px', showCancelButton: true, confirmButtonText: '💾 บันทึกข้อมูล', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#198754',
-        didOpen: () => { if (adminCurrentConfigSheet === 'Assignment_Config') window.calcRubricTotal(); if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange(); },
+        didOpen: () => {
+            if (adminCurrentConfigSheet === 'Assignment_Config') {
+                window.calcRubricTotal();
+                let editorEl = document.getElementById('quillEditor');
+                if (editorEl) {
+                    window.quillInstance = new Quill('#quillEditor', {
+                        theme: 'snow',
+                        modules: {
+                            toolbar: [
+                                [{ 'size': ['small', false, 'large', 'huge'] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ 'color': [] }, { 'background': [] }],
+                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                [{ 'align': [] }],
+                                ['link'],
+                                ['clean']
+                            ]
+                        }
+                    });
+                }
+            }
+            if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange();
+        },
         preConfirm: () => {
+            // Sync Quill content to hidden input
+            if (window.quillInstance && document.getElementById('cfgInput_2')) {
+                document.getElementById('cfgInput_2').value = window.quillInstance.root.innerHTML;
+            }
             let newData = [];
             for(let i=0; i<adminConfigHeaders.length; i++) {
                 let el = document.getElementById(`cfgInput_${i}`); let val = el.value.trim();
