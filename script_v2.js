@@ -1055,7 +1055,7 @@ function renderTaskEvalTab() {
         speakerList.forEach(s => {
             let sid = s['spk_id'];
             let done = surveyMap[pid] && surveyMap[pid][sid];
-            tbHtml += `<td class="text-center">${done ? '✔️' : '❌'}</td>`;
+            tbHtml += `<td class="text-center">${done ? '<span class="text-success fw-bold fs-5">✔️</span>' : '❌'}</td>`;
         });
 
         tbHtml += `</tr>`;
