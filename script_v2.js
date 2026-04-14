@@ -904,19 +904,19 @@ async function loadReportDashboard() {
 function processAndRenderReport() {
     let { users, attendance, exam, assignment, survey, examConfig, assignConfig } = reportDataCache;
 
-    let trainees = users.filter(u => u['บทบาท'] === 'Trainee');
+    let trainees = users.filter(u => String(u['role']).toUpperCase() === 'TRAINEE');
     let totalTrainee = trainees.length;
     document.getElementById('repTotalTrainee').innerText = totalTrainee;
 
     let userDataMap = {};
     trainees.forEach(u => {
-        userDataMap[u['รหัสประจำตัว']] = { name: u['ชื่อ-นามสกุล'], org: u['สังกัด/หน่วยงาน'], attCount: 0, preScore: null, postScore: null, assignScore: 0, evalSpeaker: false, evalProject: false };
+        userDataMap[u['personal_id']] = { name: u['name'], org: u['Area_Service'], attCount: 0, preScore: null, postScore: null, assignScore: 0, evalSpeaker: false, evalProject: false };
     });
 
     let preScores = [], postScores = [];
     let passPostCount = 0;
-    let postConfig = examConfig.find(c => c['ประเภทการสอบ'] === 'POST');
-    let passingCriteria = postConfig ? parseFloat(postConfig['เกณฑ์การผ่าน']) : 60;
+    let postConfig = examConfig.find(c => c['test_type'] === 'POST');
+    let passingCriteria = postConfig ? parseFloat(postConfig['passing_percent']) : 60;
 
     exam.forEach(e => {
         let pid = e.personal_id;
@@ -930,7 +930,7 @@ function processAndRenderReport() {
     Object.values(userDataMap).forEach(u => {
         if(u.postScore !== null) {
             postScores.push(u.postScore);
-            let pct = (u.postScore / (postConfig ? parseFloat(postConfig['คะแนนเต็ม'] || 100) : 100)) * 100;
+            let pct = (u.postScore / (postConfig ? parseFloat(postConfig['full_score'] || 100) : 100)) * 100;
             if(pct >= passingCriteria) passPostCount++;
         }
     });
