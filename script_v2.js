@@ -821,7 +821,7 @@ function openConfigForm(id = null) {
                                 [{ 'size': ['small', false, 'large', 'huge'] }],
                                 ['bold', 'italic', 'underline', 'strike'],
                                 [{ 'color': [] }, { 'background': [] }],
-                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
                                 [{ 'align': [] }],
                                 ['link'],
                                 ['clean']
