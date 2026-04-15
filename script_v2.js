@@ -639,7 +639,8 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
 
     if (!confirmSubmit.isConfirmed) return;
     let payload = { personal_id: localStorage.getItem("tms_personal_id"), assign_id: assignId, submission_type: subType, target_folder_id: asnConfig.target_folder_id, is_late: isLate };
-    executeAssignmentSubmit(payload, subType === 'LINK' ? linkToSubmit : fileToSubmit);
+    if (subType === 'LINK') payload.file_link = linkToSubmit;
+    executeAssignmentSubmit(payload, subType === 'LINK' ? null : fileToSubmit);
 }
 
 async function executeAssignmentSubmit(payload, fileObj = null) {
