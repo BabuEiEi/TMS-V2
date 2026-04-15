@@ -305,9 +305,20 @@
                                 <button class="btn btn-outline-info rounded-pill px-4 shadow-sm fw-bold" onclick="loadReportDashboard()">
                                     <i class="bi bi-arrow-clockwise me-1"></i> อัปเดตข้อมูล
                                 </button>
-                                <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="exportFullReportToExcel()">
-                                    <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
-                                </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                        <li><h6 class="dropdown-header text-muted small">เลือกรายงานที่ต้องการ</h6></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('summary'); return false;"><i class="bi bi-bar-chart-fill text-primary me-2"></i>สถิติผลคะแนน + ข้อมูลรายบุคคล</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('attendance'); return false;"><i class="bi bi-clock-fill text-info me-2"></i>สถิติการลงเวลา</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('taskeval'); return false;"><i class="bi bi-clipboard-check-fill text-warning me-2"></i>ภาระงานและประเมิน</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('eval'); return false;"><i class="bi bi-star-fill text-success me-2"></i>ประเมินวิทยากร/โครงการ (ปัจจุบัน)</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item fw-bold text-success" href="#" onclick="exportFullReportToExcel(); return false;"><i class="bi bi-file-earmark-excel-fill me-2"></i>Export ทั้งหมด (รวมทุกชีต)</a></li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
 

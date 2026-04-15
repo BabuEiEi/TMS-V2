@@ -1535,6 +1535,86 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 // 💾 EXPORT TO EXCEL (แยกชีตตามหมวดหมู่และชื่อวิทยากร)
 // ============================================================
+// ============================================================
+// Export แยกตามประเภทรายงาน
+// ============================================================
+function exportReportSheet(type) {
+    let today = new Date().toISOString().split('T')[0];
+    try {
+        let wb = XLSX.utils.book_new();
+
+        if (type === 'summary') {
+            // สถิติผลคะแนน
+            let statTable = document.getElementById('exportStatTable');
+            if (statTable) { XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(statTable), "สถิติผลคะแนน"); }
+            // ข้อมูลสรุปรายบุคคล
+            let userTable = document.getElementById('exportUserTable');
+            if (userTable) { XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(userTable), "ข้อมูลสรุปรายบุคคล"); }
+            if (wb.SheetNames.length === 0) { Swal.fire('ไม่มีข้อมูล', 'กรุณาโหลดรายงานก่อน Export', 'warning'); return; }
+            XLSX.writeFile(wb, `TMS_สถิติ_${today}.xlsx`);
+
+        } else if (type === 'attendance') {
+            let attTable = document.getElementById('exportAttendanceTable');
+            if (!attTable || attTable.querySelector('tbody').children.length === 0) { Swal.fire('ไม่มีข้อมูล', 'กรุณาเปิดแท็บ สถิติการลงเวลา ก่อน', 'warning'); return; }
+            let attSearch = document.getElementById('attSearchInput');
+            let prev = attSearch ? attSearch.value : '';
+            if (attSearch) { attSearch.value = ''; renderAttendanceTab(); }
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('exportAttendanceTable')), "สถิติการลงเวลา");
+            if (attSearch) { attSearch.value = prev; renderAttendanceTab(); }
+            XLSX.writeFile(wb, `TMS_ลงเวลา_${today}.xlsx`);
+
+        } else if (type === 'taskeval') {
+            let taskTable = document.getElementById('exportTaskEvalTable');
+            if (!taskTable || taskTable.querySelector('tbody').children.length === 0) { Swal.fire('ไม่มีข้อมูล', 'กรุณาเปิดแท็บ ภาระงานและประเมิน ก่อน', 'warning'); return; }
+            let searchInput = document.getElementById('taskEvalSearchInput');
+            let prev = searchInput ? searchInput.value : '';
+            if (searchInput) { searchInput.value = ''; renderTaskEvalTab(); }
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(document.getElementById('exportTaskEvalTable')), "ภาระงานและประเมิน");
+            if (searchInput) { searchInput.value = prev; renderTaskEvalTab(); }
+            XLSX.writeFile(wb, `TMS_ภาระงาน_${today}.xlsx`);
+
+        } else if (type === 'eval') {
+            let evalTypeObj = document.getElementById('evalTypeSelector');
+            let speakerObj = document.getElementById('evalSpeakerSelector');
+            let sheetName = "ประเมินวิทยากร";
+            if (evalTypeObj && evalTypeObj.value === 'PROJECT_SURVEY') {
+                sheetName = "ประเมินโครงการ";
+            } else if (speakerObj && !speakerObj.classList.contains('d-none')) {
+                sheetName = speakerObj.options[speakerObj.selectedIndex].text.replace("🎤 ", "").substring(0, 31);
+            }
+            let contentArea = document.getElementById('evalReportContent');
+            if (!contentArea || contentArea.querySelectorAll('table').length === 0) { Swal.fire('ไม่มีข้อมูล', 'กรุณาเลือกรายงานประเมินก่อน', 'warning'); return; }
+
+            let ws = XLSX.utils.aoa_to_sheet([[`สรุปผล${sheetName}`], []]);
+            contentArea.querySelectorAll('table').forEach(table => {
+                let data = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(table), {header: 1});
+                XLSX.utils.sheet_add_aoa(ws, data, {origin: -1});
+                XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+            });
+            let accordionEl = contentArea.querySelector('#textAccordion');
+            if (accordionEl) {
+                XLSX.utils.sheet_add_aoa(ws, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], {origin: -1});
+                XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+                accordionEl.querySelectorAll('.accordion-item').forEach((item, idx) => {
+                    let q = item.querySelector('.accordion-button');
+                    XLSX.utils.sheet_add_aoa(ws, [[q ? q.innerText.trim() : `คำถาม ${idx+1}`]], {origin: -1});
+                    let answers = item.querySelectorAll('.list-group-item:not(.text-muted)');
+                    if (answers.length === 0) { XLSX.utils.sheet_add_aoa(ws, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], {origin: -1}); }
+                    else { answers.forEach((ans, ai) => { XLSX.utils.sheet_add_aoa(ws, [[`  ${ai+1}. ${ans.innerText.replace(/^[▶→➤]\s*/, '').trim()}`]], {origin: -1}); }); }
+                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+                });
+            }
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            XLSX.writeFile(wb, `TMS_ประเมิน_${sheetName}_${today}.xlsx`);
+        }
+
+        Swal.fire({ icon: 'success', title: 'Export สำเร็จ', timer: 1500, showConfirmButton: false });
+    } catch (e) {
+        console.error(e);
+        Swal.fire('ผิดพลาด', 'ไม่สามารถสร้างไฟล์ได้: ' + e.message, 'error');
+    }
+}
+
 function exportFullReportToExcel() {
     Swal.fire({
         title: 'กำลังสร้างไฟล์ Excel...',
