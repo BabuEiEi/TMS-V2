@@ -136,24 +136,38 @@ function renderAttendanceButtons(schedule, userLogs) {
         let endDateTime = new Date(slot.date + "T" + safeEndTime + ":00");
 
         if (loggedData) {
-            // loggedData format: "dd/MM/yyyy HH:mm:ss" → parse เอง ป้องกัน NaN
+            // รองรับทั้ง format เก่า (string) และใหม่ (object {timestamp, note})
+            const tsRaw = typeof loggedData === 'object' ? loggedData.timestamp : loggedData;
+            const noteRaw = typeof loggedData === 'object' ? (loggedData.note || '') : '';
+
             let logTimeString = '--:--';
             let isLogLate = false;
-            const tsParts = loggedData.toString().trim().match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+            const tsParts = tsRaw.toString().trim().match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
             let logTime = null;
             if (tsParts) {
                 logTime = new Date(tsParts[3], tsParts[2] - 1, tsParts[1], tsParts[4], tsParts[5]);
                 logTimeString = tsParts[4] + ':' + tsParts[5];
                 isLogLate = logTime > endDateTime;
             } else {
-                // fallback: ลอง parse ตรง
-                logTime = new Date(loggedData);
+                logTime = new Date(tsRaw);
                 if (!isNaN(logTime.getTime())) {
                     logTimeString = logTime.getHours().toString().padStart(2,'0') + ':' + logTime.getMinutes().toString().padStart(2,'0');
                     isLogLate = logTime > endDateTime;
                 }
             }
-            let lateMark = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
+
+            // แสดงสถานะตาม note: "[สาย] ลาป่วย" → "(ลาป่วย)", "[สาย] ลากิจ" → "(ลากิจ)", สาย → "(สาย)"
+            let lateMark = '';
+            if (noteRaw) {
+                const noteClean = noteRaw.replace(/\[สาย\]\s*/i, '').trim();
+                if (noteClean) {
+                    lateMark = ` <span class="text-danger">(${noteClean})</span>`;
+                } else if (isLogLate) {
+                    lateMark = ' <span class="text-danger">(สาย)</span>';
+                }
+            } else if (isLogLate) {
+                lateMark = ' <span class="text-danger">(สาย)</span>';
+            }
             
             btnContainer.innerHTML += `
                 <div class="card mb-3 p-4 bg-light border-0 rounded-4 text-center shadow-sm opacity-75">

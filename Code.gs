@@ -158,9 +158,12 @@ function getAttendanceData(personalId) {
         var logs = logSheet.getDataRange().getDisplayValues();
         
         var userLogs = {};
-        for (var i = 1; i < logs.length; i++) { 
+        for (var i = 1; i < logs.length; i++) {
             if (logs[i][1] === personalId) {
-                userLogs[logs[i][2] + '_' + logs[i][3]] = logs[i][4]; 
+                userLogs[logs[i][2] + '_' + logs[i][3]] = {
+                    timestamp: logs[i][4],
+                    note: logs[i][5] || ''
+                };
             }
         }
         
