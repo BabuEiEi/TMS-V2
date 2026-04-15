@@ -77,7 +77,8 @@ function showDashboard() {
     if (userDataStr) {
         const user = JSON.parse(userDataStr);
         const role = user.role ? user.role.toUpperCase() : "";
-        if (role === 'ADMIN') { renderAdminDashboard(); return; }
+        if (role === 'ADMIN')  { renderAdminDashboard(); return; }
+        if (role === 'STAFF')  { renderStaffDashboard(); return; }
     }
     document.getElementById("dashboardSection").classList.remove("d-none");
 }
@@ -651,7 +652,47 @@ const CUSTOM_HEADERS = {
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
+    restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
+}
+
+// ============================================================
+// 👔 STAFF SYSTEM FUNCTIONS
+// ============================================================
+function renderStaffDashboard() {
+    document.getElementById("dashboardSection").classList.add("d-none");
+    document.getElementById("adminSection").classList.remove("d-none");
+
+    // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
+    let btnSystem = document.getElementById('sidebarBtnSystem');
+    let btnUser   = document.getElementById('sidebarBtnUser');
+    let btnReport = document.getElementById('sidebarBtnReport');
+    if (btnSystem) btnSystem.classList.add('d-none');
+    if (btnUser)   btnUser.classList.add('d-none');
+
+    // ไฮไลต์ปุ่มสรุปรายงานผล และเปลี่ยนสี border sidebar เป็น success
+    if (btnReport) {
+        btnReport.classList.add('active', 'fw-bold');
+        btnReport.classList.remove('d-none');
+    }
+    let sidebar = document.querySelector('#adminSidebar .border-primary');
+    if (sidebar) { sidebar.classList.replace('border-primary', 'border-success'); }
+    let sidebarTitle = document.querySelector('#adminSidebar .text-primary');
+    if (sidebarTitle) { sidebarTitle.classList.replace('text-primary', 'text-success'); }
+
+    // เปิดแท็บสรุปรายงานผลทันที
+    switchAdminTab('reportManage');
+}
+
+function restoreAdminSidebar() {
+    let btnSystem = document.getElementById('sidebarBtnSystem');
+    let btnUser   = document.getElementById('sidebarBtnUser');
+    if (btnSystem) btnSystem.classList.remove('d-none');
+    if (btnUser)   btnUser.classList.remove('d-none');
+    let sidebar = document.querySelector('#adminSidebar .border-success');
+    if (sidebar) { sidebar.classList.replace('border-success', 'border-primary'); }
+    let sidebarTitle = document.querySelector('#adminSidebar .text-success');
+    if (sidebarTitle) { sidebarTitle.classList.replace('text-success', 'text-primary'); }
 }
 
 function switchAdminTab(tabName) {

@@ -209,16 +209,16 @@
                         </div>
                         
                         <div class="list-group list-group-flush gap-2">
-                            <button class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchAdminTab('systemControl')" title="ตั้งค่าระบบ (Settings)">
+                            <button id="sidebarBtnSystem" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchAdminTab('systemControl')" title="ตั้งค่าระบบ (Settings)">
                                 <i class="bi bi-gear-fill me-2"></i> <span class="sidebar-text">ตั้งค่าระบบ</span>
                             </button>
-                            <button class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('userManage')" title="จัดการผู้ใช้งาน">
+                            <button id="sidebarBtnUser" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('userManage')" title="จัดการผู้ใช้งาน">
                                 <i class="bi bi-people me-2"></i> <span class="sidebar-text">จัดการผู้ใช้งาน</span>
                             </button>
-                            <button class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('reportManage')" title="สรุปรายงานผล">
+                            <button id="sidebarBtnReport" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('reportManage')" title="สรุปรายงานผล">
                                 <i class="bi bi-file-earmark-bar-graph me-2"></i> <span class="sidebar-text">สรุปรายงานผล</span>
                             </button>
-                            
+
                             <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()" title="ออกจากระบบ">
                                 <i class="bi bi-box-arrow-right me-2"></i> <span class="sidebar-text">ออกจากระบบ</span>
                             </button>
