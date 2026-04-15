@@ -257,15 +257,9 @@
                                 <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                                     <h5 class="fw-bold text-dark mb-0">📝 ตรวจภาระงาน</h5>
                                     <div class="d-flex gap-2 align-items-center">
-                                        <select id="mentorGradeFilter" class="form-select form-select-sm rounded-pill border-secondary" style="width:auto;" onchange="renderMentorGradeTab()">
-                                            <option value="all">ทั้งหมด</option>
-                                            <option value="รอตรวจ">รอตรวจ</option>
-                                            <option value="ดีมาก">ดีมาก</option>
-                                            <option value="ดี">ดี</option>
-                                            <option value="พอใช้">พอใช้</option>
-                                            <option value="ปรับปรุง">ปรับปรุง</option>
-                                            <option value="ยังไม่ส่ง">ยังไม่ส่ง</option>
-                                        </select>
+                                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorGradeTab)">
+                                            <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
+                                        </button>
                                     </div>
                                 </div>
                                 <div id="mentorGradeContent"></div>

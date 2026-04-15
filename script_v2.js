@@ -804,7 +804,6 @@ function renderMentorTraineesTab() {
 function renderMentorGradeTab() {
     if (!mentorDataCache) return;
     const { trainees, assignConfigs, assignLogs } = mentorDataCache;
-    const filter = document.getElementById('mentorGradeFilter')?.value || 'all';
     const traineeIds = trainees.map(t => t.personal_id);
 
     // สร้าง map log ล่าสุดของแต่ละ personal_id + assign_id (ยกเว้น ยกเลิก)
@@ -816,17 +815,7 @@ function renderMentorGradeTab() {
         if (!latestLog[key] || log.timestamp > latestLog[key].timestamp) latestLog[key] = log;
     });
 
-    // กรอง trainee ตาม filter (ถ้าเลือก filter ให้แสดงเฉพาะ trainee ที่มี assignment ตรงกัน)
-    let filteredTrainees = trainees;
-    if (filter !== 'all') {
-        filteredTrainees = trainees.filter(t =>
-            assignConfigs.some(cfg => {
-                const log = latestLog[t.personal_id + '|' + cfg.assign_id];
-                const status = log ? log.status : 'ยังไม่ส่ง';
-                return status === filter;
-            })
-        );
-    }
+    const filteredTrainees = trainees;
 
     const statusBadge = (s) => {
         const map = {
