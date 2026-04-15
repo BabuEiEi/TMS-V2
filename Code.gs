@@ -461,6 +461,25 @@ function getMentorData(personalId) {
         var speakerLogs = getExtSheet('SPEAKER');
         var speakerConfigs = ss.getSheetByName('Speakers_Config').getDataRange().getDisplayValues();
 
+        // ดึง Attendance_Config และ Attendance Logs
+        var attConfigRaw = ss.getSheetByName('Attendance_Config').getDataRange().getDisplayValues();
+        var attConfigs = [];
+        var attHeaders = attConfigRaw[0];
+        for (var ac = 1; ac < attConfigRaw.length; ac++) {
+            var obj = {}; attHeaders.forEach(function(h, hi) { obj[h] = attConfigRaw[ac][hi]; });
+            attConfigs.push(obj);
+        }
+        var attLogSheet = SpreadsheetApp.openById(DB_SHARDS['ATTENDANCE']).getSheets()[0];
+        var attLogRaw = attLogSheet.getDataRange().getDisplayValues();
+        var attLogs = [];
+        if (attLogRaw.length > 1) {
+            var attLogHeaders = attLogRaw[0];
+            for (var al = 1; al < attLogRaw.length; al++) {
+                var aobj = {}; attLogHeaders.forEach(function(h, hi) { aobj[h] = attLogRaw[al][hi]; });
+                attLogs.push(aobj);
+            }
+        }
+
         return {
             status: 'success',
             mentorGroup: mentorGroup,
@@ -469,7 +488,9 @@ function getMentorData(personalId) {
             assignLogs: assignLogs,
             projectLogs: projectLogs,
             speakerLogs: speakerLogs,
-            speakerConfigs: speakerConfigs
+            speakerConfigs: speakerConfigs,
+            attendanceConfig: attConfigs,
+            attendance: attLogs
         };
     } catch(e) {
         return { status: 'error', message: 'getMentorData Error: ' + e.message };

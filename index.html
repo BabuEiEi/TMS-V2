@@ -208,7 +208,7 @@
                                 </div>
                                 <div class="list-group list-group-flush gap-2">
                                     <button id="mentorBtnTrainees" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchMentorTab('trainees')">
-                                        <i class="bi bi-people-fill me-2"></i><span class="sidebar-text">รายชื่อกลุ่มของฉัน</span>
+                                        <i class="bi bi-people-fill me-2"></i><span class="sidebar-text">รายชื่อผู้อบรมในกลุ่ม</span>
                                     </button>
                                     <button id="mentorBtnGrade" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchMentorTab('grade')">
                                         <i class="bi bi-clipboard2-check me-2"></i><span class="sidebar-text">ตรวจภาระงาน</span>
@@ -230,7 +230,23 @@
                         <!-- Tab: รายชื่อกลุ่ม -->
                         <div id="mentorTab_trainees" class="card shadow-lg border-0 rounded-4 bg-white">
                             <div class="card-body p-4">
-                                <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">👥 รายชื่อ Trainee ในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                                    <h5 class="fw-bold text-dark mb-0">👥 รายชื่อผู้อบรมในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
+                                </div>
+                                <!-- ช่องค้นหา -->
+                                <div class="mb-3">
+                                    <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                        <input id="mentorTraineeSearch" type="text" class="form-control border-start-0 ps-0" placeholder="ค้นหา รหัส ชื่อ คลัสเตอร์ กลุ่ม..." oninput="renderMentorTraineesTab()">
+                                    </div>
+                                </div>
+                                <!-- คำอธิบายสัญลักษณ์ -->
+                                <div class="d-flex flex-wrap gap-3 mb-3 small">
+                                    <span><span class="text-success fw-bold fs-6">✔</span> ลงเวลาแล้ว (ตรงเวลา)</span>
+                                    <span><span class="text-warning fw-bold fs-6">✔</span> ลงเวลาแล้ว (สาย)</span>
+                                    <span><span class="badge bg-info text-dark">ลา</span> ลาป่วย/ลากิจ</span>
+                                    <span><span class="text-muted">-</span> ยังไม่ลงเวลา</span>
+                                </div>
                                 <div id="mentorTraineesContent"><div class="text-center py-5 text-muted"><div class="spinner-border text-warning mb-3"></div><p>กำลังโหลด...</p></div></div>
                             </div>
                         </div>

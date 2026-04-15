@@ -704,18 +704,101 @@ function toggleMentorSidebar() {
 
 function renderMentorTraineesTab() {
     if (!mentorDataCache) return;
-    const { trainees } = mentorDataCache;
+    const { trainees, attendance, attendanceConfig } = mentorDataCache;
     const el = document.getElementById('mentorTraineesContent');
-    if (!trainees.length) { el.innerHTML = '<p class="text-muted text-center py-4">ไม่มี Trainee ในกลุ่มนี้</p>'; return; }
-    let html = `<div class="table-responsive"><table class="table table-hover align-middle small text-nowrap mb-0">
-        <thead class="table-light"><tr><th>#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สังกัด</th><th>Cluster</th></tr></thead><tbody>`;
-    trainees.forEach((t, i) => {
-        html += `<tr><td class="text-muted">${i+1}</td><td>${t.personal_id}</td>
-            <td><div class="fw-bold text-primary">${t.name}</div><div class="small text-muted">${t.area_service||'-'}</div></td>
-            <td>${t.cluster||'-'}</td><td>${t.group_target||'-'}</td></tr>`;
+    if (!trainees || !trainees.length) { el.innerHTML = '<p class="text-muted text-center py-4">ไม่มีผู้อบรมในกลุ่มนี้</p>'; return; }
+
+    const keyword = (document.getElementById('mentorTraineeSearch')?.value || '').trim().toLowerCase();
+    let filtered = trainees;
+    if (keyword) {
+        filtered = trainees.filter(t => [t.personal_id, t.name, t.cluster, t.group_target].some(v => v && String(v).toLowerCase().includes(keyword)));
+    }
+
+    // กรอง config ที่ is_active = TRUE
+    const configs = (attendanceConfig || []).filter(c => String(c['is_active (เปิดใช้)'] || c['is_active'] || '').toUpperCase() === 'TRUE');
+
+    // จัดกลุ่ม config ตาม day_no
+    const dayMap = {};
+    configs.forEach(c => {
+        const dayNo = c['day_no (วันที่)'] || c['day_no'] || '';
+        const date  = c['date (ว/ด/ป)'] || c['date'] || '';
+        const slotId    = c['slot_id (รหัสรอบ)'] || c['slot_id'] || '';
+        const slotLabel = c['slot_label (ชื่อรอบ)'] || c['slot_label'] || '';
+        if (!dayMap[dayNo]) dayMap[dayNo] = { date, slots: [] };
+        dayMap[dayNo].slots.push({ slotId, slotLabel });
     });
-    html += '</tbody></table></div>';
-    el.innerHTML = html;
+    const dayKeys = Object.keys(dayMap).sort((a, b) => parseInt(a) - parseInt(b));
+    const totalSlots = configs.length;
+
+    // build header 2 rows
+    const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    let thRow1 = '<tr class="table-light text-center"><th rowspan="2" class="align-middle">รหัส</th><th rowspan="2" class="align-middle">ชื่อ-สกุล</th><th rowspan="2" class="align-middle">คลัสเตอร์</th><th rowspan="2" class="align-middle">กลุ่ม</th>';
+    let thRow2 = '<tr class="table-primary text-center">';
+    dayKeys.forEach(dayNo => {
+        const d = dayMap[dayNo];
+        let dateStr = d.date;
+        try {
+            const dt = new Date(dateStr);
+            if (!isNaN(dt)) dateStr = dt.getDate() + ' ' + thaiMonths[dt.getMonth()] + ' ' + String(dt.getFullYear() + 543).slice(-2);
+        } catch(e) {}
+        thRow1 += `<th colspan="${d.slots.length}" class="align-middle text-center">วันที่ ${dayNo}<br><span class="small text-muted">(${dateStr})</span></th>`;
+        d.slots.forEach(s => { thRow2 += `<th>${s.slotLabel.replace('รอบ','')}</th>`; });
+    });
+    thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">รวม<br>(ครั้ง)</th>';
+    thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">ร้อยละ<br>(%)</th></tr>';
+    thRow2 += '</tr>';
+
+    // build attendance map
+    const attMap = {};
+    (attendance || []).forEach(a => {
+        const keys = Object.keys(a);
+        const pid  = a['personal_id'] || a[keys[1]] || '';
+        const dNo  = a['day_no'] || a[keys[2]] || '';
+        const slot = a['time_slot'] || a['slot_id'] || a[keys[3]] || '';
+        const note = a['note'] || a[keys[5]] || '';
+        const key  = String(dNo) + '_' + String(slot);
+        if (!attMap[pid]) attMap[pid] = {};
+        attMap[pid][key] = { note: String(note).trim() };
+    });
+
+    // build rows
+    let tbHtml = '';
+    filtered.forEach(t => {
+        let count = 0;
+        tbHtml += '<tr>';
+        tbHtml += `<td class="text-center text-muted small">${t.personal_id}</td>`;
+        tbHtml += `<td><div class="fw-bold text-primary">${t.name}</div><div class="small text-muted">${t.area_service||'-'}</div></td>`;
+        tbHtml += `<td class="small">${t.cluster||'-'}</td>`;
+        tbHtml += `<td class="small">${t.group_target||'-'}</td>`;
+        dayKeys.forEach(dayNo => {
+            dayMap[dayNo].slots.forEach(s => {
+                const key = String(dayNo) + '_' + String(s.slotId);
+                const rec = attMap[t.personal_id]?.[key];
+                if (rec) {
+                    const note = rec.note.toLowerCase();
+                    if (note.includes('ลาป่วย') || note.includes('ลากิจ')) {
+                        tbHtml += `<td class="text-center"><span class="badge bg-info text-dark" title="${rec.note}">ลา</span></td>`;
+                    } else if (note.includes('[สาย]')) {
+                        count++;
+                        tbHtml += `<td class="text-center"><span class="text-warning fw-bold" title="${rec.note}">✔</span></td>`;
+                    } else {
+                        count++;
+                        tbHtml += `<td class="text-center"><span class="text-success fw-bold">✔</span></td>`;
+                    }
+                } else {
+                    tbHtml += `<td class="text-center text-muted">-</td>`;
+                }
+            });
+        });
+        const pct = totalSlots > 0 ? ((count / totalSlots) * 100).toFixed(1) : '0.0';
+        tbHtml += `<td class="text-center fw-bold text-primary">${count}</td>`;
+        tbHtml += `<td class="text-center fw-bold ${parseFloat(pct) >= 80 ? 'text-success' : 'text-danger'}">${pct}</td></tr>`;
+    });
+
+    el.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle small text-nowrap mb-0">
+        <thead id="mentorTraineeThead">${thRow1}${thRow2}</thead>
+        <tbody>${tbHtml || '<tr><td colspan="20" class="text-center py-4 text-muted">ไม่มีข้อมูล</td></tr>'}</tbody>
+    </table></div>`;
 }
 
 function renderMentorGradeTab() {
