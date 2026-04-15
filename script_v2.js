@@ -705,7 +705,9 @@ function renderAdminTable(targetId = "configTableContainer") {
             row.forEach((cell, i) => {
                 if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; 
                 if (adminCurrentConfigSheet === 'Users' && i >= 6) return; 
-                let displayCell = cell.length > 25 ? cell.substring(0, 25) + '...' : cell;
+                // Strip HTML tags (e.g. from Quill editor) before displaying in table
+                let plainCell = cell.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+                let displayCell = plainCell.length > 30 ? plainCell.substring(0, 30) + '...' : plainCell;
                 html += `<td>${displayCell}</td>`;
             });
             html += `<td class="text-center border-start bg-white" style="position: sticky; right: 0; z-index: 1;"><button class="btn btn-sm btn-warning text-dark me-1 shadow-sm" title="แก้ไข" onclick="openConfigForm('${row[0]}')"><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-danger shadow-sm" title="ลบ" onclick="deleteConfigRow('${row[0]}')"><i class="bi bi-trash"></i></button></td></tr>`;
