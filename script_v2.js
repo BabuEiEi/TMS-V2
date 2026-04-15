@@ -568,7 +568,8 @@ function renderAssignmentDashboard() {
         }
         else if (sub.status === 'รอตรวจ') {
             statusBadge = `<span class="badge bg-warning text-dark">รอตรวจ</span>`;
-            actionBtn = `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-info w-100 rounded-pill mb-2">ดูงานที่ส่ง</a><button class="btn btn-sm btn-danger w-100 rounded-pill shadow-sm" onclick="cancelAssignment('${asn.assign_id}')">ยกเลิกการส่ง</button>`;
+            const viewBtn = sub.file_link ? `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-info w-100 rounded-pill mb-2">ดูงานที่ส่ง</a>` : '';
+            actionBtn = viewBtn + `<button class="btn btn-sm btn-danger w-100 rounded-pill shadow-sm" onclick="cancelAssignment('${asn.assign_id}')">ยกเลิกการส่ง</button>`;
         }
         else if (sub.status === 'แก้ไข') {
             statusBadge = `<span class="badge bg-danger">แก้ไขงาน</span>`;
@@ -576,14 +577,13 @@ function renderAssignmentDashboard() {
         }
         else if (sub.status === 'ตรวจแล้ว') {
             statusBadge = `<span class="badge bg-success">ตรวจแล้ว / ผ่าน</span>`;
-            actionBtn = `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-success w-100 rounded-pill">ดูงานที่ส่ง</a>`;
+            actionBtn = sub.file_link ? `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-success w-100 rounded-pill">ดูงานที่ส่ง</a>` : '';
         }
         else if (isGraded) {
             const gradeColor = { 'ดีมาก': 'bg-success', 'ดี': 'bg-primary', 'พอใช้': 'bg-warning text-dark', 'ปรับปรุง': 'bg-danger' };
             statusBadge = `<span class="badge ${gradeColor[sub.status] || 'bg-secondary'}">${sub.status}</span>`;
             if (sub.score) statusBadge += `<div class="small text-muted mt-1">คะแนน: ${sub.score}</div>`;
             actionBtn = sub.file_link ? `<a href="${sub.file_link}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 rounded-pill">ดูงานที่ส่ง</a>` : '';
-            // ถ้า Mentor ให้ปรับปรุง → อนุญาตส่งใหม่ได้
             if (sub.status === 'ปรับปรุง') {
                 actionBtn += `<button class="btn btn-sm btn-warning text-dark w-100 rounded-pill shadow-sm mt-1" onclick="promptSubmitAssignment('${asn.assign_id}', '${asn.submission_type}', ${isLateDeadline})">ส่งงานใหม่</button>`;
             }
