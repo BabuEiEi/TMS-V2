@@ -1129,16 +1129,17 @@ function renderAttendanceTab() {
                 let key = String(dayNo) + '_' + String(s.slotId);
                 let record = attMap[pid] && attMap[pid][key];
                 if (record) {
-                    count++;
                     let note = record.note.toLowerCase();
                     if (note.includes('ลาป่วย') || note.includes('ลากิจ')) {
-                        // มีหมายเหตุลา
+                        // มีหมายเหตุลา - ไม่นับจำนวนครั้ง
                         tbHtml += `<td class="text-center"><span class="badge bg-info text-dark" title="${record.note}">ลา</span></td>`;
                     } else if (note.includes('[สาย]')) {
-                        // สาย
+                        // สาย - นับครั้ง
+                        count++;
                         tbHtml += `<td class="text-center"><span class="text-warning fw-bold" title="${record.note}">✔</span></td>`;
                     } else {
-                        // ตรงเวลา
+                        // ตรงเวลา - นับครั้ง
+                        count++;
                         tbHtml += `<td class="text-center"><span class="text-success fw-bold">✔</span></td>`;
                     }
                 } else {
