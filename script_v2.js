@@ -780,58 +780,118 @@ async function openGradeModal(logJson, cfgJson) {
     const cfg = JSON.parse(decodeURIComponent(cfgJson));
     const rubric = Array.isArray(cfg.rubric_criteria) ? cfg.rubric_criteria : [];
 
-    let rubricHtml = '';
+    // คำนวณคะแนนเต็มแต่ละ criteria
     let totalMax = 0;
-    rubric.forEach((r, i) => {
+    rubric.forEach(r => { totalMax += parseFloat(r.raw) * parseFloat(r.weight); });
+
+    // ค่าเริ่มต้นของ rubric (จาก score เดิมถ้ามี — แบ่งตาม weight สัดส่วน)
+    const rubricDefaults = rubric.map(r => (parseFloat(r.raw) * parseFloat(r.weight)).toFixed(1));
+
+    // ฝั่งซ้าย: Preview งาน
+    let previewHtml = '';
+    if (log.file_link) {
+        // แปลง Google Drive link เป็น embed preview
+        let previewUrl = log.file_link;
+        const driveMatch = log.file_link.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (driveMatch) {
+            previewUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+            previewHtml = `<iframe src="${previewUrl}" style="width:100%;height:100%;min-height:480px;border:none;border-radius:8px;" allowfullscreen></iframe>`;
+        } else {
+            previewHtml = `<div class="d-flex flex-column align-items-center justify-content-center h-100 gap-3">
+                <i class="bi bi-link-45deg text-primary" style="font-size:3rem;"></i>
+                <p class="text-muted small text-center">ไม่สามารถ Preview ได้</p>
+                <a href="${log.file_link}" target="_blank" class="btn btn-primary rounded-pill px-4">
+                    <i class="bi bi-box-arrow-up-right me-2"></i>เปิดลิงก์งาน
+                </a>
+            </div>`;
+        }
+    } else {
+        previewHtml = `<div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted gap-2">
+            <i class="bi bi-file-earmark-x" style="font-size:3rem;"></i>
+            <p>ยังไม่มีงานที่ส่ง</p>
+        </div>`;
+    }
+
+    // ฝั่งขวา: Rubric inputs
+    let rubricHtml = rubric.map((r, i) => {
         const maxScore = parseFloat(r.raw) * parseFloat(r.weight);
-        totalMax += maxScore;
-        rubricHtml += `
-        <div class="mb-3 p-3 bg-light rounded-3">
-            <label class="fw-bold small mb-1">${i+1}. ${r.name} <span class="text-muted">(คะแนนเต็ม: ${maxScore})</span></label>
-            <div class="d-flex align-items-center gap-2">
-                <input type="range" class="form-range flex-grow-1" id="rubric_${i}" min="0" max="${maxScore}" step="0.5" value="${maxScore}"
-                    oninput="document.getElementById('rubricVal_${i}').textContent=this.value; calcMentorTotal()">
-                <span id="rubricVal_${i}" class="fw-bold text-primary" style="min-width:35px">${maxScore}</span>
+        return `
+        <div class="mb-2 p-2 bg-light rounded-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="fw-bold small mb-0">${i+1}. ${r.name}</label>
+                <span class="text-muted small">เต็ม <strong>${maxScore}</strong> คะแนน</span>
+            </div>
+            <div class="input-group input-group-sm">
+                <input type="number" class="form-control text-center fw-bold"
+                    id="rubric_${i}" min="0" max="${maxScore}" step="0.5"
+                    value="${rubricDefaults[i]}"
+                    oninput="calcMentorTotal(${JSON.stringify(rubric)})">
+                <span class="input-group-text">/ ${maxScore}</span>
             </div>
         </div>`;
-    });
+    }).join('');
 
     const { value: formValues } = await Swal.fire({
         title: `📝 ให้คะแนน: ${cfg.title}`,
-        width: '700px',
+        width: '1100px',
         html: `
-        <div class="text-start">
-            <div class="alert alert-info small py-2 mb-3">
-                <i class="bi bi-person-fill me-1"></i><strong>ผู้ส่งงาน:</strong> ${log.personal_id} &nbsp;|&nbsp;
-                <i class="bi bi-calendar me-1"></i><strong>ส่งเมื่อ:</strong> ${log.timestamp}
-                ${log.is_late === 'TRUE' ? ' &nbsp;<span class="badge bg-danger">ส่งช้า</span>' : ''}
-            </div>
-            ${rubricHtml}
-            <div class="mb-3 p-3 bg-primary bg-opacity-10 rounded-3 d-flex justify-content-between align-items-center">
-                <span class="fw-bold">คะแนนรวม</span>
-                <span class="fs-4 fw-bold text-primary"><span id="mentorTotalScore">0</span> / ${cfg.full_score || totalMax}</span>
-            </div>
-            <div class="mb-3">
-                <label class="fw-bold small mb-1">สถานะ</label>
-                <div class="d-flex gap-2 flex-wrap" id="statusBtnGroup">
-                    ${['ดีมาก','ดี','พอใช้','ปรับปรุง'].map(s =>
-                        `<button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="${s}" onclick="selectMentorStatus(this)">${s}</button>`
-                    ).join('')}
+        <div class="d-flex gap-3 text-start" style="height:520px;">
+
+            <!-- ฝั่งซ้าย: Preview -->
+            <div class="flex-grow-1 border rounded-3 overflow-hidden bg-white" style="min-width:0;">
+                <div class="bg-light border-bottom px-3 py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small"><i class="bi bi-eye me-1"></i>Preview งาน</span>
+                    ${log.file_link ? `<a href="${log.file_link}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>เปิดใหม่
+                    </a>` : ''}
                 </div>
-                <input type="hidden" id="selectedStatus" value="">
+                <div style="height:calc(100% - 44px);">${previewHtml}</div>
             </div>
-            <div class="mb-2">
-                <label class="fw-bold small mb-1">Feedback ถึง Trainee</label>
-                <textarea id="mentorFeedback" class="form-control" rows="3" placeholder="เขียนคำแนะนำ/ข้อเสนอแนะ...">${log.feedback||''}</textarea>
+
+            <!-- ฝั่งขวา: กรอกคะแนน -->
+            <div style="width:340px;flex-shrink:0;overflow-y:auto;">
+                <div class="alert alert-info small py-2 mb-2">
+                    <i class="bi bi-person-fill me-1"></i><strong>${log.personal_id}</strong>
+                    &nbsp;|&nbsp;<i class="bi bi-clock me-1"></i>${log.timestamp}
+                    ${log.is_late === 'TRUE' ? ' <span class="badge bg-danger ms-1">ส่งช้า</span>' : ''}
+                </div>
+
+                <div class="mb-2">
+                    <div class="small fw-bold text-muted mb-2">📋 เกณฑ์การให้คะแนน (Rubric)</div>
+                    ${rubricHtml}
+                </div>
+
+                <div class="p-2 rounded-3 mb-3 d-flex justify-content-between align-items-center" style="background:#e8f4fd;">
+                    <span class="fw-bold">คะแนนรวม</span>
+                    <span class="fs-5 fw-bold text-primary">
+                        <span id="mentorTotalScore">0</span> / ${cfg.full_score || totalMax}
+                    </span>
+                </div>
+
+                <div class="mb-2">
+                    <div class="small fw-bold text-muted mb-1">⭐ สถานะ</div>
+                    <div class="d-flex gap-1 flex-wrap">
+                        ${['ดีมาก','ดี','พอใช้','ปรับปรุง'].map(s =>
+                            `<button type="button" class="btn btn-sm btn-outline-secondary status-btn px-3" data-status="${s}" onclick="selectMentorStatus(this)">${s}</button>`
+                        ).join('')}
+                    </div>
+                    <input type="hidden" id="selectedStatus" value="">
+                </div>
+
+                <div>
+                    <div class="small fw-bold text-muted mb-1">💬 Feedback ถึง Trainee</div>
+                    <textarea id="mentorFeedback" class="form-control form-control-sm" rows="4"
+                        placeholder="เขียนคำแนะนำ/ข้อเสนอแนะ...">${log.feedback||''}</textarea>
+                </div>
             </div>
         </div>`,
         showCancelButton: true,
         confirmButtonText: '💾 บันทึกคะแนน',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#198754',
+        customClass: { popup: 'text-start' },
         didOpen: () => {
-            calcMentorTotal();
-            // pre-select status ถ้ามีอยู่แล้ว
+            calcMentorTotal(rubric);
             if (log.status && ['ดีมาก','ดี','พอใช้','ปรับปรุง'].includes(log.status)) {
                 const btn = document.querySelector(`.status-btn[data-status="${log.status}"]`);
                 if (btn) selectMentorStatus(btn);
@@ -840,10 +900,17 @@ async function openGradeModal(logJson, cfgJson) {
         preConfirm: () => {
             const status = document.getElementById('selectedStatus').value;
             if (!status) { Swal.showValidationMessage('กรุณาเลือกสถานะ'); return false; }
+            // validate แต่ละ rubric input ไม่เกิน max
+            let valid = true;
             let total = 0;
-            rubric.forEach((_r, i) => {
-                total += parseFloat(document.getElementById('rubric_' + i)?.value || 0);
+            rubric.forEach((r, i) => {
+                const maxScore = parseFloat(r.raw) * parseFloat(r.weight);
+                const inp = document.getElementById('rubric_' + i);
+                const val = parseFloat(inp?.value || 0);
+                if (val < 0 || val > maxScore) { inp.classList.add('is-invalid'); valid = false; }
+                else { inp?.classList.remove('is-invalid'); total += val; }
             });
+            if (!valid) { Swal.showValidationMessage('คะแนนบางรายการเกินค่าสูงสุด'); return false; }
             return { status, feedback: document.getElementById('mentorFeedback').value.trim(), score: total.toFixed(1) };
         }
     });
