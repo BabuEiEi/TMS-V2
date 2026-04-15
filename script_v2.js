@@ -914,12 +914,12 @@ async function openGradeModal(logJson, cfgJson) {
     const cfg = JSON.parse(decodeURIComponent(cfgJson));
     const rubric = Array.isArray(cfg.rubric_criteria) ? cfg.rubric_criteria : [];
 
-    // คำนวณคะแนนเต็มแต่ละ criteria
+    // คะแนนรวมสูงสุด = sum(raw * weight)
     let totalMax = 0;
     rubric.forEach(r => { totalMax += parseFloat(r.raw) * parseFloat(r.weight); });
 
-    // ค่าเริ่มต้นของ rubric (จาก score เดิมถ้ามี — แบ่งตาม weight สัดส่วน)
-    const rubricDefaults = rubric.map(r => (parseFloat(r.raw) * parseFloat(r.weight)).toFixed(1));
+    // ค่าเริ่มต้น = raw (คะแนนเต็มของแต่ละประเด็น ก่อนคูณ weight)
+    const rubricDefaults = rubric.map(r => parseFloat(r.raw).toFixed(1));
 
     // ฝั่งซ้าย: Preview งาน
     let previewHtml = '';
@@ -948,19 +948,22 @@ async function openGradeModal(logJson, cfgJson) {
 
     // ฝั่งขวา: Rubric inputs
     let rubricHtml = rubric.map((r, i) => {
-        const maxScore = parseFloat(r.raw) * parseFloat(r.weight);
+        const rawScore = parseFloat(r.raw);
+        const weight = parseFloat(r.weight);
+        const weightedMax = rawScore * weight;
         return `
         <div class="mb-2 p-2 bg-light rounded-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="fw-bold small mb-0">${i+1}. ${r.name}</label>
-                <span class="text-muted small">เต็ม <strong>${maxScore}</strong> คะแนน</span>
+                <span class="text-muted small">เต็ม <strong>${rawScore}</strong> คะแนน <span class="text-secondary">(×${weight} = ${weightedMax})</span></span>
             </div>
             <div class="input-group input-group-sm">
                 <input type="number" class="form-control text-center fw-bold"
-                    id="rubric_${i}" min="0" max="${maxScore}" step="0.5"
+                    id="rubric_${i}" min="0" max="${rawScore}" step="0.5"
+                    data-weight="${weight}"
                     value="${rubricDefaults[i]}"
-                    oninput="calcMentorTotal(${JSON.stringify(rubric)})">
-                <span class="input-group-text">/ ${maxScore}</span>
+                    oninput="calcMentorTotal()">
+                <span class="input-group-text">/ ${rawScore}</span>
             </div>
         </div>`;
     }).join('');
@@ -1025,7 +1028,7 @@ async function openGradeModal(logJson, cfgJson) {
         confirmButtonColor: '#198754',
         customClass: { popup: 'text-start' },
         didOpen: () => {
-            calcMentorTotal(rubric);
+            calcMentorTotal();
             if (log.status && ['ดีมาก','ดี','พอใช้','ปรับปรุง'].includes(log.status)) {
                 const btn = document.querySelector(`.status-btn[data-status="${log.status}"]`);
                 if (btn) selectMentorStatus(btn);
@@ -1038,11 +1041,12 @@ async function openGradeModal(logJson, cfgJson) {
             let valid = true;
             let total = 0;
             rubric.forEach((r, i) => {
-                const maxScore = parseFloat(r.raw) * parseFloat(r.weight);
+                const rawScore = parseFloat(r.raw);
+                const weight = parseFloat(r.weight);
                 const inp = document.getElementById('rubric_' + i);
                 const val = parseFloat(inp?.value || 0);
-                if (val < 0 || val > maxScore) { inp.classList.add('is-invalid'); valid = false; }
-                else { inp?.classList.remove('is-invalid'); total += val; }
+                if (val < 0 || val > rawScore) { inp.classList.add('is-invalid'); valid = false; }
+                else { inp?.classList.remove('is-invalid'); total += val * weight; }
             });
             if (!valid) { Swal.showValidationMessage('คะแนนบางรายการเกินค่าสูงสุด'); return false; }
             return { status, feedback: document.getElementById('mentorFeedback').value.trim(), score: total.toFixed(1) };
@@ -1065,7 +1069,12 @@ async function openGradeModal(logJson, cfgJson) {
 window.calcMentorTotal = function() {
     const rubricInputs = document.querySelectorAll('[id^="rubric_"]');
     let total = 0;
-    rubricInputs.forEach(inp => { total += parseFloat(inp.value || 0); });
+    // คะแนนรวม = sum(value × weight) แต่ละประเด็น
+    rubricInputs.forEach(inp => {
+        const val = parseFloat(inp.value || 0);
+        const w = parseFloat(inp.dataset.weight || 1);
+        total += val * w;
+    });
     const el = document.getElementById('mentorTotalScore');
     if (el) el.textContent = total.toFixed(1);
 };
