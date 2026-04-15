@@ -35,6 +35,10 @@ function doPost(e) {
     else if (action === 'cancelAssignment') { result = cancelAssignment(payload); }
     else if (action === 'getAttendanceData') { result = getAttendanceData(payload.personal_id); }
 
+    // Mentor
+    else if (action === 'getMentorData') { result = getMentorData(payload.personal_id); }
+    else if (action === 'gradeAssignment') { result = gradeAssignment(payload); }
+
     // Admin
     else if (action === 'getAdminConfigs') { result = getAdminConfigs(); } 
     else if (action === 'updateConfigStatus') { result = updateConfigStatus(payload); }
@@ -381,6 +385,114 @@ function cancelAssignment(payload) {
         }
     }
     return { status: 'error', message: 'ไม่พบประวัติการส่งงาน' };
+}
+
+// ============================================================
+// 👔 [MENTOR LOGIC]
+// ============================================================
+function getMentorData(personalId) {
+    try {
+        var ss = SpreadsheetApp.getActiveSpreadsheet();
+        var usersData = ss.getSheetByName('Users').getDataRange().getDisplayValues();
+        var usersHeaders = usersData[0];
+
+        // หา group_target ของ Mentor นี้
+        var mentorGroup = '';
+        for (var i = 1; i < usersData.length; i++) {
+            if (usersData[i][0].toString().trim() === personalId.toString().trim()) {
+                mentorGroup = usersData[i][5].toString().trim(); // col 5 = group_target
+                break;
+            }
+        }
+        if (!mentorGroup) return { status: 'error', message: 'ไม่พบข้อมูล Mentor หรือ group_target ว่างเปล่า' };
+
+        // ดึง Trainee ทุกคนที่มี group_target ตรงกัน
+        var trainees = [];
+        for (var j = 1; j < usersData.length; j++) {
+            if (usersData[j][2].toString().toUpperCase() === 'TRAINEE' && usersData[j][5].toString().trim() === mentorGroup) {
+                trainees.push({
+                    personal_id: usersData[j][0], name: usersData[j][1],
+                    area_service: usersData[j][3], cluster: usersData[j][4], group_target: usersData[j][5]
+                });
+            }
+        }
+
+        // ดึง Assignment_Config ทั้งหมด (is_active = TRUE)
+        var asmConfigRaw = ss.getSheetByName('Assignment_Config').getDataRange().getDisplayValues();
+        var asmConfigs = [];
+        for (var k = 1; k < asmConfigRaw.length; k++) {
+            if (asmConfigRaw[k][7] && asmConfigRaw[k][7].toString().toUpperCase() === 'TRUE') {
+                var rubric = [];
+                try { rubric = JSON.parse(asmConfigRaw[k][10] || '[]'); } catch(e) {}
+                asmConfigs.push({
+                    assign_id: asmConfigRaw[k][0], title: asmConfigRaw[k][1],
+                    submission_type: asmConfigRaw[k][3], target_group: asmConfigRaw[k][8],
+                    full_score: asmConfigRaw[k][9], rubric_criteria: rubric
+                });
+            }
+        }
+
+        // ดึง Assignment Logs ทั้งหมด จาก DB_SHARDS
+        var logSheet = SpreadsheetApp.openById(DB_SHARDS['ASSIGNMENT']).getSheetByName('Assignment_Log');
+        var logRaw = logSheet.getDataRange().getDisplayValues();
+        var assignLogs = [];
+        for (var l = 1; l < logRaw.length; l++) {
+            assignLogs.push({
+                log_id: logRaw[l][0], personal_id: logRaw[l][1], assign_id: logRaw[l][2],
+                submission_type: logRaw[l][3], file_link: logRaw[l][4], timestamp: logRaw[l][5],
+                status: logRaw[l][6], feedback: logRaw[l][7], score: logRaw[l][8], is_late: logRaw[l][9]
+            });
+        }
+
+        // ดึง Eval status (Project + Speaker) สำหรับ Trainee ในกลุ่ม
+        var traineeIds = trainees.map(function(t) { return t.personal_id; });
+        var getExtSheet = function(shardKey) {
+            try {
+                var rows = SpreadsheetApp.openById(DB_SHARDS[shardKey]).getSheets()[0].getDataRange().getDisplayValues();
+                if (rows.length <= 1) return [];
+                var h = rows[0]; var result = [];
+                for (var r = 1; r < rows.length; r++) {
+                    var obj = {}; h.forEach(function(hh, ii) { obj[hh] = rows[r][ii]; }); result.push(obj);
+                }
+                return result;
+            } catch(e) { return []; }
+        };
+        var projectLogs = getExtSheet('PROJECT');
+        var speakerLogs = getExtSheet('SPEAKER');
+        var speakerConfigs = ss.getSheetByName('Speakers_Config').getDataRange().getDisplayValues();
+
+        return {
+            status: 'success',
+            mentorGroup: mentorGroup,
+            trainees: trainees,
+            assignConfigs: asmConfigs,
+            assignLogs: assignLogs,
+            projectLogs: projectLogs,
+            speakerLogs: speakerLogs,
+            speakerConfigs: speakerConfigs
+        };
+    } catch(e) {
+        return { status: 'error', message: 'getMentorData Error: ' + e.message };
+    }
+}
+
+function gradeAssignment(payload) {
+    // payload: { log_id, status, feedback, score }
+    try {
+        var sheet = SpreadsheetApp.openById(DB_SHARDS['ASSIGNMENT']).getSheetByName('Assignment_Log');
+        var data = sheet.getDataRange().getValues();
+        for (var i = 1; i < data.length; i++) {
+            if (data[i][0].toString().trim() === payload.log_id.toString().trim()) {
+                sheet.getRange(i + 1, 7).setValue(payload.status);   // col G = status
+                sheet.getRange(i + 1, 8).setValue(payload.feedback || ''); // col H = feedback
+                sheet.getRange(i + 1, 9).setValue(payload.score || '');    // col I = score
+                return { status: 'success' };
+            }
+        }
+        return { status: 'error', message: 'ไม่พบ log_id: ' + payload.log_id };
+    } catch(e) {
+        return { status: 'error', message: 'gradeAssignment Error: ' + e.message };
+    }
 }
 
 function getAdminConfigs() { return { status: 'error', message: 'Not needed' }; }

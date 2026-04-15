@@ -659,6 +659,273 @@ function renderAdminDashboard() {
 // ============================================================
 // 👔 STAFF SYSTEM FUNCTIONS
 // ============================================================
+// ============================================================
+// 🧑‍🏫 MENTOR SYSTEM FUNCTIONS
+// ============================================================
+let mentorDataCache = null;
+
+async function renderMentorDashboard() {
+    document.getElementById('dashboardSection').classList.add('d-none');
+    document.getElementById('mentorSection').classList.remove('d-none');
+    await loadMentorData();
+}
+
+async function loadMentorData() {
+    const user = JSON.parse(localStorage.getItem('tms_user_data') || '{}');
+    try {
+        const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getMentorData', payload: { personal_id: user.personal_id } }) });
+        const result = await res.json();
+        if (result.status !== 'success') { Swal.fire('ผิดพลาด', result.message, 'error'); return; }
+        mentorDataCache = result;
+        document.getElementById('mentorGroupLabel').textContent = result.mentorGroup;
+        renderMentorTraineesTab();
+    } catch(e) {
+        Swal.fire('ขัดข้อง', 'ไม่สามารถโหลดข้อมูล Mentor ได้', 'error');
+    }
+}
+
+function switchMentorTab(tab) {
+    ['trainees','grade','eval'].forEach(t => {
+        document.getElementById('mentorTab_' + t).classList.add('d-none');
+        document.getElementById('mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('active','fw-bold');
+    });
+    document.getElementById('mentorTab_' + tab).classList.remove('d-none');
+    const btnMap = { trainees: 'mentorBtnTrainees', grade: 'mentorBtnGrade', eval: 'mentorBtnEval' };
+    document.getElementById(btnMap[tab]).classList.add('active','fw-bold');
+    if (tab === 'trainees') renderMentorTraineesTab();
+    else if (tab === 'grade') renderMentorGradeTab();
+    else if (tab === 'eval') renderMentorEvalTab();
+}
+
+function toggleMentorSidebar() {
+    document.getElementById('mentorSidebar')?.classList.toggle('collapsed');
+}
+
+function renderMentorTraineesTab() {
+    if (!mentorDataCache) return;
+    const { trainees } = mentorDataCache;
+    const el = document.getElementById('mentorTraineesContent');
+    if (!trainees.length) { el.innerHTML = '<p class="text-muted text-center py-4">ไม่มี Trainee ในกลุ่มนี้</p>'; return; }
+    let html = `<div class="table-responsive"><table class="table table-hover align-middle small text-nowrap mb-0">
+        <thead class="table-light"><tr><th>#</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สังกัด</th><th>Cluster</th></tr></thead><tbody>`;
+    trainees.forEach((t, i) => {
+        html += `<tr><td class="text-muted">${i+1}</td><td>${t.personal_id}</td>
+            <td><div class="fw-bold text-primary">${t.name}</div><div class="small text-muted">${t.area_service||'-'}</div></td>
+            <td>${t.cluster||'-'}</td><td>${t.group_target||'-'}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+}
+
+function renderMentorGradeTab() {
+    if (!mentorDataCache) return;
+    const { trainees, assignConfigs, assignLogs } = mentorDataCache;
+    const filter = document.getElementById('mentorGradeFilter')?.value || 'all';
+    const traineeIds = trainees.map(t => t.personal_id);
+
+    // สร้าง map log ล่าสุดของแต่ละ personal_id + assign_id (ยกเว้น ยกเลิก)
+    const latestLog = {};
+    assignLogs.forEach(log => {
+        if (!traineeIds.includes(log.personal_id)) return;
+        if (log.status === 'ยกเลิก') return;
+        const key = log.personal_id + '|' + log.assign_id;
+        if (!latestLog[key] || log.timestamp > latestLog[key].timestamp) latestLog[key] = log;
+    });
+
+    // สร้างแถวทุก trainee × ทุก assignment
+    let rows = [];
+    trainees.forEach(t => {
+        assignConfigs.forEach(cfg => {
+            const key = t.personal_id + '|' + cfg.assign_id;
+            const log = latestLog[key] || null;
+            const status = log ? log.status : 'ยังไม่ส่ง';
+            if (filter !== 'all' && status !== filter) return;
+            rows.push({ trainee: t, cfg, log, status });
+        });
+    });
+
+    const statusBadge = (s) => {
+        const map = { 'รอตรวจ':'bg-secondary','ดีมาก':'bg-success','ดี':'bg-primary','พอใช้':'bg-warning text-dark','ปรับปรุง':'bg-danger','ยังไม่ส่ง':'bg-light text-muted border' };
+        return `<span class="badge ${map[s]||'bg-secondary'}">${s}</span>`;
+    };
+
+    let html = `<div class="table-responsive"><table class="table table-hover align-middle small mb-0">
+        <thead class="table-light"><tr><th>Trainee</th><th>ภาระงาน</th><th>วันที่ส่ง</th><th class="text-center">สถานะ</th><th class="text-center">คะแนน</th><th class="text-center">จัดการ</th></tr></thead><tbody>`;
+    if (!rows.length) {
+        html += `<tr><td colspan="6" class="text-center py-4 text-muted">ไม่มีข้อมูล</td></tr>`;
+    } else {
+        rows.forEach(r => {
+            const canGrade = r.log && r.status === 'รอตรวจ';
+            const cfgJson = encodeURIComponent(JSON.stringify(r.cfg));
+            html += `<tr>
+                <td><div class="fw-bold">${r.trainee.name}</div><div class="text-muted small">${r.trainee.personal_id}</div></td>
+                <td><div class="fw-bold">${r.cfg.title}</div><div class="text-muted small">${r.cfg.assign_id}</div></td>
+                <td>${r.log ? r.log.timestamp : '-'}</td>
+                <td class="text-center">${statusBadge(r.status)}</td>
+                <td class="text-center">${r.log && r.log.score ? r.log.score + '/' + r.cfg.full_score : '-'}</td>
+                <td class="text-center">
+                    ${r.log ? `<a href="${r.log.file_link}" target="_blank" class="btn btn-sm btn-outline-info me-1" title="ดูงาน"><i class="bi bi-eye"></i></a>` : ''}
+                    ${canGrade ? `<button class="btn btn-sm btn-warning" onclick="openGradeModal('${encodeURIComponent(JSON.stringify(r.log))}','${cfgJson}')" title="ให้คะแนน"><i class="bi bi-pencil-square"></i></button>` : ''}
+                    ${r.log && !canGrade && r.log.score ? `<button class="btn btn-sm btn-outline-secondary" onclick="openGradeModal('${encodeURIComponent(JSON.stringify(r.log))}','${cfgJson}')" title="แก้ไขคะแนน"><i class="bi bi-pencil"></i></button>` : ''}
+                </td></tr>`;
+        });
+    }
+    html += '</tbody></table></div>';
+    document.getElementById('mentorGradeContent').innerHTML = html;
+}
+
+async function openGradeModal(logJson, cfgJson) {
+    const log = JSON.parse(decodeURIComponent(logJson));
+    const cfg = JSON.parse(decodeURIComponent(cfgJson));
+    const rubric = Array.isArray(cfg.rubric_criteria) ? cfg.rubric_criteria : [];
+
+    let rubricHtml = '';
+    let totalMax = 0;
+    rubric.forEach((r, i) => {
+        const maxScore = parseFloat(r.raw) * parseFloat(r.weight);
+        totalMax += maxScore;
+        rubricHtml += `
+        <div class="mb-3 p-3 bg-light rounded-3">
+            <label class="fw-bold small mb-1">${i+1}. ${r.name} <span class="text-muted">(คะแนนเต็ม: ${maxScore})</span></label>
+            <div class="d-flex align-items-center gap-2">
+                <input type="range" class="form-range flex-grow-1" id="rubric_${i}" min="0" max="${maxScore}" step="0.5" value="${maxScore}"
+                    oninput="document.getElementById('rubricVal_${i}').textContent=this.value; calcMentorTotal()">
+                <span id="rubricVal_${i}" class="fw-bold text-primary" style="min-width:35px">${maxScore}</span>
+            </div>
+        </div>`;
+    });
+
+    const { value: formValues } = await Swal.fire({
+        title: `📝 ให้คะแนน: ${cfg.title}`,
+        width: '700px',
+        html: `
+        <div class="text-start">
+            <div class="alert alert-info small py-2 mb-3">
+                <i class="bi bi-person-fill me-1"></i><strong>ผู้ส่งงาน:</strong> ${log.personal_id} &nbsp;|&nbsp;
+                <i class="bi bi-calendar me-1"></i><strong>ส่งเมื่อ:</strong> ${log.timestamp}
+                ${log.is_late === 'TRUE' ? ' &nbsp;<span class="badge bg-danger">ส่งช้า</span>' : ''}
+            </div>
+            ${rubricHtml}
+            <div class="mb-3 p-3 bg-primary bg-opacity-10 rounded-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold">คะแนนรวม</span>
+                <span class="fs-4 fw-bold text-primary"><span id="mentorTotalScore">0</span> / ${cfg.full_score || totalMax}</span>
+            </div>
+            <div class="mb-3">
+                <label class="fw-bold small mb-1">สถานะ</label>
+                <div class="d-flex gap-2 flex-wrap" id="statusBtnGroup">
+                    ${['ดีมาก','ดี','พอใช้','ปรับปรุง'].map(s =>
+                        `<button type="button" class="btn btn-sm btn-outline-secondary status-btn" data-status="${s}" onclick="selectMentorStatus(this)">${s}</button>`
+                    ).join('')}
+                </div>
+                <input type="hidden" id="selectedStatus" value="">
+            </div>
+            <div class="mb-2">
+                <label class="fw-bold small mb-1">Feedback ถึง Trainee</label>
+                <textarea id="mentorFeedback" class="form-control" rows="3" placeholder="เขียนคำแนะนำ/ข้อเสนอแนะ...">${log.feedback||''}</textarea>
+            </div>
+        </div>`,
+        showCancelButton: true,
+        confirmButtonText: '💾 บันทึกคะแนน',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#198754',
+        didOpen: () => {
+            calcMentorTotal();
+            // pre-select status ถ้ามีอยู่แล้ว
+            if (log.status && ['ดีมาก','ดี','พอใช้','ปรับปรุง'].includes(log.status)) {
+                const btn = document.querySelector(`.status-btn[data-status="${log.status}"]`);
+                if (btn) selectMentorStatus(btn);
+            }
+        },
+        preConfirm: () => {
+            const status = document.getElementById('selectedStatus').value;
+            if (!status) { Swal.showValidationMessage('กรุณาเลือกสถานะ'); return false; }
+            let total = 0;
+            rubric.forEach((_r, i) => {
+                total += parseFloat(document.getElementById('rubric_' + i)?.value || 0);
+            });
+            return { status, feedback: document.getElementById('mentorFeedback').value.trim(), score: total.toFixed(1) };
+        }
+    });
+
+    if (!formValues) return;
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'gradeAssignment', payload: { log_id: log.log_id, status: formValues.status, feedback: formValues.feedback, score: formValues.score } }) });
+        const result = await res.json();
+        if (result.status === 'success') {
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+            await loadMentorData();
+            renderMentorGradeTab();
+        } else { Swal.fire('ผิดพลาด', result.message, 'error'); }
+    } catch(e) { Swal.fire('ขัดข้อง', 'บันทึกไม่สำเร็จ', 'error'); }
+}
+
+window.calcMentorTotal = function() {
+    const rubricInputs = document.querySelectorAll('[id^="rubric_"]');
+    let total = 0;
+    rubricInputs.forEach(inp => { total += parseFloat(inp.value || 0); });
+    const el = document.getElementById('mentorTotalScore');
+    if (el) el.textContent = total.toFixed(1);
+};
+
+window.selectMentorStatus = function(btn) {
+    document.querySelectorAll('.status-btn').forEach(b => {
+        b.classList.remove('btn-success','btn-primary','btn-warning','btn-danger');
+        b.classList.add('btn-outline-secondary');
+    });
+    const colorMap = { 'ดีมาก':'btn-success','ดี':'btn-primary','พอใช้':'btn-warning','ปรับปรุง':'btn-danger' };
+    btn.classList.remove('btn-outline-secondary');
+    btn.classList.add(colorMap[btn.dataset.status] || 'btn-secondary');
+    document.getElementById('selectedStatus').value = btn.dataset.status;
+};
+
+function renderMentorEvalTab() {
+    if (!mentorDataCache) return;
+    const { trainees, projectLogs, speakerLogs, speakerConfigs } = mentorDataCache;
+    const traineeIds = trainees.map(t => t.personal_id);
+
+    // project eval: ใครประเมินแล้ว
+    const evalledProject = new Set((projectLogs || []).filter(r => {
+        const pid = r.personal_id || r[Object.keys(r)[1]];
+        return traineeIds.includes(pid);
+    }).map(r => r.personal_id || r[Object.keys(r)[1]]));
+
+    // speaker eval: ใครประเมิน speaker_id ไหนแล้ว
+    const evalledSpeaker = {};
+    (speakerLogs || []).forEach(r => {
+        const pid = r.personal_id || r[Object.keys(r)[1]];
+        const spk = r.target_id || r.speaker_id || r.spk_id || r[Object.keys(r)[2]] || '';
+        if (!traineeIds.includes(pid)) return;
+        if (!evalledSpeaker[pid]) evalledSpeaker[pid] = new Set();
+        evalledSpeaker[pid].add(spk);
+    });
+
+    // speaker configs
+    const speakers = speakerConfigs.slice ? speakerConfigs.slice(1).map(r => ({ spk_id: r[0], spk_name: r[1] })) : [];
+
+    let html = `<div class="table-responsive"><table class="table table-hover align-middle small text-center mb-0">
+        <thead class="table-light"><tr>
+            <th class="text-start">Trainee</th>
+            <th>ประเมินโครงการ</th>
+            ${speakers.map(s => `<th title="${s.spk_name}">${s.spk_id}</th>`).join('')}
+        </tr></thead><tbody>`;
+
+    trainees.forEach(t => {
+        const projDone = evalledProject.has(t.personal_id);
+        html += `<tr>
+            <td class="text-start"><div class="fw-bold">${t.name}</div><div class="text-muted small">${t.personal_id}</div></td>
+            <td>${projDone ? '<span class="text-success fw-bold fs-5">✔</span>' : '<span class="text-danger">❌</span>'}</td>
+            ${speakers.map(s => {
+                const done = evalledSpeaker[t.personal_id]?.has(s.spk_id);
+                return `<td>${done ? '<span class="text-success fw-bold">✔</span>' : '<span class="text-danger">❌</span>'}</td>`;
+            }).join('')}
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('mentorEvalContent').innerHTML = html;
+}
+
 function renderStaffDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
