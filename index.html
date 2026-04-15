@@ -17,13 +17,20 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
-        body { 
-            font-family: 'Niramit', sans-serif; 
+        body {
+            font-family: 'Niramit', sans-serif;
             background-color: #f4f7f9 !important;
             background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px) !important;
             background-size: 25px 25px !important;
             background-position: center center !important;
-            background-attachment: fixed !important; 
+            background-attachment: fixed !important;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        #page-content {
+            flex: 1;
+            width: 100%;
         }
         
         .fade-in { animation: fadeIn 0.4s ease-out; }
@@ -45,36 +52,38 @@
 </head>
 <body>
 
-    <div class="container mt-5 mb-5">
-        
-        <nav class="navbar navbar-dark bg-primary shadow-sm py-2" id="main-nav" style="display:none;">
-            <div class="container-fluid align-items-center">
-                <a class="navbar-brand d-flex align-items-center m-0 text-wrap" href="#" style="max-width: 65%;">
-                    <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 55px;" class="me-2 me-md-3">
-                    <div style="line-height: 1.3;">
-                        <div class="fw-bold" style="font-size: 0.9rem;">อบรมเชิงปฏิบัติการพัฒนาการจัดการเรียนรู้และสร้างเครื่องมือประเมินผลความฉลาดรู้ (Literacy)</div>
-                        <div class="d-none d-sm-block" style="font-size: 0.75rem; color: #e0e0e0;">งานประเมินระดับนานาชาติ (PISA)</div>
-                        <div class="d-none d-sm-block" style="font-size: 0.75rem; color: #e0e0e0;">สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาพิษณุโลก อุตรดิตถ์</div>
+    <!-- Navbar: เต็มความกว้างจอเสมอ -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm py-2 sticky-top" id="main-nav" style="display:none;">
+        <div class="container-fluid px-3 px-md-4 align-items-center">
+            <a class="navbar-brand d-flex align-items-center m-0 text-wrap" href="#" style="max-width: 65%;">
+                <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 50px;" class="me-2 me-md-3 flex-shrink-0">
+                <div style="line-height: 1.3;">
+                    <div class="fw-bold" style="font-size: clamp(0.75rem, 2vw, 0.9rem);">อบรมเชิงปฏิบัติการพัฒนาการจัดการเรียนรู้และสร้างเครื่องมือประเมินผลความฉลาดรู้ (Literacy)</div>
+                    <div class="d-none d-sm-block" style="font-size: 0.72rem; color: #e0e0e0;">งานประเมินระดับนานาชาติ (PISA) &nbsp;|&nbsp; สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาพิษณุโลก อุตรดิตถ์</div>
+                </div>
+            </a>
+
+            <div class="d-flex text-white align-items-center flex-shrink-0 ms-2">
+                <div class="text-end bg-white bg-opacity-10 rounded-4 px-3 py-2 shadow-sm border border-light border-opacity-25">
+                    <div class="d-flex align-items-center justify-content-end mb-1 gap-2">
+                        <div id="display-user-name" class="fw-bold" style="font-size: clamp(0.8rem, 2vw, 1rem);">กำลังโหลด...</div>
+                        <span id="display-user-role" class="badge bg-warning text-dark shadow-sm" style="font-size: 0.7rem;">-</span>
                     </div>
-                </a>
-                
-                <div class="d-flex text-white align-items-center flex-shrink-0">
-                    <div class="text-end bg-white bg-opacity-10 rounded-4 px-3 py-2 shadow-sm border border-light border-opacity-25">
-                        <div class="d-flex align-items-center justify-content-end mb-1 gap-2">
-                            <div id="display-user-name" class="fw-bold fs-6">กำลังโหลด...</div>
-                            <span id="display-user-role" class="badge bg-warning text-dark shadow-sm" style="font-size: 0.7rem;">-</span>
-                        </div>
-                        <div class="d-flex justify-content-end align-items-center gap-3 mt-1" style="font-size: 0.75rem; color: #e0e0e0;">
-                            <span><span id="display-user-area">-</span></span>
-                            <span class="border-start border-light border-opacity-50 ps-3"><span id="display-user-group">-</span></span>
-                        </div>
+                    <div class="d-flex justify-content-end align-items-center gap-2 mt-1 d-none d-sm-flex" style="font-size: 0.72rem; color: #e0e0e0;">
+                        <span id="display-user-area">-</span>
+                        <span class="border-start border-light border-opacity-50 ps-2"><span id="display-user-group">-</span></span>
                     </div>
                 </div>
             </div>
-        </nav>
+        </div>
+    </nav>
+
+    <!-- Content wrapper -->
+    <div id="page-content">
+    <div class="container-fluid px-3 px-md-4 py-3">
 
         <div id="loginSection" class="app-view d-block">
-            <div class="d-flex align-items-center justify-content-center w-100 px-3" style="min-height: 100vh; padding-top: 20px; padding-bottom: 20px;">
+            <div class="d-flex align-items-center justify-content-center w-100 px-3" style="min-height: calc(100vh - 60px); padding-top: 20px; padding-bottom: 20px;">
                 <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 550px; width: 100%;">
                     <div class="bg-primary text-white text-center py-5 px-3">
                         <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 110px;" class="mb-3">
@@ -148,7 +157,7 @@
             </div>
         </div>
 
-        <div id="attendanceSection" class="container d-none mt-4 fade-in">
+        <div id="attendanceSection" class="d-none mt-3 fade-in">
             <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                 <h3 class="mb-0 text-primary fw-bold">⏱️ ลงเวลาเข้าอบรม</h3>
                 <div>
@@ -565,7 +574,7 @@
     </div>
 </div>
 
-        <div id="assignmentSection" class="container d-none fade-in mt-4">
+        <div id="assignmentSection" class="d-none fade-in mt-3">
             <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2 px-3" style="top: 0; z-index: 1020;">
                 <h4 class="text-dark fw-bold mb-0">📁 สรุปภาระงานและการส่งงาน</h4>
                 <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('assignmentSection')">กลับเมนูหลัก</button>
@@ -593,10 +602,12 @@
             </div>
         </div>
 
-    </div>
+    </div><!-- /.container-fluid -->
+    </div><!-- /#page-content -->
 
-    <footer id="main-footer" class="bg-primary text-white text-center py-3 mt-auto d-none">
-        <div class="container small">
+    <!-- Footer: เต็มความกว้างจอเสมอ -->
+    <footer id="main-footer" class="bg-primary text-white text-center py-3 d-none">
+        <div class="container-fluid px-4 small">
             พัฒนาโดย &copy; 2026 | นายภัทรพล แก้วเสนา ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์
         </div>
     </footer>
