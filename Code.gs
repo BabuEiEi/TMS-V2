@@ -259,12 +259,12 @@ function getSurveyData(payload) {
         var nowIsoStr = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd'T'HH:mm:ss");
         var now = new Date(nowIsoStr);
         for (var s = 1; s < spkData.length; s++) {
-            if (!spkData[s][3] || !spkData[s][4]) continue; 
-            var start = new Date(spkData[s][3]); var end = new Date(spkData[s][4]);
+            if (!spkData[s][3] || !spkData[s][4]) continue;
             var isActive = spkData[s][5] ? spkData[s][5].toString().trim().toUpperCase() === 'TRUE' : false;
-            
-            // 🌟 แก้ไข: ให้เปิดวิทยากรที่ตั้งค่า TRUE เสมอ หรือ ถ้าเวลาถูกต้อง
-            if (isActive || (now >= start && now <= end)) {
+            var start = new Date(spkData[s][3]);
+            var end = new Date(spkData[s][4]);
+            // แสดงเฉพาะ is_active=TRUE และอยู่ในช่วงเวลาที่กำหนด
+            if (isActive && now >= start && now <= end) {
                 var spkId = spkData[s][0].toString().trim();
                 speakers.push({ id: spkId, name: spkData[s][1], topic: spkData[s][2], is_evaluated: evaluatedList.indexOf(spkId) !== -1 });
             }
