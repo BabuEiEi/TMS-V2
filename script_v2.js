@@ -672,9 +672,9 @@ async function renderMentorDashboard() {
 }
 
 async function loadMentorData() {
-    const user = JSON.parse(localStorage.getItem('tms_user_data') || '{}');
+    const personalId = localStorage.getItem('tms_personal_id');
     try {
-        const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getMentorData', payload: { personal_id: user.personal_id } }) });
+        const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getMentorData', payload: { personal_id: personalId } }) });
         const result = await res.json();
         if (result.status !== 'success') { Swal.fire('ผิดพลาด', result.message, 'error'); return; }
         mentorDataCache = result;
