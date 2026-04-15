@@ -136,9 +136,23 @@ function renderAttendanceButtons(schedule, userLogs) {
         let endDateTime = new Date(slot.date + "T" + safeEndTime + ":00");
 
         if (loggedData) {
-            let logTime = new Date(loggedData);
-            let logTimeString = logTime.getHours().toString().padStart(2, '0') + ':' + logTime.getMinutes().toString().padStart(2, '0');
-            let isLogLate = logTime > endDateTime;
+            // loggedData format: "dd/MM/yyyy HH:mm:ss" → parse เอง ป้องกัน NaN
+            let logTimeString = '--:--';
+            let isLogLate = false;
+            const tsParts = loggedData.toString().trim().match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+            let logTime = null;
+            if (tsParts) {
+                logTime = new Date(tsParts[3], tsParts[2] - 1, tsParts[1], tsParts[4], tsParts[5]);
+                logTimeString = tsParts[4] + ':' + tsParts[5];
+                isLogLate = logTime > endDateTime;
+            } else {
+                // fallback: ลอง parse ตรง
+                logTime = new Date(loggedData);
+                if (!isNaN(logTime.getTime())) {
+                    logTimeString = logTime.getHours().toString().padStart(2,'0') + ':' + logTime.getMinutes().toString().padStart(2,'0');
+                    isLogLate = logTime > endDateTime;
+                }
+            }
             let lateMark = isLogLate ? ' <span class="text-danger">(สาย)</span>' : '';
             
             btnContainer.innerHTML += `
