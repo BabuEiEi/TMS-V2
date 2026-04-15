@@ -79,6 +79,7 @@ function showDashboard() {
         const role = user.role ? user.role.toUpperCase() : "";
         if (role === 'ADMIN')  { renderAdminDashboard(); return; }
         if (role === 'STAFF')  { renderStaffDashboard(); return; }
+        if (role === 'MENTOR') { renderMentorDashboard(); return; }
     }
     document.getElementById("dashboardSection").classList.remove("d-none");
 }
