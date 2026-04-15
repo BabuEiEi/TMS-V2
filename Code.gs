@@ -197,17 +197,26 @@ function submitAttendance(payload) {
 
 function getExamData(personalId) {
     var masterSs = SpreadsheetApp.getActiveSpreadsheet();
-    var configs = masterSs.getSheetByName('Exam_Config').getDataRange().getDisplayValues();
-    
-    var nowIsoStr = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd'T'HH:mm:ss");
-    var now = new Date(nowIsoStr);
+    // ใช้ getValues() เพื่อให้ได้ Date object จริง ไม่ใช่ string ที่ parse ไม่ได้
+    var configSheet = masterSs.getSheetByName('Exam_Config');
+    var configValues = configSheet.getDataRange().getValues();         // Date objects
+    var configDisplay = configSheet.getDataRange().getDisplayValues(); // สำหรับ string อื่น
+
+    var now = new Date();
     var activeExam = null;
-    
-    for (var i = 1; i < configs.length; i++) {
-        var start = new Date(configs[i][1]); var end = new Date(configs[i][2]);
-        var isActive = configs[i][3] ? configs[i][3].toString().trim().toUpperCase() === 'TRUE' : false;
+
+    for (var i = 1; i < configValues.length; i++) {
+        var start = configValues[i][1] instanceof Date ? configValues[i][1] : new Date(configValues[i][1]);
+        var end   = configValues[i][2] instanceof Date ? configValues[i][2] : new Date(configValues[i][2]);
+        var isActive = configDisplay[i][3] ? configDisplay[i][3].toString().trim().toUpperCase() === 'TRUE' : false;
         if (isActive && now >= start && now <= end) {
-            activeExam = { type: configs[i][0], start_datetime: configs[i][1], end_datetime: configs[i][2], passing_percent: parseFloat(configs[i][4]) || 80 }; break;
+            activeExam = {
+                type: configDisplay[i][0],
+                start_datetime: Utilities.formatDate(start, "Asia/Bangkok", "dd/MM/yyyy HH:mm"),
+                end_datetime:   Utilities.formatDate(end,   "Asia/Bangkok", "dd/MM/yyyy HH:mm"),
+                passing_percent: parseFloat(configDisplay[i][4]) || 80
+            };
+            break;
         }
     }
     if (!activeExam) return { status: 'error', message: 'ยังไม่ถึงเวลาเปิดทำแบบทดสอบ หรือ หมดเวลาแล้วครับ' };
@@ -255,18 +264,19 @@ function getSurveyData(payload) {
                 if (evalLogs[e][1] === personalId) evaluatedList.push(evalLogs[e][2].toString().trim()); 
             }
         }
-        var spkData = masterSs.getSheetByName('Speakers_Config').getDataRange().getDisplayValues();
-        var nowIsoStr = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd'T'HH:mm:ss");
-        var now = new Date(nowIsoStr);
-        for (var s = 1; s < spkData.length; s++) {
-            if (!spkData[s][3] || !spkData[s][4]) continue;
-            var isActive = spkData[s][5] ? spkData[s][5].toString().trim().toUpperCase() === 'TRUE' : false;
-            var start = new Date(spkData[s][3]);
-            var end = new Date(spkData[s][4]);
+        var spkSheet = masterSs.getSheetByName('Speakers_Config');
+        var spkValues  = spkSheet.getDataRange().getValues();
+        var spkDisplay = spkSheet.getDataRange().getDisplayValues();
+        var now = new Date();
+        for (var s = 1; s < spkValues.length; s++) {
+            if (!spkValues[s][3] || !spkValues[s][4]) continue;
+            var isActive = spkDisplay[s][5] ? spkDisplay[s][5].toString().trim().toUpperCase() === 'TRUE' : false;
+            var start = spkValues[s][3] instanceof Date ? spkValues[s][3] : new Date(spkValues[s][3]);
+            var end   = spkValues[s][4] instanceof Date ? spkValues[s][4] : new Date(spkValues[s][4]);
             // แสดงเฉพาะ is_active=TRUE และอยู่ในช่วงเวลาที่กำหนด
             if (isActive && now >= start && now <= end) {
-                var spkId = spkData[s][0].toString().trim();
-                speakers.push({ id: spkId, name: spkData[s][1], topic: spkData[s][2], is_evaluated: evaluatedList.indexOf(spkId) !== -1 });
+                var spkId = spkDisplay[s][0].toString().trim();
+                speakers.push({ id: spkId, name: spkDisplay[s][1], topic: spkDisplay[s][2], is_evaluated: evaluatedList.indexOf(spkId) !== -1 });
             }
         }
     }
