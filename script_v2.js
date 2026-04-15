@@ -1580,15 +1580,46 @@ function exportFullReportToExcel() {
             let contentArea = document.getElementById('evalReportContent');
             if (contentArea) {
                 let tables = contentArea.querySelectorAll('table');
+                let ws3 = XLSX.utils.aoa_to_sheet([[`สรุปผล${dynamicSheetName}`], []]);
+                let hasData = false;
+
+                // ตอนที่ 1 และ 2: ตาราง Rating
                 if (tables.length > 0) {
-                    // รวมตารางประเมินทั้งหมด (ตอนที่ 1, 2, 3) ลงในชีตเดียวแบบเรียงต่อกัน
-                    let ws3 = XLSX.utils.aoa_to_sheet([[`สรุปผล${dynamicSheetName}`], []]);
                     tables.forEach(table => {
                         let tempSheet = XLSX.utils.table_to_sheet(table);
                         let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
-                        XLSX.utils.sheet_add_aoa(ws3, tableData, {origin: -1}); // ต่อท้ายแถวล่างสุด
-                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});      // เว้นบรรทัดว่าง
+                        XLSX.utils.sheet_add_aoa(ws3, tableData, {origin: -1});
+                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
                     });
+                    hasData = true;
+                }
+
+                // ตอนที่ 3: ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด) จาก accordion/list
+                let accordionEl = contentArea.querySelector('#textAccordion');
+                if (accordionEl) {
+                    XLSX.utils.sheet_add_aoa(ws3, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], {origin: -1});
+                    XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
+                    let items = accordionEl.querySelectorAll('.accordion-item');
+                    items.forEach((item, idx) => {
+                        let questionEl = item.querySelector('.accordion-button');
+                        let question = questionEl ? questionEl.innerText.trim() : `คำถาม ${idx+1}`;
+                        XLSX.utils.sheet_add_aoa(ws3, [[question]], {origin: -1});
+                        let answers = item.querySelectorAll('.list-group-item:not(.text-muted)');
+                        if (answers.length === 0) {
+                            XLSX.utils.sheet_add_aoa(ws3, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], {origin: -1});
+                        } else {
+                            answers.forEach((ans, aIdx) => {
+                                // ลบ icon ออก ดึงเฉพาะข้อความ
+                                let text = ans.innerText.replace(/^[▶→➤]\s*/, '').trim();
+                                XLSX.utils.sheet_add_aoa(ws3, [[`  ${aIdx+1}. ${text}`]], {origin: -1});
+                            });
+                        }
+                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
+                    });
+                    hasData = true;
+                }
+
+                if (hasData) {
                     XLSX.utils.book_append_sheet(wb, ws3, dynamicSheetName);
                 }
             }
