@@ -816,44 +816,95 @@ function renderMentorGradeTab() {
         if (!latestLog[key] || log.timestamp > latestLog[key].timestamp) latestLog[key] = log;
     });
 
-    // สร้างแถวทุก trainee × ทุก assignment
-    let rows = [];
-    trainees.forEach(t => {
-        assignConfigs.forEach(cfg => {
-            const key = t.personal_id + '|' + cfg.assign_id;
-            const log = latestLog[key] || null;
-            const status = log ? log.status : 'ยังไม่ส่ง';
-            if (filter !== 'all' && status !== filter) return;
-            rows.push({ trainee: t, cfg, log, status });
-        });
-    });
+    // กรอง trainee ตาม filter (ถ้าเลือก filter ให้แสดงเฉพาะ trainee ที่มี assignment ตรงกัน)
+    let filteredTrainees = trainees;
+    if (filter !== 'all') {
+        filteredTrainees = trainees.filter(t =>
+            assignConfigs.some(cfg => {
+                const log = latestLog[t.personal_id + '|' + cfg.assign_id];
+                const status = log ? log.status : 'ยังไม่ส่ง';
+                return status === filter;
+            })
+        );
+    }
 
     const statusBadge = (s) => {
-        const map = { 'รอตรวจ':'bg-secondary','ดีมาก':'bg-success','ดี':'bg-primary','พอใช้':'bg-warning text-dark','ปรับปรุง':'bg-danger','ยังไม่ส่ง':'bg-light text-muted border' };
-        return `<span class="badge ${map[s]||'bg-secondary'}">${s}</span>`;
+        const map = {
+            'รอตรวจ':   'bg-secondary',
+            'ดีมาก':    'bg-success',
+            'ดี':       'bg-primary',
+            'พอใช้':    'bg-warning text-dark',
+            'ปรับปรุง': 'bg-danger',
+            'ยังไม่ส่ง':'bg-light text-muted border'
+        };
+        return `<span class="badge ${map[s] || 'bg-secondary'} text-nowrap">${s}</span>`;
     };
 
-    let html = `<div class="table-responsive"><table class="table table-hover align-middle small mb-0">
-        <thead class="table-light"><tr><th>Trainee</th><th>ภาระงาน</th><th>วันที่ส่ง</th><th class="text-center">สถานะ</th><th class="text-center">คะแนน</th><th class="text-center">จัดการ</th></tr></thead><tbody>`;
-    if (!rows.length) {
-        html += `<tr><td colspan="6" class="text-center py-4 text-muted">ไม่มีข้อมูล</td></tr>`;
+    if (!assignConfigs.length) {
+        document.getElementById('mentorGradeContent').innerHTML = '<p class="text-muted text-center py-4">ไม่มีภาระงานในระบบ</p>';
+        return;
+    }
+
+    // ===== Matrix Header =====
+    let thCols = assignConfigs.map(cfg =>
+        `<th class="text-center align-middle" style="min-width:160px;">
+            <div class="fw-bold small">${cfg.title}</div>
+            <div class="text-muted" style="font-size:0.7rem;">${cfg.assign_id} | เต็ม ${cfg.full_score}</div>
+        </th>`
+    ).join('');
+
+    let html = `<div class="table-responsive">
+    <table class="table table-hover table-bordered align-middle small mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="align-middle" style="min-width:180px;">#&nbsp;&nbsp;ชื่อ-สกุล</th>
+                ${thCols}
+            </tr>
+        </thead>
+        <tbody>`;
+
+    if (!filteredTrainees.length) {
+        html += `<tr><td colspan="${assignConfigs.length + 1}" class="text-center py-4 text-muted">ไม่มีข้อมูล</td></tr>`;
     } else {
-        rows.forEach(r => {
-            const canGrade = r.log && r.status === 'รอตรวจ';
-            const cfgJson = encodeURIComponent(JSON.stringify(r.cfg));
+        filteredTrainees.forEach((t, idx) => {
             html += `<tr>
-                <td><div class="fw-bold">${r.trainee.name}</div><div class="text-muted small">${r.trainee.personal_id}</div></td>
-                <td><div class="fw-bold">${r.cfg.title}</div><div class="text-muted small">${r.cfg.assign_id}</div></td>
-                <td>${r.log ? r.log.timestamp : '-'}</td>
-                <td class="text-center">${statusBadge(r.status)}</td>
-                <td class="text-center">${r.log && r.log.score ? r.log.score + '/' + r.cfg.full_score : '-'}</td>
-                <td class="text-center">
-                    ${r.log ? `<a href="${r.log.file_link}" target="_blank" class="btn btn-sm btn-outline-info me-1" title="ดูงาน"><i class="bi bi-eye"></i></a>` : ''}
-                    ${canGrade ? `<button class="btn btn-sm btn-warning" onclick="openGradeModal('${encodeURIComponent(JSON.stringify(r.log))}','${cfgJson}')" title="ให้คะแนน"><i class="bi bi-pencil-square"></i></button>` : ''}
-                    ${r.log && !canGrade && r.log.score ? `<button class="btn btn-sm btn-outline-secondary" onclick="openGradeModal('${encodeURIComponent(JSON.stringify(r.log))}','${cfgJson}')" title="แก้ไขคะแนน"><i class="bi bi-pencil"></i></button>` : ''}
-                </td></tr>`;
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">${idx + 1}</span>
+                        <div>
+                            <div class="fw-bold text-primary">${t.name}</div>
+                            <div class="text-danger small">${t.personal_id}</div>
+                        </div>
+                    </div>
+                </td>`;
+
+            assignConfigs.forEach(cfg => {
+                const log = latestLog[t.personal_id + '|' + cfg.assign_id] || null;
+                const status = log ? log.status : 'ยังไม่ส่ง';
+                const canGrade = log && status === 'รอตรวจ';
+                const hasGraded = log && log.score;
+                const logJson = log ? encodeURIComponent(JSON.stringify(log)) : '';
+                const cfgJson = encodeURIComponent(JSON.stringify(cfg));
+
+                html += `<td class="text-center">
+                    <div class="d-flex flex-column align-items-center gap-1">
+                        ${statusBadge(status)}
+                        ${log && log.score ? `<div class="small text-muted">${log.score}/${cfg.full_score}</div>` : ''}
+                        <div class="d-flex gap-1 mt-1">
+                            ${log && log.file_link ? `<a href="${log.file_link}" target="_blank" class="btn btn-xs btn-outline-info py-0 px-1" title="ดูงาน" style="font-size:0.7rem;"><i class="bi bi-eye"></i></a>` : ''}
+                            ${log ? `<button class="btn btn-xs ${canGrade ? 'btn-warning' : 'btn-outline-secondary'} py-0 px-1" style="font-size:0.7rem;"
+                                onclick="openGradeModal('${logJson}','${cfgJson}')" title="${canGrade ? 'ให้คะแนน' : 'แก้ไขคะแนน'}">
+                                <i class="bi bi-${canGrade ? 'pencil-square' : 'pencil'}"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>
+                </td>`;
+            });
+
+            html += '</tr>';
         });
     }
+
     html += '</tbody></table></div>';
     document.getElementById('mentorGradeContent').innerHTML = html;
 }
