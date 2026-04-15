@@ -835,8 +835,8 @@ function openConfigForm(id = null) {
             if (adminCurrentConfigSheet === 'Users') window.handleUserRoleChange();
         },
         preConfirm: () => {
-            // Sync Quill content to hidden input
-            if (window.quillInstance && document.getElementById('cfgInput_2')) {
+            // Sync Quill content to hidden input (Assignment_Config only)
+            if (adminCurrentConfigSheet === 'Assignment_Config' && window.quillInstance && document.getElementById('cfgInput_2')) {
                 document.getElementById('cfgInput_2').value = window.quillInstance.root.innerHTML;
             }
             let newData = [];
