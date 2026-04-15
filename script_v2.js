@@ -25,12 +25,9 @@ function formatThaiDate(dateStr) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    let savedId = localStorage.getItem("tms_personal_id");
-    if (savedId) {
-        document.getElementById("personalId").value = savedId;
-        renderUserInfo();
-        showDashboard();
-    }
+    // ล้าง session ทุกครั้งที่โหลดหน้าใหม่ → บังคับ Login ใหม่เสมอ
+    localStorage.removeItem("tms_personal_id");
+    localStorage.removeItem("tms_user_data");
 });
 
 function renderUserInfo() {
@@ -1114,10 +1111,10 @@ function renderMentorEvalTab() {
         const projDone = evalledProject.has(t.personal_id);
         html += `<tr>
             <td class="text-start"><div class="fw-bold">${t.name}</div><div class="text-muted small">${t.personal_id}</div></td>
-            <td>${projDone ? '<span class="text-success fw-bold fs-5">✔</span>' : '<span class="text-danger">❌</span>'}</td>
+            <td>${projDone ? '<span class="fs-5">✅</span>' : '<span class="text-danger">❌</span>'}</td>
             ${speakers.map(s => {
                 const done = evalledSpeaker[t.personal_id]?.has(s.spk_id);
-                return `<td>${done ? '<span class="text-success fw-bold">✔</span>' : '<span class="text-danger">❌</span>'}</td>`;
+                return `<td>${done ? '<span class="fs-5">✅</span>' : '<span class="text-danger">❌</span>'}</td>`;
             }).join('')}
         </tr>`;
     });
