@@ -422,6 +422,20 @@ async function openSurveyForm(type) {
                 body: JSON.stringify({ action: 'getSurveyData', payload: { survey_type: type, personal_id: localStorage.getItem("tms_personal_id") } })
             });
             globalSurveyData = await response.json();
+
+            // บล็อกถ้าประเมินโครงการแล้ว
+            if (globalSurveyData.project_evaluated) {
+                document.getElementById("surveySection").classList.add("d-none");
+                document.getElementById("dashboardSection").classList.remove("d-none");
+                Swal.fire({
+                    icon: 'info',
+                    title: 'ประเมินแล้ว',
+                    text: 'ท่านได้ทำการประเมินภาพรวมโครงการเรียบร้อยแล้ว ขอบคุณครับ 🎉',
+                    confirmButtonColor: '#198754'
+                });
+                return;
+            }
+
             renderSurveyQuestions();
             document.getElementById("btnSubmitSurvey").classList.remove("d-none");
         } catch (e) {

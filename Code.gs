@@ -270,7 +270,19 @@ function getSurveyData(payload) {
             }
         }
     }
-    return { status: 'success', questions: questions, speakers: speakers };
+    // เช็คว่าประเมินโครงการแล้วหรือยัง (สำหรับ PROJECT_SURVEY)
+    var projectEvaluated = false;
+    if (surveyType.toUpperCase() === 'PROJECT_SURVEY' && personalId) {
+        var projLogs = SpreadsheetApp.openById(DB_SHARDS['PROJECT']).getSheets()[0].getDataRange().getDisplayValues();
+        for (var p = 1; p < projLogs.length; p++) {
+            if (projLogs[p][1] && projLogs[p][1].toString().trim() === personalId.toString().trim()) {
+                projectEvaluated = true;
+                break;
+            }
+        }
+    }
+
+    return { status: 'success', questions: questions, speakers: speakers, project_evaluated: projectEvaluated };
 }
 
 // ============================================================
