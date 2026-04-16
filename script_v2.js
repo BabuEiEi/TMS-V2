@@ -24,11 +24,23 @@ function formatThaiDate(dateStr) {
     return day + " " + month + " " + year;
 }
 
+function updateNavbarHeight() {
+    const nav = document.getElementById('main-nav');
+    if (nav) {
+        const h = nav.offsetHeight;
+        document.documentElement.style.setProperty('--navbar-h', h + 'px');
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     // ล้าง session ทุกครั้งที่โหลดหน้าใหม่ → บังคับ Login ใหม่เสมอ
     localStorage.removeItem("tms_personal_id");
     localStorage.removeItem("tms_user_data");
+
+    updateNavbarHeight();
 });
+
+window.addEventListener('resize', updateNavbarHeight);
 
 function renderUserInfo() {
     let userDataStr = localStorage.getItem("tms_user_data");
