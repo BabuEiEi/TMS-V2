@@ -741,18 +741,35 @@ async function loadMentorData() {
 function switchMentorTab(tab) {
     ['trainees','grade','eval'].forEach(t => {
         document.getElementById('mentorTab_' + t).classList.add('d-none');
-        document.getElementById('mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('active','fw-bold');
+        const btnId = 'mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1);
+        document.getElementById(btnId)?.classList.remove('active');
     });
     document.getElementById('mentorTab_' + tab).classList.remove('d-none');
     const btnMap = { trainees: 'mentorBtnTrainees', grade: 'mentorBtnGrade', eval: 'mentorBtnEval' };
-    document.getElementById(btnMap[tab]).classList.add('active','fw-bold');
+    document.getElementById(btnMap[tab])?.classList.add('active');
     if (tab === 'trainees') renderMentorTraineesTab();
     else if (tab === 'grade') renderMentorGradeTab();
     else if (tab === 'eval') renderMentorEvalTab();
 }
 
-function toggleMentorSidebar() {
-    document.getElementById('mentorSidebar')?.classList.toggle('collapsed');
+// ย่อ/ขยาย sidebar (desktop) หรือ เปิด/ปิด drawer (mobile)
+function toggleSidebar(role) {
+    const sidebar  = document.getElementById(role + 'Sidebar');
+    const wrapper  = document.getElementById(role + 'PageWrapper');
+    const overlay  = document.getElementById(role + 'Overlay');
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+        sidebar.classList.toggle('mobile-open');
+        overlay?.classList.toggle('active');
+    } else {
+        sidebar.classList.toggle('collapsed');
+        wrapper?.classList.toggle('collapsed');
+    }
+}
+
+function closeSidebarMobile(role) {
+    document.getElementById(role + 'Sidebar')?.classList.remove('mobile-open');
+    document.getElementById(role + 'Overlay')?.classList.remove('active');
 }
 
 function renderMentorTraineesTab() {
@@ -1190,43 +1207,41 @@ function renderStaffDashboard() {
     if (btnSystem) btnSystem.classList.add('d-none');
     if (btnUser)   btnUser.classList.add('d-none');
 
-    // ไฮไลต์ปุ่มสรุปรายงานผล และเปลี่ยนสี border sidebar เป็น success
+    // ไฮไลต์ปุ่มสรุปรายงานผล
     if (btnReport) {
-        btnReport.classList.add('active', 'fw-bold');
+        btnReport.classList.add('active');
         btnReport.classList.remove('d-none');
     }
-    let sidebar = document.querySelector('#adminSidebar .border-primary');
-    if (sidebar) { sidebar.classList.replace('border-primary', 'border-success'); }
-    let sidebarTitle = document.querySelector('#adminSidebar .text-primary');
-    if (sidebarTitle) { sidebarTitle.classList.replace('text-primary', 'text-success'); }
+    // เปลี่ยนชื่อ sidebar title เป็น Staff
+    const title = document.getElementById('adminSidebarTitle');
+    if (title) { title.style.color = '#198754'; }
 
     // เปิดแท็บสรุปรายงานผลทันที
     switchAdminTab('reportManage');
 }
 
 function restoreAdminSidebar() {
-    let btnSystem = document.getElementById('sidebarBtnSystem');
-    let btnUser   = document.getElementById('sidebarBtnUser');
+    const btnSystem = document.getElementById('sidebarBtnSystem');
+    const btnUser   = document.getElementById('sidebarBtnUser');
     if (btnSystem) btnSystem.classList.remove('d-none');
     if (btnUser)   btnUser.classList.remove('d-none');
-    let sidebar = document.querySelector('#adminSidebar .border-success');
-    if (sidebar) { sidebar.classList.replace('border-success', 'border-primary'); }
-    let sidebarTitle = document.querySelector('#adminSidebar .text-success');
-    if (sidebarTitle) { sidebarTitle.classList.replace('text-success', 'text-primary'); }
+    const title = document.getElementById('adminSidebarTitle');
+    if (title) { title.style.color = ''; }
 }
 
 function switchAdminTab(tabName) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
-    document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active', 'fw-bold'));
-    document.getElementById('adminTab_' + tabName).classList.remove('d-none');
-    if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
+    ['sidebarBtnSystem','sidebarBtnUser','sidebarBtnReport'].forEach(id => {
+        document.getElementById(id)?.classList.remove('active');
+    });
+    document.getElementById('adminTab_' + tabName)?.classList.remove('d-none');
+    const btnMap = { systemControl: 'sidebarBtnSystem', userManage: 'sidebarBtnUser', reportManage: 'sidebarBtnReport' };
+    if (btnMap[tabName]) document.getElementById(btnMap[tabName])?.classList.add('active');
 
-    if (tabName === 'userManage') { loadAdminConfig('Users'); } 
-    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); } 
+    if (tabName === 'userManage') { loadAdminConfig('Users'); }
+    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); }
     else if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
 }
-
-function toggleAdminSidebar() { const sidebar = document.getElementById('adminSidebar'); if (sidebar) { sidebar.classList.toggle('collapsed'); } }
 
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
