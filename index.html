@@ -287,6 +287,9 @@
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
                                 <h5 class="fw-bold text-dark mb-0">👥 รายชื่อผู้อบรมในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorTraineesTab)">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
+                                </button>
                             </div>
                             <div class="mb-3">
                                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
@@ -320,7 +323,12 @@
                     <!-- Tab: สถิติการประเมิน -->
                     <div id="mentorTab_eval" class="card shadow-lg border-0 rounded-4 bg-white fade-in d-none">
                         <div class="card-body p-4">
-                            <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">📊 สถิติการประเมินวิทยากร/โครงการ</h5>
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                                <h5 class="fw-bold text-dark mb-0">📊 สถิติการประเมินวิทยากร/โครงการ</h5>
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorEvalTab)">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
+                                </button>
+                            </div>
                             <div id="mentorEvalContent"></div>
                         </div>
                     </div>
