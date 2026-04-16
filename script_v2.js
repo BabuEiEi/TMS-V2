@@ -1575,7 +1575,13 @@ function processAndRenderReport() {
             }
         }
     });
-    assignment.forEach(a => { if(userDataMap[a.personal_id] && (a.status === 'ตรวจแล้ว' || a.status === 'รอตรวจ')) userDataMap[a.personal_id].assignScore += (parseFloat(a.score) || 0); });
+    const GRADED_STATUSES = ['ตรวจแล้ว', 'รอตรวจ', 'ดีมาก', 'ดี', 'พอใช้', 'ปรับปรุง'];
+    assignment.forEach(a => {
+        const status = String(a.status || '').trim();
+        if (userDataMap[a.personal_id] && GRADED_STATUSES.includes(status)) {
+            userDataMap[a.personal_id].assignScore += (parseFloat(a.score) || 0);
+        }
+    });
     survey.forEach(s => {
         if(userDataMap[s.personal_id]) {
             if(s.survey_type === 'PROJECT_SURVEY') userDataMap[s.personal_id].evalProject = true;
@@ -1808,7 +1814,8 @@ function renderTaskEvalTab() {
             let aid = a['assign_id'];
             let data = assignMap[pid] && assignMap[pid][aid];
             if (data) {
-                let badge = data.status === 'ตรวจแล้ว' ? 'bg-success' : data.status === 'รอตรวจ' ? 'bg-warning text-dark' : 'bg-secondary';
+                const DONE_ST = ['ตรวจแล้ว','ดีมาก','ดี','พอใช้','ปรับปรุง'];
+                let badge = DONE_ST.includes(data.status) ? 'bg-success' : data.status === 'รอตรวจ' ? 'bg-warning text-dark' : 'bg-secondary';
                 tbHtml += `<td class="text-center"><span class="badge ${badge}">${data.score}</span><div class="small text-muted" style="font-size:0.6rem;">${data.status}</div></td>`;
             } else {
                 tbHtml += `<td class="text-center text-muted">-</td>`;
