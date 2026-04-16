@@ -38,20 +38,6 @@ function renderUserInfo() {
         document.getElementById("display-user-role").innerText = user.role || "-";
         document.getElementById("display-user-area").innerText = "📍 " + (user.area_service || "-");
         document.getElementById("display-user-group").innerText = "🎯 กลุ่มเป้าหมาย: " + (user.group_target || "-");
-        // sync slim bar
-        const slimName = document.getElementById("slim-user-name");
-        const slimRole = document.getElementById("slim-user-role");
-        if (slimName) slimName.innerText = user.name || "";
-        if (slimRole) slimRole.innerText = user.role || "";
-    }
-}
-
-function setNavSlim(slim) {
-    const nav = document.getElementById("main-nav");
-    if (slim) {
-        nav.classList.add("nav-slim");
-    } else {
-        nav.classList.remove("nav-slim");
     }
 }
 
@@ -81,6 +67,7 @@ function logout() { localStorage.removeItem("tms_personal_id"); location.reload(
 function showDashboard() {
     document.getElementById("loginSection").classList.add("d-none");
     document.getElementById("main-nav").style.display = "block";
+    document.body.classList.add("nav-visible");
     let footer = document.getElementById("main-footer");
     if(footer) footer.classList.remove("d-none");
 
@@ -98,8 +85,6 @@ function showDashboard() {
 function backToDashboard(currentId) {
     document.getElementById(currentId).classList.add("d-none");
     document.getElementById("dashboardSection").classList.remove("d-none");
-    document.body.classList.remove("has-sidebar", "sidebar-collapsed");
-    setNavSlim(false);
     isExamActive = false; clearInterval(examCountdown);
 }
 
@@ -721,9 +706,6 @@ const CUSTOM_HEADERS = {
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
-    document.body.classList.add("has-sidebar");
-    document.body.classList.remove("sidebar-collapsed");
-    setNavSlim(true);
     restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
 }
@@ -739,9 +721,6 @@ let mentorDataCache = null;
 async function renderMentorDashboard() {
     document.getElementById('dashboardSection').classList.add('d-none');
     document.getElementById('mentorSection').classList.remove('d-none');
-    document.body.classList.add("has-sidebar");
-    document.body.classList.remove("sidebar-collapsed");
-    setNavSlim(true);
     await loadMentorData();
 }
 
@@ -762,17 +741,19 @@ async function loadMentorData() {
 function switchMentorTab(tab) {
     ['trainees','grade','eval'].forEach(t => {
         document.getElementById('mentorTab_' + t).classList.add('d-none');
-        const btnId = 'mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1);
-        document.getElementById(btnId)?.classList.remove('active');
+        document.getElementById('mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('active','fw-bold');
     });
     document.getElementById('mentorTab_' + tab).classList.remove('d-none');
     const btnMap = { trainees: 'mentorBtnTrainees', grade: 'mentorBtnGrade', eval: 'mentorBtnEval' };
-    document.getElementById(btnMap[tab])?.classList.add('active');
+    document.getElementById(btnMap[tab]).classList.add('active','fw-bold');
     if (tab === 'trainees') renderMentorTraineesTab();
     else if (tab === 'grade') renderMentorGradeTab();
     else if (tab === 'eval') renderMentorEvalTab();
 }
 
+function toggleMentorSidebar() {
+    document.getElementById('mentorSidebar')?.classList.toggle('collapsed');
+}
 
 function renderMentorTraineesTab() {
     if (!mentorDataCache) return;
@@ -1201,9 +1182,6 @@ function renderMentorEvalTab() {
 function renderStaffDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
-    document.body.classList.add("has-sidebar");
-    document.body.classList.remove("sidebar-collapsed");
-    setNavSlim(true);
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
     let btnSystem = document.getElementById('sidebarBtnSystem');
@@ -1239,37 +1217,16 @@ function restoreAdminSidebar() {
 
 function switchAdminTab(tabName) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
-    ['sidebarBtnSystem','sidebarBtnUser','sidebarBtnReport'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('active');
-    });
+    document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active', 'fw-bold'));
     document.getElementById('adminTab_' + tabName).classList.remove('d-none');
-    const btnMap = { systemControl: 'sidebarBtnSystem', userManage: 'sidebarBtnUser', reportManage: 'sidebarBtnReport' };
-    if (btnMap[tabName]) document.getElementById(btnMap[tabName])?.classList.add('active');
+    if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
 
-    if (tabName === 'userManage') { loadAdminConfig('Users'); }
-    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); }
+    if (tabName === 'userManage') { loadAdminConfig('Users'); } 
+    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); } 
     else if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
 }
 
-function toggleSidebar(role) {
-    const sidebar = document.getElementById(role + 'Sidebar');
-    const content = document.getElementById(role + 'Content');
-    const overlay = document.getElementById(role + 'Overlay');
-    const isMobile = window.innerWidth < 768;
-
-    if (isMobile) {
-        sidebar.classList.toggle('mobile-open');
-        overlay.classList.toggle('active');
-    } else {
-        const isCollapsing = !sidebar.classList.contains('collapsed');
-        sidebar.classList.toggle('collapsed');
-        if (content) content.classList.toggle('collapsed');
-        // sync navbar & footer padding
-        document.body.classList.toggle('sidebar-collapsed', isCollapsing);
-    }
-}
-
+function toggleAdminSidebar() { const sidebar = document.getElementById('adminSidebar'); if (sidebar) { sidebar.classList.toggle('collapsed'); } }
 
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
