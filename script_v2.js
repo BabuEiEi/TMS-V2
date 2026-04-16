@@ -751,9 +751,6 @@ function switchMentorTab(tab) {
     else if (tab === 'eval') renderMentorEvalTab();
 }
 
-function toggleMentorSidebar() {
-    document.getElementById('mentorSidebar')?.classList.toggle('collapsed');
-}
 
 function renderMentorTraineesTab() {
     if (!mentorDataCache) return;
@@ -1226,7 +1223,6 @@ function switchAdminTab(tabName) {
     else if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
 }
 
-function toggleAdminSidebar() { const sidebar = document.getElementById('adminSidebar'); if (sidebar) { sidebar.classList.toggle('collapsed'); } }
 
 async function loadAdminConfig(sheetName) {
     adminCurrentConfigSheet = sheetName;
