@@ -279,6 +279,46 @@ body.has-sidebar.sidebar-collapsed #main-footer {
     }
 }
 
+/* =========================================== */
+/* 🎨 Slim Navbar — เหมือน Footer (Admin/Mentor/Staff) */
+/* =========================================== */
+#main-nav.nav-slim {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    box-shadow: none !important;
+}
+
+/* ซ่อนส่วนโลโก้ + ชื่อโครงการ */
+#main-nav.nav-slim .navbar-brand {
+    display: none !important;
+}
+
+/* ซ่อน user card เดิม */
+#main-nav.nav-slim #nav-user-card {
+    display: none !important;
+}
+
+/* แสดง slim bar แทน: ชื่อระบบ | ชื่อผู้ใช้ (role) */
+#nav-slim-bar {
+    display: none;
+    width: 100%;
+    font-size: 0.8rem;
+    color: #fff;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#main-nav.nav-slim #nav-slim-bar {
+    display: flex !important;
+}
+
+#nav-slim-bar .slim-sys-name {
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Content area: ขยายเต็ม และมี padding ที่ responsive */
 #page-content {
     width: 100%;

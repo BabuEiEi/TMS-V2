@@ -38,6 +38,20 @@ function renderUserInfo() {
         document.getElementById("display-user-role").innerText = user.role || "-";
         document.getElementById("display-user-area").innerText = "📍 " + (user.area_service || "-");
         document.getElementById("display-user-group").innerText = "🎯 กลุ่มเป้าหมาย: " + (user.group_target || "-");
+        // sync slim bar
+        const slimName = document.getElementById("slim-user-name");
+        const slimRole = document.getElementById("slim-user-role");
+        if (slimName) slimName.innerText = user.name || "";
+        if (slimRole) slimRole.innerText = user.role || "";
+    }
+}
+
+function setNavSlim(slim) {
+    const nav = document.getElementById("main-nav");
+    if (slim) {
+        nav.classList.add("nav-slim");
+    } else {
+        nav.classList.remove("nav-slim");
     }
 }
 
@@ -84,6 +98,8 @@ function showDashboard() {
 function backToDashboard(currentId) {
     document.getElementById(currentId).classList.add("d-none");
     document.getElementById("dashboardSection").classList.remove("d-none");
+    document.body.classList.remove("has-sidebar", "sidebar-collapsed");
+    setNavSlim(false);
     isExamActive = false; clearInterval(examCountdown);
 }
 
@@ -707,6 +723,7 @@ function renderAdminDashboard() {
     document.getElementById("adminSection").classList.remove("d-none");
     document.body.classList.add("has-sidebar");
     document.body.classList.remove("sidebar-collapsed");
+    setNavSlim(true);
     restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
 }
@@ -724,6 +741,7 @@ async function renderMentorDashboard() {
     document.getElementById('mentorSection').classList.remove('d-none');
     document.body.classList.add("has-sidebar");
     document.body.classList.remove("sidebar-collapsed");
+    setNavSlim(true);
     await loadMentorData();
 }
 
@@ -1185,6 +1203,7 @@ function renderStaffDashboard() {
     document.getElementById("adminSection").classList.remove("d-none");
     document.body.classList.add("has-sidebar");
     document.body.classList.remove("sidebar-collapsed");
+    setNavSlim(true);
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
     let btnSystem = document.getElementById('sidebarBtnSystem');
