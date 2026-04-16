@@ -1,0 +1,169 @@
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user is building a Training Management System (TMS) using Google Apps Script (GAS) as backend and HTML/JS frontend. In this session, requests included:
+   - Fix Assignment Config table not showing data after saving with Quill HTML content
+   - Fix SV012 TRAINEE role not showing (Quill sync overwrote role dropdown)
+   - Confirm TRAINEE vs Trainee case difference doesn't break system
+   - Fix Export to Excel missing ตอนที่ 3 (ข้อเสนอแนะปลายเปิด) data
+   - Add separate Export options by type (dropdown menu)
+   - Fix attendance count including ลา entries in รวมครั้ง
+   - Add Staff role: same as Admin but only สรุปรายงานผล + ออกจากระบบ
+   - Add full Mentor role with: รายชื่อผู้อบรมในกลุ่มของฉัน (attendance table), ตรวจภาระงาน (matrix table), สถิติการประเมิน (eval grid)
+   - Mentor grading: 2-panel modal (left: iframe preview, right: rubric number inputs)
+   - Mentor sidebar: collapsible/toggle like Admin
+   - Change Mentor trainees tab from simple table to full attendance statistics table
+   - Change ตรวจภาระงาน from list to Matrix Table (rows=trainees, columns=assignments)
+
+2. Key Technical Concepts:
+   - Google Apps Script (GAS) with doPost router pattern
+   - Multi-spreadsheet architecture: main config + 5 DB_SHARDS (ATTENDANCE, EXAM, PROJECT, SPEAKER, ASSIGNMENT)
+   - Quill.js rich text editor (v1.3.7) for คำอธิบาย field
+   - SheetJS (xlsx) for Excel export
+   - SweetAlert2 for modals (including 2-panel grading modal)
+   - Bootstrap 5 tabs, dropdowns, badges
+   - localStorage keys: `tms_personal_id` (separate from `tms_user_data`)
+   - Role-based rendering: ADMIN → adminSection (full), STAFF → adminSection (partial), MENTOR → mentorSection, TRAINEE → dashboardSection
+   - Matrix Table pattern: rows × columns = trainee × assignment
+   - Collapsible sidebar via CSS `.collapsed` class (260px → 80px)
+
+3. Files and Code Sections:
+
+   - **Code.gs**
+     - Added to doPost router:
+       ```javascript
+       // Mentor
+       else if (action === 'getMentorData') { result = getMentorData(payload.personal_id); }
+       else if (action === 'gradeAssignment') { result = gradeAssignment(payload); }
+       ```
+     - Added `getMentorData(personalId)`: fetches mentor's group_target from Users sheet (col 5), all Trainees with matching group_target, Assignment_Config (is_active=TRUE) with rubric_criteria JSON parsed, Assignment Logs from DB_SHARDS ASSIGNMENT sheet, project/speaker eval logs from DB_SHARDS, Attendance_Config + Attendance Logs. Returns: `{ status, mentorGroup, trainees, assignConfigs, assignLogs, projectLogs, speakerLogs, speakerConfigs, attendanceConfig, attendance }`
+     - Added `gradeAssignment(payload)`: finds row by log_id in Assignment_Log, updates col 7 (status), col 8 (feedback), col 9 (score)
+
+   - **script_v2.js**
+     - Fixed `renderAdminTable()` cell display (line ~708):
+       ```javascript
+       let plainCell = cell.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+       let displayCell = plainCell.length > 30 ? plainCell.substring(0, 30) + '...' : plainCell;
+       html += `<td>${displayCell}</td>`;
+       ```
+     - Fixed Quill preConfirm sync (only for Assignment_Config):
+       ```javascript
+       if (adminCurrentConfigSheet === 'Assignment_Config' && window.quillInstance && document.getElementById('cfgInput_2')) {
+           document.getElementById('cfgInput_2').value = window.quillInstance.root.innerHTML;
+       }
+       ```
+     - Fixed `renderAttendanceTab()` count logic: `count++` only for non-ลา cases
+     - Added `exportReportSheet(type)` function with 4 types: summary, attendance, taskeval, eval
+     - Fixed `exportFullReportToExcel()` to include accordion text (ตอนที่ 3) by parsing `.list-group-item` elements
+     - Added `showDashboard()` entry for MENTOR: `if (role === 'MENTOR') { renderMentorDashboard(); return; }`
+     - Added Staff functions: `renderStaffDashboard()`, `restoreAdminSidebar()`
+     - Added Mentor functions:
+       ```javascript
+       let mentorDataCache = null;
+       async function renderMentorDashboard() { ... shows mentorSection, calls loadMentorData() }
+       async function loadMentorData() {
+           const personalId = localStorage.getItem('tms_personal_id'); // KEY FIX
+           const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getMentorData', payload: { personal_id: personalId } }) });
+           ...
+       }
+       function switchMentorTab(tab) { ... }
+       function toggleMentorSidebar() { document.getElementById('mentorSidebar')?.classList.toggle('collapsed'); }
+       ```
+     - `renderMentorTraineesTab()`: full attendance matrix with 2-row dynamic header, search, ✔ green/yellow/ลา/- status, count + percentage columns
+     - `renderMentorGradeTab()` — LATEST VERSION (Matrix Table):
+       ```javascript
+       function renderMentorGradeTab() {
+           // builds latestLog map: personal_id|assign_id → most recent non-cancelled log
+           // filters trainees based on filter dropdown
+           // Header: ชื่อ-สกุล col + one col per assignment (title, assign_id, full_score)
+           // Rows: each trainee
+           // Cells: statusBadge + score/full_score + eye button + pencil button
+       }
+       ```
+     - `openGradeModal()`: 2-panel SweetAlert2, width 1100px:
+       - Left panel: iframe Google Drive preview (converts /d/ID/ to /d/ID/preview) or fallback link button
+       - Right panel: number inputs per rubric criterion (min=0, max=raw×weight, step=0.5), auto-calculate total, status buttons (ดีมาก/ดี/พอใช้/ปรับปรุง), feedback textarea
+     - `calcMentorTotal(rubric)`: sums all rubric inputs, updates `mentorTotalScore`
+     - `selectMentorStatus(btn)`: color-coded status button selection
+     - `renderMentorEvalTab()`: project eval Set + speaker eval Map, renders grid
+
+   - **index.html**
+     - Added IDs to Admin sidebar buttons: `sidebarBtnSystem`, `sidebarBtnUser`, `sidebarBtnReport`
+     - Added Export dropdown menu replacing single button (both in Admin reportManage and Staff section)
+     - Added mentorSection before adminSection:
+       - Sidebar: yellow border, 3 menu buttons + logout
+       - Tab: รายชื่อผู้อบรมในกลุ่มของฉัน (search input + legend + `mentorTraineesContent`)
+       - Tab: ตรวจภาระงาน (filter dropdown + `mentorGradeContent`)
+       - Tab: สถิติการประเมิน (`mentorEvalContent`)
+
+   - **style.css**
+     - Added `#mentorSidebar` CSS mirroring `#adminSidebar`:
+       ```css
+       #mentorSidebar { transition: width 0.3s ease-in-out; width: 260px; }
+       #mentorSidebar.collapsed { width: 80px; }
+       #mentorSidebar .sidebar-text { transition: opacity 0.2s ease; white-space: nowrap; }
+       #mentorSidebar.collapsed .sidebar-text { display: none; opacity: 0; }
+       #mentorSidebar.collapsed .sidebar-header { border-left: none !important; justify-content: center !important; }
+       #mentorSidebar.collapsed .list-group-item { text-align: center !important; padding: 12px 0 !important; }
+       #mentorSidebar.collapsed .list-group-item i { margin-right: 0 !important; font-size: 1.4rem; }
+       ```
+     - Added `#mentorSidebar { width: 100% !important; }` in @media (max-width: 767px)
+
+4. Errors and fixes:
+   - **Assignment Config table showing blank after save**: Quill HTML content in cell broke table structure. Fixed by stripping HTML tags with `.replace(/<[^>]*>/g, '')` before displaying in table cell.
+   - **SV012 TRAINEE role not saving**: Quill sync code in preConfirm ran for ALL sheets, overwriting role dropdown (cfgInput_2) with Quill HTML. Fixed by adding `adminCurrentConfigSheet === 'Assignment_Config'` check.
+   - **Export ตอนที่ 3 missing**: Code only grabbed `<table>` elements; accordion/list section not captured. Fixed by adding accordion text extraction logic.
+   - **Attendance count including ลา**: `count++` ran before checking note content. Fixed by moving `count++` inside non-ลา branches only.
+   - **Mentor login shows Trainee dashboard**: Missing `if (role === 'MENTOR') { renderMentorDashboard(); return; }` in `showDashboard()`. Added it.
+   - **getMentorData Error (Cannot read properties of undefined 'toString')**: `loadMentorData()` used `user.personal_id` from `tms_user_data` but personal_id is stored separately as `tms_personal_id`. Fixed to `localStorage.getItem('tms_personal_id')`.
+   - **Unused variable warnings**: Removed `traineeMap`, `logJson` (from grade tab), `prevScore`, `isGoogleLink` (from grade modal).
+
+5. Problem Solving:
+   - Identified that `tms_user_data` stores name/role/area_service/group_target but NOT personal_id — personal_id stored separately as `tms_personal_id`
+   - Identified role-based routing pattern: showDashboard() checks role and routes to appropriate renderXxxDashboard()
+   - Staff reuses adminSection (hides buttons via d-none) instead of duplicate HTML
+   - Mentor gets its own mentorSection for clean separation
+   - Matrix table pattern for assignments: latestLog map (excluding ยกเลิก) indexed by `personal_id|assign_id`
+   - Google Drive link conversion for iframe preview: extract file ID and use `/preview` URL
+
+6. All user messages:
+   - "ทำไมบันทึกแล้วข้อมูลในหน้าการตั้งค่าระบบฐานข้อมูล การส่งงานไม่แสดงข้อมูลให้เห็นเลย..."
+   - "ทำไมเพิ่มผู้ใช้งานแล้ว บทบาท TRAINEE ไม่ปรากฏอะ ของ SV012"
+   - "จากภาพ จะเห็นว่าก่อนหน้า ใช้ TRAINEE แต่ในระบบเป็น Trainee จะมีปัญหาอะไรไหมกับระบบ ไม่ว่าจะเป็น Admin, Staff, Mentor ต้องเป็นตัวใหญ่หมดไหม"
+   - "Export to Excel ของ Dashboard & สรุปรายงานผล ในส่วนของการประเมินโครงการ ไม่มีข้อมูลตอนที่ 3 เลย..."
+   - "Export to Excel ของ Dashboard & สรุปรายงานผล ให้แสดงข้อมูลแยกกันได้ไหม เช่น สถิติผลคะแนน + ข้อมูลสรุปผลรายบุคคล, ภาระงานและประเมิน, ประเมินวิทยากร..."
+   - "ในส่วนตารางสถิติการลงเวลา รายบุคคล ทำไมลงเวลาว่า ลา แล้ว รวมถึง 3 ครั้งละ..."
+   - "ต่อไปมาทำหน้าระบบของบทบาทของ Staff ลักษณะมีลักษณะคล้าน Admin แต่จะปรากฏแค่ สรุปรายงานผล กับปุ่มออกจากระบบ"
+   - "เรียบร้อยครับ ไปต่อที่ส่วนบทบาทของ Mentor ช่วยแนะนำเราหน่อย"
+   - "ขอตอบคำถาม วิ ก่อนนะ 1. Mentor ดูแล Trainee เฉพาะกลุ่มของตน กรองจาก group_target ที่ตรงกัน 2. Mentor ให้คะแนนภาระงานได้ 3. Mentor เห็นสถิติรายงานประเมินวิทยากร/โครงการเท่านั้น 4. Mentor มีข้อมูล group_target ใน Users sheet" + database link
+   - "ขอตอบคำถามวิ ต่อนะ 1. Feedback = Trainee เห็น 2. สร้าง log ใหม่ 3. Mentor เห็นทุกชิ้นงานแม้ยังไม่ส่ง"
+   - "1. Feedback ที่ Mentor พิมพ์ใน modal — Trainee เห็นด้วยไหม หรือเป็นแค่ internal note? ขอถามว่า internal note คืออะไร"
+   - "ทำไมเรา Login ด้วย Mentor001 แล้วหน้าระบบเป็นแบบนี้ อะ" (showed Trainee dashboard)
+   - "Login ด้วย Mentor001 ระบบแจ้งมาแบบนี้" (getMentorData Error: Cannot read properties of undefined)
+   - "เมื่อ เข้าไปให้คะแนนแล้ว แบ่งออกเป็น 2 ฝั่ง โดยฝั่งซ้ายจะ Preview เห็นงานของ Trainee และฝั่งขาว เป็นการกรอกคะแนน ตาม Rubric เป็นช่อง Number Input ไม่เกินตาม rubric_criteria"
+   - "ปรับเมนูหลักของ Mentor สามารถ Collapsible / Toggle Sidebar"
+   - "จากภาพขอให้ปรับ ดังนี้ 1. รายชื่อ Trainee ในกลุ่มของฉัน เปลี่ยนเป็น รายชื่อผู้อบรมในกลุ่มของฉัน 2. ปรับตารางให้เหมือนตารางลงเวลา รายบุคคล เหมือนกับ Staff"
+   - "ตรวจสอบ Code.gs หน่อยไปกดผิด ไม่รู้ว่าตรงไหนหาย" (File was intact)
+   - "ขอปรับตารางตรวจภาระงานให้เป็นลักษณะ Matrix Table ตามภาพที่ 2 ได้ไหม"
+
+7. Pending Tasks:
+   - None explicitly pending. The last task (Matrix Table for ตรวจภาระงาน) was just completed and needs to be deployed and tested.
+   - May need to handle Trainee side: showing feedback + "ปรับปรุง" status alert + allow resubmit (mentioned in requirements but not yet implemented)
+
+8. Current Work:
+   The most recent work was rewriting `renderMentorGradeTab()` in `script_v2.js` to display a Matrix Table where:
+   - Rows = Trainees in Mentor's group
+   - Columns = Assignment names (one per Assignment_Config entry)
+   - Cells = status badge + score/full_score + eye (file link) button + pencil (grade) button
+   - Filter dropdown filters trainees that have at least one matching assignment status
+   - Uses `latestLog` map (excluding ยกเลิก status) indexed by `personal_id|assign_id`
+
+   The new `renderMentorGradeTab()` function was successfully edited in script_v2.js with matrix structure using `table-bordered` Bootstrap class.
+
+9. Optional Next Step:
+   The user's last request was "ขอปรับตารางตรวจภาระงานให้เป็นลักษณะ Matrix Table ตามภาพที่ 2 ได้ไหม" which was completed. The next logical step would be to deploy the changes to GAS and test the matrix table display. If the user wants to continue, implementing the Trainee-side display of feedback and "ปรับปรุง" status with resubmit option (as mentioned in the Mentor requirements) would be the natural next step, but this should be confirmed with the user first.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/Phuttarapoln K./.claude/projects/-Users-Phuttarapoln-K--Library-CloudStorage-GoogleDrive-babu555monkeyman-gmail-com-My-Drive-App-Test-Code-TMS-V2/9427d314-4fcb-4e83-af45-0d48b1fbd912.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+

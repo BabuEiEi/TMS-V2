@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการการอบรม (TMS) - V40.0</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Niramit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        body {
+            font-family: 'Niramit', sans-serif;
+            background-color: #f4f7f9 !important;
+            background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px) !important;
+            background-size: 25px 25px !important;
+            background-position: center center !important;
+            background-attachment: fixed !important;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        #page-content {
+            flex: 1;
+            width: 100%;
+        }
+        
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .menu-card { cursor: pointer; transition: 0.3s; border: none; }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(245, 113, 19, 0.1) !important; }
+        .speaker-card { transition: all 0.3s ease; }
+        .speaker-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(13, 110, 253, 0.15) !important; border-color: #0d6efd !important; }
+        .horizontal-rating-wrapper { margin-top: 20px; margin-bottom: 20px; }
+        .horizontal-rating-container { display: flex; flex-direction: row; justify-content: space-between; max-width: 500px; margin-bottom: 12px; }
+        .rating-btn-item { flex: 1; text-align: center; position: relative; }
+        .rating-btn-item input { position: absolute; opacity: 0; cursor: pointer; width: 100%; height: 100%; left: 0; top: 0; z-index: 2; }
+        .rating-btn-label { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; margin: 0 auto; border: 2px solid #dee2e6; border-radius: 50%; cursor: pointer; transition: 0.2s; font-weight: bold; background-color: #fff; position: relative; z-index: 1; }
+        .rating-btn-item input:checked + .rating-btn-label { background-color: #0d6efd; color: white; border-color: #0d6efd; box-shadow: 0 4px 12px rgba(13,110,253,0.3); transform: scale(1.15); }
+        .rating-desc-text { display: flex; justify-content: space-between; max-width: 500px; padding-left: 10px; padding-right: 10px; font-size: 14px; color: #0d6efd; font-weight: 600; }
+        .survey-card { border-radius: 20px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-left: 7px solid #0dcaf0; margin-bottom: 25px; padding: 30px; background-color: #fff; transition: 0.3s ease; }
+        .vertical-form-check { margin-bottom: 15px; padding-left: 40px; font-size: 1.05rem; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar: เต็มความกว้างจอเสมอ -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm py-2 sticky-top" id="main-nav" style="display:none;">
+        <div class="container-fluid px-3 px-md-4 align-items-center">
+            <a class="navbar-brand d-flex align-items-center m-0 text-wrap" href="#" style="max-width: 65%;">
+                <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 50px;" class="me-2 me-md-3 flex-shrink-0">
+                <div style="line-height: 1.3;">
+                    <div class="fw-bold" style="font-size: clamp(0.75rem, 2vw, 0.9rem);">อบรมเชิงปฏิบัติการพัฒนาการจัดการเรียนรู้และสร้างเครื่องมือประเมินผลความฉลาดรู้ (Literacy)</div>
+                    <div class="d-none d-sm-block" style="font-size: 0.72rem; color: #e0e0e0;">งานประเมินระดับนานาชาติ (PISA) &nbsp;|&nbsp; สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาพิษณุโลก อุตรดิตถ์</div>
+                </div>
+            </a>
+
+            <div class="d-flex text-white align-items-center flex-shrink-0 ms-2">
+                <div class="text-end bg-white bg-opacity-10 rounded-4 px-3 py-2 shadow-sm border border-light border-opacity-25">
+                    <div class="d-flex align-items-center justify-content-end mb-1 gap-2">
+                        <div id="display-user-name" class="fw-bold" style="font-size: clamp(0.8rem, 2vw, 1rem);">กำลังโหลด...</div>
+                        <span id="display-user-role" class="badge bg-warning text-dark shadow-sm" style="font-size: 0.7rem;">-</span>
+                    </div>
+                    <div class="d-flex justify-content-end align-items-center gap-2 mt-1 d-none d-sm-flex" style="font-size: 0.72rem; color: #e0e0e0;">
+                        <span id="display-user-area">-</span>
+                        <span class="border-start border-light border-opacity-50 ps-2"><span id="display-user-group">-</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content wrapper -->
+    <div id="page-content">
+    <div class="container-fluid px-3 px-md-4 py-3">
+
+        <div id="loginSection" class="app-view d-block">
+            <div class="d-flex align-items-center justify-content-center w-100 px-3" style="min-height: calc(100vh - 60px); padding-top: 20px; padding-bottom: 20px;">
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden" style="max-width: 550px; width: 100%;">
+                    <div class="bg-primary text-white text-center py-5 px-3">
+                        <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 110px;" class="mb-3">
+                        <h5 class="mb-0 fw-bold" style="letter-spacing: 0.5px;">ระบบบริหารจัดการ (TMS)</h5>
+                        <div class="mt-3 text-white-75" style="font-size: 0.85rem; line-height: 1.6; font-weight: 300;">
+                            อบรมเชิงปฏิบัติการพัฒนาการจัดการเรียนรู้และสร้างเครื่องมือประเมินผลความฉลาดรู้ (Literacy)<br>
+                            งานประเมินระดับนานาชาติ (PISA)<br>
+                            กลุ่มนิเทศ ติดตาม และประเมินผลการจัดการศึกษา<br>
+                            สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาพิษณุโลก อุตรดิตถ์
+                        </div>
+                    </div>
+                    <div class="card-body p-4 p-md-5 bg-white">
+                        <h6 class="text-center text-secondary mb-4 fw-bold">ลงชื่อเข้าใช้งานระบบ</h6>
+                        <form onsubmit="event.preventDefault(); login();">
+                            <div class="mb-4">
+                                <div class="input-group input-group-lg shadow-sm">
+                                    <span class="input-group-text bg-light text-primary border-end-0 px-3"><i class="bi bi-person-vcard"></i></span>
+                                    <input type="text" id="personalId" class="form-control border-start-0 bg-light fs-6" placeholder="กรอกรหัสประจำตัวของท่าน" required autocomplete="off">
+                                </div>
+                                <div class="form-text text-muted mt-2" style="font-size: 0.75rem;"><i class="bi bi-info-circle text-primary"></i> สำหรับเจ้าหน้าที่และผู้เข้าอบรม</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg w-100 py-2 fw-bold shadow-sm" style="font-size: 1rem; letter-spacing: 1px;">
+                                เข้าสู่ระบบ <i class="bi bi-box-arrow-in-right ms-1"></i>
+                            </button>
+                        </form>
+                        <div class="text-center mt-4 text-muted" style="font-size: 0.75rem; line-height: 1.5;">
+                            พัฒนาโดย &copy; 2026 | นายภัทรพล แก้วเสนา<br>ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardSection" class="d-none fade-in mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded-4 shadow-sm border-start border-5 border-primary">
+                <h3 class="fw-bold text-dark mb-0">เมนูหลัก</h3>
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-4" onclick="logout()">ออกจากระบบ</button>
+            </div>
+            <div class="d-flex justify-content-end mb-3 px-3">
+                <button class="btn btn-outline-primary rounded-pill px-4 shadow-sm" onclick="location.reload()">🔄 โหลดหน้าเว็บใหม่</button>
+            </div>
+            
+            <div class="row g-4 text-center">
+                <div class="col-6 col-md-2">
+                    <div class="card menu-card bg-info text-white p-3 h-100 rounded-4 shadow" onclick="openAttendanceForm()">
+                        <h5 class="fw-bold mt-2">⏱️ ลงเวลา</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="card menu-card bg-warning text-dark p-3 h-100 rounded-4 shadow" onclick="openExamForm()">
+                        <h5 class="fw-bold mt-2">📝 แบบทดสอบ</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="card text-white border-0 shadow-sm h-100 menu-card" style="background-color: #09006B; cursor: pointer; transition: transform 0.2s;" onclick="openAssignmentForm()" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <div class="card-body text-center p-4">
+                            <h5 class="fw-bold mb-0">📁 ส่งภาระงาน</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-success text-white p-3 h-100 rounded-4 shadow" onclick="openSurveyForm('PROJECT_SURVEY')">
+                        <h5 class="fw-bold mt-2">📊 ประเมินโครงการ</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card menu-card bg-primary text-white p-3 h-100 rounded-4 shadow" onclick="openSurveyForm('SPEAKER_SURVEY')">
+                        <h5 class="fw-bold mt-2">🎤 ประเมินวิทยากร</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="attendanceSection" class="d-none mt-3 fade-in">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
+                <h3 class="mb-0 text-primary fw-bold">⏱️ ลงเวลาเข้าอบรม</h3>
+                <div>
+                    <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openAttendanceForm()">🔄 รีเฟรช</button>
+                    <button class="btn btn-secondary rounded-pill px-4 shadow-sm" onclick="backToDashboard('attendanceSection')">กลับเมนูหลัก</button>
+                </div>
+            </div>
+            <div id="attendanceButtonsContainer" class="mx-auto" style="max-width: 500px;"></div>
+        </div>
+
+        <div id="examSection" class="d-none fade-in mt-4">
+            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
+                    <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
+                    <div class="d-flex align-items-center">
+                        <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-4 shadow-sm me-3">⏳ <span id="examTimeDisplay">30:00</span></div>
+                        <button class="btn btn-outline-info rounded-pill px-3 shadow-sm" onclick="openExamForm()">🔄 รีเฟรช</button>
+                    </div>
+                </div>
+                <div id="examContentArea"></div>
+                <div class="d-flex justify-content-between mt-5 border-top pt-4">
+                    <button class="btn btn-secondary px-4 rounded-pill" onclick="backToDashboard('examSection')">กลับ</button>
+                    <button id="btnSubmitExam" class="btn btn-warning text-dark fw-bold px-5 d-none rounded-pill shadow" onclick="submitRealExam()">ส่งคำตอบ</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="surveySection" class="d-none fade-in mt-4">
+            <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
+                    <h4 class="text-success fw-bold mb-0">📊 <span id="surveyTitleLabel"></span></h4>
+                    <div>
+                        <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openSurveyForm(currentSurveyType)">🔄 รีเฟรช</button>
+                        <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('surveySection')">กลับหน้าหลัก</button>
+                    </div>
+                </div>
+                <div id="speakerSelectionArea" class="mb-4 d-none p-4 bg-light rounded-4 border border-primary shadow-sm"></div>
+                <div id="surveyContentArea"></div>
+                <div class="d-flex justify-content-end mt-4 border-top pt-4">
+                    <button id="btnSubmitSurvey" class="btn btn-success fw-bold px-5 d-none rounded-pill shadow-lg" onclick="submitRealSurvey()">ส่งผลประเมิน</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MENTOR SECTION ===== -->
+        <div id="mentorSection" class="app-view d-none fade-in mt-4 mb-5">
+            <div class="w-100 px-md-1">
+                <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+
+                    <!-- Sidebar Mentor -->
+                    <div id="mentorSidebar" class="flex-shrink-0">
+                        <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 100px; z-index: 1000;">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3 ps-2 border-start border-4 border-warning sidebar-header">
+                                    <h6 class="fw-bold text-warning mb-0"><span class="sidebar-text">เมนูหลัก</span></h6>
+                                    <i class="bi bi-list fs-4 toggle-sidebar-btn text-secondary" onclick="toggleMentorSidebar()" title="ย่อ/ขยายเมนู"></i>
+                                </div>
+                                <div class="list-group list-group-flush gap-2">
+                                    <button id="mentorBtnTrainees" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchMentorTab('trainees')">
+                                        <i class="bi bi-people-fill me-2"></i><span class="sidebar-text">รายชื่อผู้อบรมในกลุ่ม</span>
+                                    </button>
+                                    <button id="mentorBtnGrade" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchMentorTab('grade')">
+                                        <i class="bi bi-clipboard2-check me-2"></i><span class="sidebar-text">ตรวจภาระงาน</span>
+                                    </button>
+                                    <button id="mentorBtnEval" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchMentorTab('eval')">
+                                        <i class="bi bi-bar-chart-fill me-2"></i><span class="sidebar-text">สถิติการประเมิน</span>
+                                    </button>
+                                    <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()">
+                                        <i class="bi bi-box-arrow-right me-2"></i><span class="sidebar-text">ออกจากระบบ</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content Mentor -->
+                    <div class="flex-grow-1 w-100" style="min-width:0;">
+
+                        <!-- Tab: รายชื่อกลุ่ม -->
+                        <div id="mentorTab_trainees" class="card shadow-lg border-0 rounded-4 bg-white">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                                    <h5 class="fw-bold text-dark mb-0">👥 รายชื่อผู้อบรมในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
+                                </div>
+                                <!-- ช่องค้นหา -->
+                                <div class="mb-3">
+                                    <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                        <input id="mentorTraineeSearch" type="text" class="form-control border-start-0 ps-0" placeholder="ค้นหา รหัส ชื่อ คลัสเตอร์ กลุ่ม..." oninput="renderMentorTraineesTab()">
+                                    </div>
+                                </div>
+                                <!-- คำอธิบายสัญลักษณ์ -->
+                                <div class="d-flex flex-wrap gap-3 mb-3 small">
+                                    <span><span class="text-success fw-bold fs-6">✔</span> ลงเวลาแล้ว (ตรงเวลา)</span>
+                                    <span><span class="text-warning fw-bold fs-6">✔</span> ลงเวลาแล้ว (สาย)</span>
+                                    <span><span class="badge bg-info text-dark">ลา</span> ลาป่วย/ลากิจ</span>
+                                    <span><span class="text-muted">-</span> ยังไม่ลงเวลา</span>
+                                </div>
+                                <div id="mentorTraineesContent"><div class="text-center py-5 text-muted"><div class="spinner-border text-warning mb-3"></div><p>กำลังโหลด...</p></div></div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: ตรวจภาระงาน -->
+                        <div id="mentorTab_grade" class="card shadow-lg border-0 rounded-4 bg-white d-none">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                                    <h5 class="fw-bold text-dark mb-0">📝 ตรวจภาระงาน</h5>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorGradeTab)">
+                                            <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="mentorGradeContent"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: สถิติการประเมิน -->
+                        <div id="mentorTab_eval" class="card shadow-lg border-0 rounded-4 bg-white d-none">
+                            <div class="card-body p-4">
+                                <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">📊 สถิติการประเมินวิทยากร/โครงการ</h5>
+                                <div id="mentorEvalContent"></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ===== END MENTOR SECTION ===== -->
+
+        <div id="adminSection" class="app-view d-none fade-in mt-4 mb-5">
+    
+    <div class="w-100 px-md-1">
+        
+        <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+            
+            <div id="adminSidebar" class="flex-shrink-0">
+                <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 100px; z-index: 1000;">
+                    <div class="card-body p-3">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3 ps-2 border-start border-4 border-primary sidebar-header">
+                            <h6 class="fw-bold text-primary mb-0"><span class="sidebar-text">เมนูหลัก</span></h6>
+                            <i class="bi bi-list fs-4 toggle-sidebar-btn text-secondary" style="cursor: pointer;" onclick="toggleAdminSidebar()" title="ย่อ/ขยายเมนู"></i>
+                        </div>
+                        
+                        <div class="list-group list-group-flush gap-2">
+                            <button id="sidebarBtnSystem" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchAdminTab('systemControl')" title="ตั้งค่าระบบ (Settings)">
+                                <i class="bi bi-gear-fill me-2"></i> <span class="sidebar-text">ตั้งค่าระบบ</span>
+                            </button>
+                            <button id="sidebarBtnUser" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('userManage')" title="จัดการผู้ใช้งาน">
+                                <i class="bi bi-people me-2"></i> <span class="sidebar-text">จัดการผู้ใช้งาน</span>
+                            </button>
+                            <button id="sidebarBtnReport" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('reportManage')" title="สรุปรายงานผล">
+                                <i class="bi bi-file-earmark-bar-graph me-2"></i> <span class="sidebar-text">สรุปรายงานผล</span>
+                            </button>
+
+                            <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()" title="ออกจากระบบ">
+                                <i class="bi bi-box-arrow-right me-2"></i> <span class="sidebar-text">ออกจากระบบ</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-grow-1 w-100" style="min-width: 0;">
+                
+                <div id="adminTab_systemControl" class="card shadow-lg border-0 rounded-4 admin-tab-content bg-white">
+                    <div class="card-body p-4 p-md-5">
+                        
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
+                            <h4 class="fw-bold text-dark mb-0">⚙️ ตั้งค่าระบบฐานข้อมูล</h4>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-info rounded-pill px-3 shadow-sm fw-bold" onclick="loadAdminConfig(adminCurrentConfigSheet)">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> รีเฟรช
+                                </button>
+                                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold" onclick="openExcelMenu()">
+                                    <i class="bi bi-file-earmark-excel me-1"></i> นำเข้า/นำออก
+                                </button>
+                                <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
+                                    <i class="bi bi-plus-lg me-1"></i> เพิ่มข้อมูล
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event)">
+
+                        <div class="d-flex flex-wrap gap-2 mb-4">
+                            <button id="tab_Attendance_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Attendance_Config')">🕒 การลงเวลา</button>
+                            <button id="tab_Exam_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Exam_Config')">📝 การทดสอบ</button>
+                            <button id="tab_Speakers_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Speakers_Config')">🎤 ประเมินวิทยากร</button>
+                            <button id="tab_Assignment_Config" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Assignment_Config')">📁 การส่งงาน</button>
+                            <button id="tab_Questions_Bank" class="btn btn-outline-primary rounded-pill fw-bold config-tab-btn" onclick="loadAdminConfig('Questions_Bank')">📚 คลังคำถาม</button>
+                        </div>
+
+                        <div id="configTableContainer" class="border rounded-4 bg-light p-3 shadow-sm" style="min-height: 400px;">
+                            <div class="text-center py-5 text-muted">
+                                <div class="spinner-border text-primary mb-3"></div>
+                                <p class="mb-0">กำลังโหลดฐานข้อมูล...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="adminTab_userManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
+                    <div class="card-body p-4 p-md-5">
+                        
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
+                            <h4 class="fw-bold text-dark mb-0">👥 จัดการรายชื่อผู้ใช้งาน</h4>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-info rounded-pill px-3 shadow-sm fw-bold" onclick="loadAdminConfig('Users')">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> รีเฟรช
+                                </button>
+                                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm fw-bold" onclick="openExcelMenu()">
+                                    <i class="bi bi-file-earmark-excel me-1"></i> นำเข้า/นำออก
+                                </button>
+                                <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold" onclick="openConfigForm()">
+                                    <i class="bi bi-person-plus-fill me-1"></i> เพิ่มผู้ใช้งาน
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="text" id="userSearchInput" class="form-control rounded-pill shadow-sm" placeholder="🔍 ค้นหา รหัสประจำตัว, ชื่อ, สังกัด, กลุ่มเป้าหมาย..." oninput="filterUserTable()">
+                        </div>
+                        <div id="userTableContainer" class="border rounded-4 bg-light p-3 shadow-sm" style="min-height: 400px;">
+                            <div class="text-center py-5 text-muted">
+                                <div class="spinner-border text-primary mb-3"></div>
+                                <p class="mb-0">กำลังโหลดฐานข้อมูลผู้ใช้งาน...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="adminTab_reportManage" class="card shadow-lg border-0 rounded-4 admin-tab-content d-none bg-white">
+                    <div class="card-body p-4 p-md-5">
+                        
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
+                            <h4 class="fw-bold text-dark mb-0">📊 Dashboard & สรุปรายงานผล</h4>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-info rounded-pill px-4 shadow-sm fw-bold" onclick="loadReportDashboard()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> อัปเดตข้อมูล
+                                </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-success rounded-pill px-4 shadow-sm fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                        <li><h6 class="dropdown-header text-muted small">เลือกรายงานที่ต้องการ</h6></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('summary'); return false;"><i class="bi bi-bar-chart-fill text-primary me-2"></i>สถิติผลคะแนน + ข้อมูลรายบุคคล</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('attendance'); return false;"><i class="bi bi-clock-fill text-info me-2"></i>สถิติการลงเวลา</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('taskeval'); return false;"><i class="bi bi-clipboard-check-fill text-warning me-2"></i>ภาระงานและประเมิน</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportReportSheet('eval'); return false;"><i class="bi bi-star-fill text-success me-2"></i>ประเมินวิทยากร/โครงการ (ปัจจุบัน)</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item fw-bold text-success" href="#" onclick="exportFullReportToExcel(); return false;"><i class="bi bi-file-earmark-excel-fill me-2"></i>Export ทั้งหมด (รวมทุกชีต)</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <ul class="nav nav-pills mb-4" id="reportTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active rounded-pill fw-bold px-4" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">📈 สถิติภาพรวม & รายบุคคล</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="attendance-tab" data-bs-toggle="pill" data-bs-target="#attendanceReport" type="button" role="tab" onclick="renderAttendanceTab()">🕐 สถิติการลงเวลา</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="taskeval-tab" data-bs-toggle="pill" data-bs-target="#taskeval" type="button" role="tab" onclick="renderTaskEvalTab()">📝 ภาระงานและประเมิน</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold px-4 ms-2" id="evaluation-tab" data-bs-toggle="pill" data-bs-target="#evaluation" type="button" role="tab">📋 ผลประเมินวิทยากร/โครงการ</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="reportTabsContent">
+                            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                                <div id="reportLoading" class="text-center py-5 text-muted">
+                                    <div class="spinner-border text-primary mb-3"></div><p>กำลังประมวลผลข้อมูลมหาศาล...</p>
+                                </div>
+
+                                <div id="reportContent" class="d-none">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">👥 ผู้อบรม (Trainee)</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalTrainee">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">📝 ผู้เข้าสอบ Pre-Test</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalPre">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-dark border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">🏆 ผู้เข้าสอบ Post-Test</h6>
+                                                <h2 class="mb-0 fw-bold" id="repTotalPost">0</h2>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white border-0 shadow-sm rounded-4 p-3 h-100">
+                                                <h6 class="fw-bold opacity-75">✅ สอบผ่านเกณฑ์</h6>
+                                                <h2 class="mb-0 fw-bold" id="repPassPost">0</h2>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-4 mb-5">
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-light">
+                                                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-calculator"></i> สถิติผลคะแนนการทดสอบ</h6>
+                                                <table class="table table-sm table-borderless" id="exportStatTable">
+                                                    <thead class="border-bottom"><tr><th>รายการ</th><th class="text-center">Pre-Test</th><th class="text-center">Post-Test</th></tr></thead>
+                                                    <tbody id="statTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-light">
+                                                <canvas id="examChart" style="max-height: 250px;"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">ตารางสรุปผลรายบุคคล</h5>
+                                    <div class="table-responsive bg-white rounded-3 border">
+                                        <table class="table table-hover align-middle small text-nowrap mb-0" id="exportUserTable">
+                                            <thead class="table-light text-center align-top">
+                                                <tr>
+                                                    <th>รหัสประจำตัว</th>
+                                                    <th class="text-start">ชื่อ-นามสกุล</th>
+                                                    <th class="text-start">กลุ่มเป้าหมาย</th>
+                                                    <th>เวลาเรียน</th>
+                                                    <th>Pre-Test</th>
+                                                    <th>Post-Test</th>
+                                                    <th>ภาระงาน</th>
+                                                    <th>รวมคะแนน</th>
+                                                    <th>ประเมินวิทยากร</th>
+                                                    <th>ประเมินโครงการ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="repUserTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="attendanceReport" role="tabpanel">
+                                <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">สถิติการลงเวลา รายบุคคล</h5>
+                                <div class="mb-3">
+                                    <input type="text" id="attSearchInput" class="form-control rounded-pill shadow-sm" placeholder="🔍 ค้นหา รหัสประจำตัว, ชื่อ, คลัสเตอร์, กลุ่ม..." oninput="renderAttendanceTab()">
+                                </div>
+                                <div class="d-flex flex-wrap gap-3 mb-3 p-3 bg-light rounded-3 border small">
+                                    <span class="fw-bold text-secondary">คำอธิบายสัญลักษณ์:</span>
+                                    <span><span class="text-success fw-bold">✔</span> ลงเวลาแล้ว [ตรงเวลา]</span>
+                                    <span><span class="text-warning fw-bold">✔</span> ลงเวลาแล้ว [สาย]</span>
+                                    <span><span class="badge bg-info text-dark">ลา</span> ลงเวลาพร้อมหมายเหตุ (ลาป่วย/ลากิจ)</span>
+                                    <span class="text-muted">- ยังไม่ลงเวลา</span>
+                                </div>
+                                <div class="table-responsive bg-white rounded-3 border">
+                                    <table class="table table-hover table-bordered align-middle small text-nowrap mb-0" id="exportAttendanceTable">
+                                        <thead id="attThead"></thead>
+                                        <tbody id="attTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="taskeval" role="tabpanel">
+                                <h5 class="fw-bold text-primary mb-3 border-start border-4 border-primary ps-2">ภาระงานและประเมินวิทยากร รายบุคคล</h5>
+                                <div class="mb-3">
+                                    <input type="text" id="taskEvalSearchInput" class="form-control rounded-pill shadow-sm" placeholder="🔍 ค้นหา รหัสประจำตัว, ชื่อ, สังกัด, กลุ่มเป้าหมาย..." oninput="renderTaskEvalTab()">
+                                </div>
+                                <div class="d-flex flex-wrap gap-3 mb-3 p-3 bg-light rounded-3 border small">
+                                    <span class="fw-bold text-secondary">คำอธิบายสัญลักษณ์:</span>
+                                    <span><span class="badge bg-success">คะแนน</span> ตรวจแล้ว</span>
+                                    <span><span class="badge bg-warning text-dark">คะแนน</span> รอตรวจ</span>
+                                    <span><span class="badge bg-secondary">คะแนน</span> สถานะอื่น ๆ</span>
+                                    <span class="text-muted">- ยังไม่ส่งงาน</span>
+                                    <span>✔️ ประเมินแล้ว</span>
+                                    <span>❌ ยังไม่ประเมิน</span>
+                                </div>
+                                <div class="table-responsive bg-white rounded-3 border">
+                                    <table class="table table-hover align-middle small text-nowrap mb-0" id="exportTaskEvalTable">
+                                        <thead class="table-light text-center align-top" id="taskEvalThead"></thead>
+                                        <tbody id="taskEvalTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="evaluation" role="tabpanel">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+                                    <h5 class="fw-bold text-primary border-start border-4 border-primary ps-2 mb-0">ผลการวิเคราะห์ความพึงพอใจ</h5>
+                                    
+                                    <div class="d-flex flex-column gap-2" style="min-width: 320px; max-width: 100%;">
+                                        <select id="evalTypeSelector" class="form-select shadow-sm fw-bold text-primary" onchange="renderEvaluationReport()">
+                                            <option value="PROJECT_SURVEY">📌 ประเมินภาพรวมโครงการ</option>
+                                            <option value="SPEAKER_SURVEY">🎤 ประเมินวิทยากร</option>
+                                        </select>
+                                        <select id="evalSpeakerSelector" class="form-select shadow-sm d-none" onchange="renderEvaluationReport()">
+                                            </select>
+                                    </div>
+                                </div>
+                                <div id="evalReportContent">
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+        <div id="assignmentSection" class="d-none fade-in mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2 px-3" style="top: 0; z-index: 1020;">
+                <h4 class="text-dark fw-bold mb-0">📁 สรุปภาระงานและการส่งงาน</h4>
+                <button class="btn btn-secondary px-4 rounded-pill shadow-sm" onclick="backToDashboard('assignmentSection')">กลับเมนูหลัก</button>
+            </div>
+            <div class="row g-3 mb-4" id="assignmentDashboardSummary"></div>
+            <div class="card shadow-lg p-4 border-0 rounded-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-4 pe-2">
+                    <h5 class="fw-bold text-primary mb-0 border-start border-4 border-primary ps-3">รายการภาระงานที่ต้องส่ง</h5>
+                    <button class="btn btn-outline-info rounded-pill px-3 shadow-sm" onclick="openAssignmentForm()">🔄 รีเฟรชตาราง</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light text-center align-top">
+                            <tr>
+                                <th style="width: 5%;">ลำดับ</th>
+                                <th style="width: 40%;">ภาระงาน (คำสั่ง / กำหนดส่ง)</th>
+                                <th style="width: 20%;">การส่งงาน</th>
+                                <th style="width: 15%;">สถานะ</th>
+                                <th style="width: 20%;">ข้อมูลสะท้อนกลับ (Feedback)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignmentTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /.container-fluid -->
+    </div><!-- /#page-content -->
+
+    <!-- Footer: เต็มความกว้างจอเสมอ -->
+    <footer id="main-footer" class="bg-primary text-white text-center py-3 d-none">
+        <div class="container-fluid px-4 small">
+            พัฒนาโดย &copy; 2026 | นายภัทรพล แก้วเสนา ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="script_v2.js?v=FINALLY_WIN"></script>
+
+</body>
+</html>
