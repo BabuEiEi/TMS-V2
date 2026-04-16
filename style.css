@@ -251,6 +251,32 @@ body {
     left: 0;
     top: 0;
     z-index: 1030;
+    transition: padding-left 0.25s ease;
+}
+
+/* Footer transition */
+#main-footer {
+    transition: padding-left 0.25s ease;
+}
+
+/* เมื่อมี sidebar แสดงอยู่ ให้ navbar และ footer เว้นซ้ายตามความกว้าง sidebar */
+body.has-sidebar #main-nav,
+body.has-sidebar #main-footer {
+    padding-left: 240px;
+}
+
+body.has-sidebar.sidebar-collapsed #main-nav,
+body.has-sidebar.sidebar-collapsed #main-footer {
+    padding-left: 64px;
+}
+
+@media (max-width: 767px) {
+    body.has-sidebar #main-nav,
+    body.has-sidebar #main-footer,
+    body.has-sidebar.sidebar-collapsed #main-nav,
+    body.has-sidebar.sidebar-collapsed #main-footer {
+        padding-left: 0;
+    }
 }
 
 /* Content area: ขยายเต็ม และมี padding ที่ responsive */

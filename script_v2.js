@@ -705,6 +705,8 @@ const CUSTOM_HEADERS = {
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
+    document.body.classList.add("has-sidebar");
+    document.body.classList.remove("sidebar-collapsed");
     restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
 }
@@ -720,6 +722,8 @@ let mentorDataCache = null;
 async function renderMentorDashboard() {
     document.getElementById('dashboardSection').classList.add('d-none');
     document.getElementById('mentorSection').classList.remove('d-none');
+    document.body.classList.add("has-sidebar");
+    document.body.classList.remove("sidebar-collapsed");
     await loadMentorData();
 }
 
@@ -1179,6 +1183,8 @@ function renderMentorEvalTab() {
 function renderStaffDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
+    document.body.classList.add("has-sidebar");
+    document.body.classList.remove("sidebar-collapsed");
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
     let btnSystem = document.getElementById('sidebarBtnSystem');
@@ -1237,8 +1243,11 @@ function toggleSidebar(role) {
         sidebar.classList.toggle('mobile-open');
         overlay.classList.toggle('active');
     } else {
+        const isCollapsing = !sidebar.classList.contains('collapsed');
         sidebar.classList.toggle('collapsed');
         if (content) content.classList.toggle('collapsed');
+        // sync navbar & footer padding
+        document.body.classList.toggle('sidebar-collapsed', isCollapsing);
     }
 }
 
