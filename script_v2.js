@@ -24,23 +24,11 @@ function formatThaiDate(dateStr) {
     return day + " " + month + " " + year;
 }
 
-function updateNavbarHeight() {
-    const nav = document.getElementById('main-nav');
-    if (nav) {
-        const h = nav.offsetHeight;
-        document.documentElement.style.setProperty('--navbar-h', h + 'px');
-    }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
     // ล้าง session ทุกครั้งที่โหลดหน้าใหม่ → บังคับ Login ใหม่เสมอ
     localStorage.removeItem("tms_personal_id");
     localStorage.removeItem("tms_user_data");
-
-    updateNavbarHeight();
 });
-
-window.addEventListener('resize', updateNavbarHeight);
 
 function renderUserInfo() {
     let userDataStr = localStorage.getItem("tms_user_data");
@@ -719,6 +707,7 @@ function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("page-content")?.classList.add("d-none");
     document.getElementById("main-footer")?.classList.add("d-none");
+    document.getElementById("main-nav")?.classList.add("has-sidebar");
     document.getElementById("adminSection").classList.remove("d-none");
     restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
@@ -736,6 +725,7 @@ async function renderMentorDashboard() {
     document.getElementById('dashboardSection').classList.add('d-none');
     document.getElementById('page-content')?.classList.add('d-none');
     document.getElementById('main-footer')?.classList.add('d-none');
+    document.getElementById('main-nav')?.classList.add('has-sidebar');
     document.getElementById('mentorSection').classList.remove('d-none');
     await loadMentorData();
 }
@@ -773,6 +763,7 @@ function toggleSidebar(role) {
     const sidebar  = document.getElementById(role + 'Sidebar');
     const wrapper  = document.getElementById(role + 'PageWrapper');
     const overlay  = document.getElementById(role + 'Overlay');
+    const nav      = document.getElementById('main-nav');
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
         sidebar.classList.toggle('mobile-open');
@@ -780,6 +771,7 @@ function toggleSidebar(role) {
     } else {
         sidebar.classList.toggle('collapsed');
         wrapper?.classList.toggle('collapsed');
+        nav?.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
     }
 }
 
@@ -1216,6 +1208,7 @@ function renderStaffDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
     document.getElementById("page-content")?.classList.add("d-none");
     document.getElementById("main-footer")?.classList.add("d-none");
+    document.getElementById("main-nav")?.classList.add("has-sidebar");
     document.getElementById("adminSection").classList.remove("d-none");
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์

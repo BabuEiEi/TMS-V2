@@ -49,12 +49,12 @@ body {
     --navbar-h: 62px;   /* ความสูงโดยประมาณของ sticky navbar */
 }
 
-/* Sidebar หลัก — fixed ซ้ายสุด เริ่มใต้ navbar */
+/* Sidebar หลัก — fixed ซ้ายสุด เต็มความสูง */
 .app-sidebar {
     position: fixed;
-    top: var(--navbar-h);
+    top: 0;
     left: 0;
-    height: calc(100vh - var(--navbar-h));
+    height: 100vh;
     width: var(--sidebar-w);
     background: #fff;
     border-right: 1px solid #e9ecef;
@@ -253,6 +253,18 @@ body {
     left: 0;
     top: 0;
     z-index: 1030;
+}
+
+/* Navbar เมื่อ sidebar แสดงอยู่ — ดัน content ออกจากซ้าย */
+#main-nav.has-sidebar {
+    position: sticky;
+    top: 0;
+    padding-left: calc(var(--sidebar-w) + 0.5rem);
+    transition: padding-left 0.25s ease;
+}
+
+#main-nav.has-sidebar.sidebar-collapsed {
+    padding-left: calc(var(--sidebar-w-collapsed) + 0.5rem);
 }
 
 /* Content area: ขยายเต็ม และมี padding ที่ responsive */
