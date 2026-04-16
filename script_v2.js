@@ -705,6 +705,8 @@ const CUSTOM_HEADERS = {
 
 function renderAdminDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
+    document.getElementById("page-content")?.classList.add("d-none");
+    document.getElementById("main-footer")?.classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
     restoreAdminSidebar(); // คืนสถานะ sidebar เต็มรูปแบบ (กรณีเปิดมาใหม่หลัง Staff)
     loadAdminConfig('Attendance_Config');
@@ -720,6 +722,8 @@ let mentorDataCache = null;
 
 async function renderMentorDashboard() {
     document.getElementById('dashboardSection').classList.add('d-none');
+    document.getElementById('page-content')?.classList.add('d-none');
+    document.getElementById('main-footer')?.classList.add('d-none');
     document.getElementById('mentorSection').classList.remove('d-none');
     await loadMentorData();
 }
@@ -1198,6 +1202,8 @@ function renderMentorEvalTab() {
 
 function renderStaffDashboard() {
     document.getElementById("dashboardSection").classList.add("d-none");
+    document.getElementById("page-content")?.classList.add("d-none");
+    document.getElementById("main-footer")?.classList.add("d-none");
     document.getElementById("adminSection").classList.remove("d-none");
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
