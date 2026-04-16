@@ -67,7 +67,6 @@ function logout() { localStorage.removeItem("tms_personal_id"); location.reload(
 function showDashboard() {
     document.getElementById("loginSection").classList.add("d-none");
     document.getElementById("main-nav").style.display = "block";
-    document.body.classList.add("nav-visible");
     let footer = document.getElementById("main-footer");
     if(footer) footer.classList.remove("d-none");
 
@@ -741,11 +740,12 @@ async function loadMentorData() {
 function switchMentorTab(tab) {
     ['trainees','grade','eval'].forEach(t => {
         document.getElementById('mentorTab_' + t).classList.add('d-none');
-        document.getElementById('mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('active','fw-bold');
+        const btnId = 'mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1);
+        document.getElementById(btnId)?.classList.remove('active');
     });
     document.getElementById('mentorTab_' + tab).classList.remove('d-none');
     const btnMap = { trainees: 'mentorBtnTrainees', grade: 'mentorBtnGrade', eval: 'mentorBtnEval' };
-    document.getElementById(btnMap[tab]).classList.add('active','fw-bold');
+    document.getElementById(btnMap[tab])?.classList.add('active');
     if (tab === 'trainees') renderMentorTraineesTab();
     else if (tab === 'grade') renderMentorGradeTab();
     else if (tab === 'eval') renderMentorEvalTab();
@@ -1214,13 +1214,32 @@ function restoreAdminSidebar() {
 
 function switchAdminTab(tabName) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
-    document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active', 'fw-bold'));
+    ['sidebarBtnSystem','sidebarBtnUser','sidebarBtnReport'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    });
     document.getElementById('adminTab_' + tabName).classList.remove('d-none');
-    if(event && event.currentTarget) event.currentTarget.classList.add('active', 'fw-bold');
+    const btnMap = { systemControl: 'sidebarBtnSystem', userManage: 'sidebarBtnUser', reportManage: 'sidebarBtnReport' };
+    if (btnMap[tabName]) document.getElementById(btnMap[tabName])?.classList.add('active');
 
-    if (tabName === 'userManage') { loadAdminConfig('Users'); } 
-    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); } 
+    if (tabName === 'userManage') { loadAdminConfig('Users'); }
+    else if (tabName === 'systemControl') { loadAdminConfig('Attendance_Config'); }
     else if (tabName === 'reportManage' && !reportDataCache) { loadReportDashboard(); }
+}
+
+function toggleSidebar(role) {
+    const sidebar = document.getElementById(role + 'Sidebar');
+    const content = document.getElementById(role + 'Content');
+    const overlay = document.getElementById(role + 'Overlay');
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('active');
+    } else {
+        sidebar.classList.toggle('collapsed');
+        if (content) content.classList.toggle('collapsed');
+    }
 }
 
 

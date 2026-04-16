@@ -53,7 +53,7 @@
 <body>
 
     <!-- Navbar: เต็มความกว้างจอเสมอ -->
-    <nav class="navbar navbar-dark bg-primary shadow-sm py-2" id="main-nav" style="display:none;">
+    <nav class="navbar navbar-dark bg-primary shadow-sm py-2 sticky-top" id="main-nav" style="display:none;">
         <div class="container-fluid px-3 px-md-4 align-items-center">
             <a class="navbar-brand d-flex align-items-center m-0 text-wrap" href="#" style="max-width: 65%;">
                 <img src="https://cdn.jsdelivr.net/gh/BabuEiEi/images/สพฐ.02 ไม่มีขอบ.png" alt="โลโก้ สพฐ." style="max-height: 50px;" class="me-2 me-md-3 flex-shrink-0">
@@ -158,7 +158,7 @@
         </div>
 
         <div id="attendanceSection" class="d-none mt-3 fade-in">
-            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2 px-3 sticky-top bg-white pt-2" style="top: 70px; z-index: 1020;">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 gap-2 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                 <h3 class="mb-0 text-primary fw-bold">⏱️ ลงเวลาเข้าอบรม</h3>
                 <div>
                     <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openAttendanceForm()">🔄 รีเฟรช</button>
@@ -170,7 +170,7 @@
 
         <div id="examSection" class="d-none fade-in mt-4">
             <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2" style="top: 70px; z-index: 1020;">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                     <h4 class="text-warning fw-bold mb-0">📝 <span id="examTitleLabel"></span></h4>
                     <div class="d-flex align-items-center">
                         <div id="examTimerBadge" class="badge bg-danger fs-5 d-none rounded-pill px-4 shadow-sm me-3">⏳ <span id="examTimeDisplay">30:00</span></div>
@@ -187,7 +187,7 @@
 
         <div id="surveySection" class="d-none fade-in mt-4">
             <div class="card shadow-lg p-5 mx-auto border-0 rounded-5" style="max-width: 900px;">
-                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 px-3 sticky-top bg-white pt-2" style="top: 70px; z-index: 1020;">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 px-3 sticky-top bg-white pt-2" style="top: 0; z-index: 1020;">
                     <h4 class="text-success fw-bold mb-0">📊 <span id="surveyTitleLabel"></span></h4>
                     <div>
                         <button class="btn btn-outline-info rounded-pill px-3 shadow-sm me-2" onclick="openSurveyForm(currentSurveyType)">🔄 รีเฟรช</button>
@@ -203,125 +203,127 @@
         </div>
 
         <!-- ===== MENTOR SECTION ===== -->
-        <div id="mentorSection" class="app-view d-none fade-in mt-4 mb-5">
-            <div class="w-100 px-md-1">
-                <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
+        <div id="mentorSection" class="app-view d-none fade-in">
 
-                    <!-- Sidebar Mentor -->
-                    <div id="mentorSidebar" class="flex-shrink-0">
-                        <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 80px; z-index: 1000;">
-                            <div class="card-body p-3">
-                                <div class="d-flex align-items-center mb-3 ps-2 border-start border-4 border-warning">
-                                    <h6 class="fw-bold text-warning mb-0">เมนูหลัก</h6>
-                                </div>
-                                <div class="list-group list-group-flush gap-2">
-                                    <button id="mentorBtnTrainees" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchMentorTab('trainees')">
-                                        <i class="bi bi-people-fill me-2"></i><span class="sidebar-text">รายชื่อผู้อบรมในกลุ่ม</span>
-                                    </button>
-                                    <button id="mentorBtnGrade" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchMentorTab('grade')">
-                                        <i class="bi bi-clipboard2-check me-2"></i><span class="sidebar-text">ตรวจภาระงาน</span>
-                                    </button>
-                                    <button id="mentorBtnEval" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchMentorTab('eval')">
-                                        <i class="bi bi-bar-chart-fill me-2"></i><span class="sidebar-text">สถิติการประเมิน</span>
-                                    </button>
-                                    <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()">
-                                        <i class="bi bi-box-arrow-right me-2"></i><span class="sidebar-text">ออกจากระบบ</span>
-                                    </button>
-                                </div>
+            <!-- Overlay มือถือ -->
+            <div id="mentorOverlay" class="sidebar-overlay" onclick="toggleSidebar('mentor')"></div>
+
+            <!-- Fixed Sidebar Mentor -->
+            <aside id="mentorSidebar" class="app-sidebar">
+                <div class="sidebar-head">
+                    <span class="sidebar-title text-warning sidebar-label">เมนูหลัก (Mentor)</span>
+                    <button class="sidebar-toggle-btn" onclick="toggleSidebar('mentor')" title="ย่อ/ขยายเมนู">
+                        <i class="bi bi-layout-sidebar-reverse"></i>
+                    </button>
+                </div>
+                <nav class="sidebar-nav">
+                    <button id="mentorBtnTrainees" class="sidebar-item active" onclick="switchMentorTab('trainees')">
+                        <i class="bi bi-people-fill"></i><span class="sidebar-label">รายชื่อผู้อบรมในกลุ่ม</span>
+                    </button>
+                    <button id="mentorBtnGrade" class="sidebar-item" onclick="switchMentorTab('grade')">
+                        <i class="bi bi-clipboard2-check"></i><span class="sidebar-label">ตรวจภาระงาน</span>
+                    </button>
+                    <button id="mentorBtnEval" class="sidebar-item" onclick="switchMentorTab('eval')">
+                        <i class="bi bi-bar-chart-fill"></i><span class="sidebar-label">สถิติการประเมิน</span>
+                    </button>
+                    <div class="sidebar-spacer"></div>
+                    <button class="sidebar-item danger" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i><span class="sidebar-label">ออกจากระบบ</span>
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Content Mentor -->
+            <div id="mentorContent" class="sidebar-content pt-3 pb-5">
+                <!-- ปุ่มเปิด sidebar บนมือถือ -->
+                <button class="sidebar-mobile-toggle btn btn-primary btn-sm rounded-pill mb-3 px-3" onclick="toggleSidebar('mentor')">
+                    <i class="bi bi-layout-sidebar-reverse me-1"></i> เมนู
+                </button>
+
+                <!-- Tab: รายชื่อกลุ่ม -->
+                <div id="mentorTab_trainees" class="card shadow-lg border-0 rounded-4 bg-white">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <h5 class="fw-bold text-dark mb-0">👥 รายชื่อผู้อบรมในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
+                        </div>
+                        <div class="mb-3">
+                            <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                <input id="mentorTraineeSearch" type="text" class="form-control border-start-0 ps-0" placeholder="ค้นหา รหัส ชื่อ คลัสเตอร์ กลุ่ม..." oninput="renderMentorTraineesTab()">
                             </div>
                         </div>
+                        <div class="d-flex flex-wrap gap-3 mb-3 small">
+                            <span><span class="text-success fw-bold fs-6">✔</span> ลงเวลาแล้ว (ตรงเวลา)</span>
+                            <span><span class="text-warning fw-bold fs-6">✔</span> ลงเวลาแล้ว (สาย)</span>
+                            <span><span class="badge bg-info text-dark">ลา</span> ลาป่วย/ลากิจ</span>
+                            <span><span class="text-muted">-</span> ยังไม่ลงเวลา</span>
+                        </div>
+                        <div id="mentorTraineesContent"><div class="text-center py-5 text-muted"><div class="spinner-border text-warning mb-3"></div><p>กำลังโหลด...</p></div></div>
                     </div>
+                </div>
 
-                    <!-- Content Mentor -->
-                    <div class="flex-grow-1 w-100" style="min-width:0;">
-
-                        <!-- Tab: รายชื่อกลุ่ม -->
-                        <div id="mentorTab_trainees" class="card shadow-lg border-0 rounded-4 bg-white">
-                            <div class="card-body p-4">
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
-                                    <h5 class="fw-bold text-dark mb-0">👥 รายชื่อผู้อบรมในกลุ่มของฉัน — <span id="mentorGroupLabel" class="text-warning"></span></h5>
-                                </div>
-                                <!-- ช่องค้นหา -->
-                                <div class="mb-3">
-                                    <div class="input-group shadow-sm rounded-3 overflow-hidden">
-                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                                        <input id="mentorTraineeSearch" type="text" class="form-control border-start-0 ps-0" placeholder="ค้นหา รหัส ชื่อ คลัสเตอร์ กลุ่ม..." oninput="renderMentorTraineesTab()">
-                                    </div>
-                                </div>
-                                <!-- คำอธิบายสัญลักษณ์ -->
-                                <div class="d-flex flex-wrap gap-3 mb-3 small">
-                                    <span><span class="text-success fw-bold fs-6">✔</span> ลงเวลาแล้ว (ตรงเวลา)</span>
-                                    <span><span class="text-warning fw-bold fs-6">✔</span> ลงเวลาแล้ว (สาย)</span>
-                                    <span><span class="badge bg-info text-dark">ลา</span> ลาป่วย/ลากิจ</span>
-                                    <span><span class="text-muted">-</span> ยังไม่ลงเวลา</span>
-                                </div>
-                                <div id="mentorTraineesContent"><div class="text-center py-5 text-muted"><div class="spinner-border text-warning mb-3"></div><p>กำลังโหลด...</p></div></div>
-                            </div>
+                <!-- Tab: ตรวจภาระงาน -->
+                <div id="mentorTab_grade" class="card shadow-lg border-0 rounded-4 bg-white d-none">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                            <h5 class="fw-bold text-dark mb-0">📝 ตรวจภาระงาน</h5>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorGradeTab)">
+                                <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
+                            </button>
                         </div>
+                        <div id="mentorGradeContent"></div>
+                    </div>
+                </div>
 
-                        <!-- Tab: ตรวจภาระงาน -->
-                        <div id="mentorTab_grade" class="card shadow-lg border-0 rounded-4 bg-white d-none">
-                            <div class="card-body p-4">
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
-                                    <h5 class="fw-bold text-dark mb-0">📝 ตรวจภาระงาน</h5>
-                                    <div class="d-flex gap-2 align-items-center">
-                                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="loadMentorData().then(renderMentorGradeTab)">
-                                            <i class="bi bi-arrow-clockwise me-1"></i>รีเฟรช
-                                        </button>
-                                    </div>
-                                </div>
-                                <div id="mentorGradeContent"></div>
-                            </div>
-                        </div>
-
-                        <!-- Tab: สถิติการประเมิน -->
-                        <div id="mentorTab_eval" class="card shadow-lg border-0 rounded-4 bg-white d-none">
-                            <div class="card-body p-4">
-                                <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">📊 สถิติการประเมินวิทยากร/โครงการ</h5>
-                                <div id="mentorEvalContent"></div>
-                            </div>
-                        </div>
-
+                <!-- Tab: สถิติการประเมิน -->
+                <div id="mentorTab_eval" class="card shadow-lg border-0 rounded-4 bg-white d-none">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">📊 สถิติการประเมินวิทยากร/โครงการ</h5>
+                        <div id="mentorEvalContent"></div>
                     </div>
                 </div>
             </div>
         </div>
         <!-- ===== END MENTOR SECTION ===== -->
 
-        <div id="adminSection" class="app-view d-none fade-in mt-4 mb-5">
-    
-    <div class="w-100 px-md-1">
-        
-        <div class="d-flex flex-column flex-md-row gap-4 align-items-start">
-            
-            <div id="adminSidebar" class="flex-shrink-0">
-                <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 80px; z-index: 1000;">
-                    <div class="card-body p-3">
+        <div id="adminSection" class="app-view d-none fade-in">
 
-                        <div class="d-flex align-items-center mb-3 ps-2 border-start border-4 border-primary">
-                            <h6 class="fw-bold text-primary mb-0">เมนูหลัก</h6>
-                        </div>
-                        
-                        <div class="list-group list-group-flush gap-2">
-                            <button id="sidebarBtnSystem" class="list-group-item list-group-item-action active rounded-3 border-0 fw-bold text-start" onclick="switchAdminTab('systemControl')" title="ตั้งค่าระบบ (Settings)">
-                                <i class="bi bi-gear-fill me-2"></i> <span class="sidebar-text">ตั้งค่าระบบ</span>
-                            </button>
-                            <button id="sidebarBtnUser" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('userManage')" title="จัดการผู้ใช้งาน">
-                                <i class="bi bi-people me-2"></i> <span class="sidebar-text">จัดการผู้ใช้งาน</span>
-                            </button>
-                            <button id="sidebarBtnReport" class="list-group-item list-group-item-action rounded-3 border-0 text-start" onclick="switchAdminTab('reportManage')" title="สรุปรายงานผล">
-                                <i class="bi bi-file-earmark-bar-graph me-2"></i> <span class="sidebar-text">สรุปรายงานผล</span>
-                            </button>
+            <!-- Overlay มือถือ -->
+            <div id="adminOverlay" class="sidebar-overlay" onclick="toggleSidebar('admin')"></div>
 
-                            <button class="list-group-item list-group-item-action text-danger rounded-3 border-0 mt-3 shadow-sm bg-danger-subtle fw-bold text-start" onclick="logout()" title="ออกจากระบบ">
-                                <i class="bi bi-box-arrow-right me-2"></i> <span class="sidebar-text">ออกจากระบบ</span>
-                            </button>
-                        </div>
-                    </div>
+            <!-- Fixed Sidebar Admin -->
+            <aside id="adminSidebar" class="app-sidebar">
+                <div class="sidebar-head">
+                    <span class="sidebar-title text-primary sidebar-label">เมนูหลัก (Admin)</span>
+                    <button class="sidebar-toggle-btn" onclick="toggleSidebar('admin')" title="ย่อ/ขยายเมนู">
+                        <i class="bi bi-layout-sidebar-reverse"></i>
+                    </button>
                 </div>
-            </div>
+                <nav class="sidebar-nav">
+                    <button id="sidebarBtnSystem" class="sidebar-item active" onclick="switchAdminTab('systemControl')">
+                        <i class="bi bi-gear-fill"></i><span class="sidebar-label">ตั้งค่าระบบ</span>
+                    </button>
+                    <button id="sidebarBtnUser" class="sidebar-item" onclick="switchAdminTab('userManage')">
+                        <i class="bi bi-people"></i><span class="sidebar-label">จัดการผู้ใช้งาน</span>
+                    </button>
+                    <button id="sidebarBtnReport" class="sidebar-item" onclick="switchAdminTab('reportManage')">
+                        <i class="bi bi-file-earmark-bar-graph"></i><span class="sidebar-label">สรุปรายงานผล</span>
+                    </button>
+                    <div class="sidebar-spacer"></div>
+                    <button class="sidebar-item danger" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i><span class="sidebar-label">ออกจากระบบ</span>
+                    </button>
+                </nav>
+            </aside>
 
-            <div class="flex-grow-1 w-100" style="min-width: 0;">
+            <!-- Content Admin -->
+            <div id="adminContent" class="sidebar-content">
+                <!-- ปุ่มเปิด sidebar บนมือถือ -->
+                <button class="sidebar-mobile-toggle btn btn-primary btn-sm rounded-pill mb-3 px-3" onclick="toggleSidebar('admin')">
+                    <i class="bi bi-layout-sidebar-reverse me-1"></i> เมนู
+                </button>
+
+            <div class="w-100">
                 
                 <div id="adminTab_systemControl" class="card shadow-lg border-0 rounded-4 admin-tab-content bg-white">
                     <div class="card-body p-4 p-md-5">
@@ -566,11 +568,10 @@
                         </div>
                     </div>
                 </div>
-                
-            </div>
-        </div>
-    </div>
-</div>
+
+            </div><!-- /.w-100 -->
+            </div><!-- /#adminContent -->
+        </div><!-- /#adminSection -->
 
         <div id="assignmentSection" class="d-none fade-in mt-3">
             <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sticky-top bg-white pt-2 px-3" style="top: 70px; z-index: 1020;">
