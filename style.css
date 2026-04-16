@@ -141,12 +141,18 @@ body {
 /* 📐 Full-width Layout (Navbar → Content → Footer) */
 /* ========================================= */
 
-/* Navbar ติดบนสุด เต็มจอทุกขนาด */
+/* Navbar ติดบนสุดแบบ fixed — ไม่เคลื่อนขึ้นลงเมื่อ scroll */
 #main-nav {
+    position: fixed;
     width: 100%;
     left: 0;
     top: 0;
     z-index: 1030;
+}
+
+/* เมื่อ navbar แสดงผล ให้ body เพิ่ม padding-top เพื่อป้องกัน content ถูกบัง */
+body.nav-visible {
+    padding-top: 70px;
 }
 
 /* Content area: ขยายเต็ม และมี padding ที่ responsive */

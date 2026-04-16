@@ -67,6 +67,7 @@ function logout() { localStorage.removeItem("tms_personal_id"); location.reload(
 function showDashboard() {
     document.getElementById("loginSection").classList.add("d-none");
     document.getElementById("main-nav").style.display = "block";
+    document.body.classList.add("nav-visible");
     let footer = document.getElementById("main-footer");
     if(footer) footer.classList.remove("d-none");
 
