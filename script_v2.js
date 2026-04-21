@@ -43,7 +43,7 @@ function renderUserInfo() {
 
 async function login() {
     let idInput = document.getElementById("personalId");
-    let id = idInput.value.trim(); 
+    let id = idInput.value.trim();
     if (id === "") { Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: 'กรุณากรอกรหัสประจำตัวก่อนครับ' }); return; }
     Swal.fire({ title: 'กำลังตรวจสอบข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
@@ -62,6 +62,139 @@ async function login() {
     } catch (error) { Swal.fire({ icon: 'error', title: 'ระบบขัดข้อง', text: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' }); }
 }
 
+async function searchUsersForLogin(nameQuery, areaQuery, schoolQuery) {
+    const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+            action: 'searchUsers',
+            payload: {
+                name: nameQuery,
+                area_service: areaQuery,
+                school: schoolQuery
+            }
+        })
+    });
+    return response.json();
+}
+
+function bindUserSearchPopupEvents() {
+    const searchBtn = document.getElementById('userSearchActionBtn');
+    const nameInput = document.getElementById('userSearchName');
+    const areaInput = document.getElementById('userSearchArea');
+    const schoolInput = document.getElementById('userSearchSchool');
+    const resultContainer = document.getElementById('userSearchResults');
+
+    if (!searchBtn || !nameInput || !areaInput || !schoolInput || !resultContainer) return;
+
+    const renderResults = (users) => {
+        if (!users || users.length === 0) {
+            resultContainer.innerHTML = '<div class="alert alert-warning mb-0 py-2 small">ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา</div>';
+            return;
+        }
+
+        resultContainer.innerHTML = users.map((user) => {
+            const clusterHtml = user.cluster ? `<div class="small text-muted">กลุ่ม: ${user.cluster}</div>` : '';
+            const schoolHtml = user.school ? `<div class="small text-muted">โรงเรียน: ${user.school}</div>` : '';
+            return `
+                <button type="button" class="list-group-item list-group-item-action text-start user-search-select" data-personal-id="${user.personal_id}">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <div class="fw-bold text-dark">${user.name || '-'}</div>
+                            <div class="small text-muted">สังกัด: ${user.area_service || '-'}</div>
+                            ${schoolHtml}
+                            ${clusterHtml}
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">${user.personal_id}</span>
+                    </div>
+                </button>`;
+        }).join('');
+
+        resultContainer.querySelectorAll('.user-search-select').forEach((button) => {
+            button.addEventListener('click', () => {
+                const personalIdInput = document.getElementById('personalId');
+                if (personalIdInput) {
+                    personalIdInput.value = button.dataset.personalId || '';
+                    personalIdInput.focus();
+                }
+                Swal.close();
+            });
+        });
+    };
+
+    const runSearch = async () => {
+        const nameQuery = nameInput.value.trim();
+        const areaQuery = areaInput.value.trim();
+        const schoolQuery = schoolInput.value.trim();
+
+        if (nameQuery === '' && areaQuery === '' && schoolQuery === '') {
+            resultContainer.innerHTML = '<div class="alert alert-info mb-0 py-2 small">กรอกชื่อ - นามสกุล, สังกัด หรือโรงเรียนอย่างน้อย 1 ช่อง</div>';
+            return;
+        }
+
+        resultContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div><div class="small text-muted mt-2">กำลังค้นหา...</div></div>';
+
+        try {
+            const result = await searchUsersForLogin(nameQuery, areaQuery, schoolQuery);
+            if (result.status !== 'success') {
+                resultContainer.innerHTML = `<div class="alert alert-danger mb-0 py-2 small">${result.message || 'ค้นหาข้อมูลไม่สำเร็จ'}</div>`;
+                return;
+            }
+            renderResults(result.data || []);
+        } catch (error) {
+            resultContainer.innerHTML = '<div class="alert alert-danger mb-0 py-2 small">ไม่สามารถเชื่อมต่อฐานข้อมูลได้</div>';
+        }
+    };
+
+    searchBtn.addEventListener('click', runSearch);
+    [nameInput, areaInput, schoolInput].forEach((input) => {
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                runSearch();
+            }
+        });
+    });
+}
+
+function openUserSearchPopup() {
+    Swal.fire({
+        title: 'ค้นหารายชื่อ / รหัสประจำตัว',
+        width: 760,
+        showConfirmButton: false,
+        showCloseButton: true,
+        html: `
+            <div class="text-start">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label for="userSearchName" class="form-label fw-semibold">ชื่อ - นามสกุล</label>
+                        <input type="text" id="userSearchName" class="form-control" placeholder="พิมพ์ชื่อหรือชื่อสกุล">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="userSearchArea" class="form-label fw-semibold">สังกัด</label>
+                        <input type="text" id="userSearchArea" class="form-control" placeholder="เช่น สพม.พิษณุโลก อุตรดิตถ์">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="userSearchSchool" class="form-label fw-semibold">โรงเรียน</label>
+                        <input type="text" id="userSearchSchool" class="form-control" placeholder="พิมพ์ชื่อโรงเรียน">
+                    </div>
+                </div>
+                <div class="d-grid mb-3">
+                    <button type="button" id="userSearchActionBtn" class="btn btn-primary">
+                        <i class="bi bi-search me-1"></i> ค้นหา
+                    </button>
+                </div>
+                <div id="userSearchResults" class="list-group text-start" style="max-height: 320px; overflow-y: auto;">
+                    <div class="alert alert-light border mb-0 small">ค้นหาได้จากชื่อ - นามสกุล, สังกัด และโรงเรียน แล้วกดรหัสประจำตัวเพื่อเติมลงในช่องเข้าสู่ระบบทันที</div>
+                </div>
+            </div>`,
+        didOpen: () => {
+            bindUserSearchPopupEvents();
+            const nameInput = document.getElementById('userSearchName');
+            if (nameInput) nameInput.focus();
+        }
+    });
+}
+
 function logout() { localStorage.removeItem("tms_personal_id"); location.reload(); }
 
 function showDashboard() {
@@ -69,14 +202,14 @@ function showDashboard() {
     document.getElementById("main-nav").style.display = "block";
     document.body.classList.add("nav-visible");
     let footer = document.getElementById("main-footer");
-    if(footer) footer.classList.remove("d-none");
+    if (footer) footer.classList.remove("d-none");
 
     const userDataStr = localStorage.getItem("tms_user_data");
     if (userDataStr) {
         const user = JSON.parse(userDataStr);
         const role = user.role ? user.role.toUpperCase() : "";
-        if (role === 'ADMIN')  { renderAdminDashboard(); return; }
-        if (role === 'STAFF')  { renderStaffDashboard(); return; }
+        if (role === 'ADMIN') { renderAdminDashboard(); return; }
+        if (role === 'STAFF') { renderStaffDashboard(); return; }
         if (role === 'MENTOR') { renderMentorDashboard(); return; }
     }
     document.getElementById("dashboardSection").classList.remove("d-none");
@@ -96,21 +229,21 @@ async function openAttendanceForm() {
     document.getElementById("attendanceSection").classList.remove("d-none");
     let btnContainer = document.getElementById("attendanceButtonsContainer");
     btnContainer.innerHTML = `<div class="text-center my-5"><div class="spinner-border text-info"></div></div>`;
-    
+
     try {
         let response = await fetch(GAS_API_URL, {
             method: 'POST', body: JSON.stringify({ action: 'getAttendanceData', payload: { personal_id: localStorage.getItem("tms_personal_id") } })
         });
         let result = await response.json();
-        
-        if (result.status === 'success') { 
-            renderAttendanceButtons(result.schedule, result.userLogs); 
+
+        if (result.status === 'success') {
+            renderAttendanceButtons(result.schedule, result.userLogs);
         } else {
             // 🌟 ถ้าระบบหลังบ้านส่ง Error มา จะได้รู้สาเหตุชัดเจนครับ
             btnContainer.innerHTML = `<div class="alert alert-danger text-center shadow-sm"><b>เกิดข้อผิดพลาด:</b> ${result.message}</div>`;
         }
-    } catch (error) { 
-        btnContainer.innerHTML = `<div class="alert alert-danger text-center shadow-sm">ไม่สามารถดึงข้อมูลได้ (การเชื่อมต่อขัดข้อง)</div>`; 
+    } catch (error) {
+        btnContainer.innerHTML = `<div class="alert alert-danger text-center shadow-sm">ไม่สามารถดึงข้อมูลได้ (การเชื่อมต่อขัดข้อง)</div>`;
     }
 }
 
@@ -118,10 +251,10 @@ function renderAttendanceButtons(schedule, userLogs) {
     let btnContainer = document.getElementById("attendanceButtonsContainer");
     btnContainer.innerHTML = '';
     const now = new Date();
-    
-    if (!schedule || schedule.length === 0) { 
-        btnContainer.innerHTML = `<div class="alert alert-info text-center shadow-sm rounded-4 py-4">ยังไม่มีรอบลงเวลาที่เปิดใช้งานในขณะนี้ครับ</div>`; 
-        return; 
+
+    if (!schedule || schedule.length === 0) {
+        btnContainer.innerHTML = `<div class="alert alert-info text-center shadow-sm rounded-4 py-4">ยังไม่มีรอบลงเวลาที่เปิดใช้งานในขณะนี้ครับ</div>`;
+        return;
     }
 
     schedule.forEach(slot => {
@@ -130,7 +263,7 @@ function renderAttendanceButtons(schedule, userLogs) {
         let thaiDate = formatThaiDate(slot.date);
         let timeRange = "(" + slot.start_time + " - " + slot.end_time + ")";
         let baseDisplay = "วันที่ " + slot.day_no + " | " + thaiDate + " " + timeRange;
-        
+
         // 🌟 FIX: เติมเลข 0 ด้านหน้าเวลาให้ครบ 5 หลัก (เช่น 9:49 -> 09:49) ป้องกัน Invalid Date Error
         let safeEndTime = slot.end_time.toString().trim();
         if (safeEndTime.length < 5) safeEndTime = safeEndTime.padStart(5, '0');
@@ -152,7 +285,7 @@ function renderAttendanceButtons(schedule, userLogs) {
             } else {
                 logTime = new Date(tsRaw);
                 if (!isNaN(logTime.getTime())) {
-                    logTimeString = logTime.getHours().toString().padStart(2,'0') + ':' + logTime.getMinutes().toString().padStart(2,'0');
+                    logTimeString = logTime.getHours().toString().padStart(2, '0') + ':' + logTime.getMinutes().toString().padStart(2, '0');
                     isLogLate = logTime > endDateTime;
                 }
             }
@@ -169,7 +302,7 @@ function renderAttendanceButtons(schedule, userLogs) {
             } else if (isLogLate) {
                 lateMark = ' <span class="text-danger">(สาย)</span>';
             }
-            
+
             btnContainer.innerHTML += `
                 <div class="card mb-3 p-4 bg-light border-0 rounded-4 text-center shadow-sm opacity-75">
                     <div class="fw-bold text-secondary mb-2">✔️ ${slot.slot_label} บันทึกสำเร็จ</div>
@@ -180,7 +313,7 @@ function renderAttendanceButtons(schedule, userLogs) {
             let btnClass = isCurrentlyLate ? 'btn-warning text-dark' : 'btn-success text-white';
             let statusSuffix = isCurrentlyLate ? ' (สาย)' : '';
             let currentStatus = isCurrentlyLate ? 'สาย' : 'ตรงเวลา';
-            
+
             btnContainer.innerHTML += `
                 <button class="btn ${btnClass} w-100 mb-3 p-4 fw-bold rounded-4 shadow" onclick="submitRealAttendance('${slot.day_no}', '${slot.slot_id}', '${currentStatus}')">
                     <span style="font-size: 1.2rem;">📌 ลงเวลา: ${slot.slot_label}${statusSuffix}</span><br>
@@ -333,9 +466,9 @@ async function submitRealExam(isAuto = false) {
         if (globalExamData.activeExam.type === 'PRE') {
             Swal.fire({ icon: 'info', title: 'บันทึกสำเร็จ!', text: `คะแนน ${score}`, confirmButtonColor: '#0dcaf0' }).then(() => { backToDashboard('examSection'); });
         } else {
-            if (percentage >= globalExamData.activeExam.passing_percent) { Swal.fire({ icon: 'success', title: 'ผ่านเกณฑ์! 🎉', text: `คะแนน ${score}/${maxScore}`, confirmButtonColor: '#198754' }).then(() => { backToDashboard('examSection'); }); } 
+            if (percentage >= globalExamData.activeExam.passing_percent) { Swal.fire({ icon: 'success', title: 'ผ่านเกณฑ์! 🎉', text: `คะแนน ${score}/${maxScore}`, confirmButtonColor: '#198754' }).then(() => { backToDashboard('examSection'); }); }
             else {
-                if (globalExamData.attempts + 1 < 2) { Swal.fire({ icon: 'warning', title: 'ยังไม่ผ่านเกณฑ์', text: `คะแนน ${score}/${maxScore}\nสอบซ่อมได้อีก 1 ครั้ง` }).then(() => { backToDashboard('examSection'); }); } 
+                if (globalExamData.attempts + 1 < 2) { Swal.fire({ icon: 'warning', title: 'ยังไม่ผ่านเกณฑ์', text: `คะแนน ${score}/${maxScore}\nสอบซ่อมได้อีก 1 ครั้ง` }).then(() => { backToDashboard('examSection'); }); }
                 else { Swal.fire({ icon: 'error', title: 'ไม่ผ่านเกณฑ์ (ครบ 2 ครั้ง)', text: `คะแนน ${score}/${maxScore}` }).then(() => { backToDashboard('examSection'); }); }
             }
         }
@@ -351,7 +484,7 @@ async function openSurveyForm(type) {
 
     if (type === 'SPEAKER_SURVEY') {
         Swal.fire({ title: 'กำลังโหลดข้อมูลวิทยากร...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-        
+
         try {
             let response = await fetch(GAS_API_URL, {
                 method: 'POST',
@@ -420,15 +553,15 @@ async function openSurveyForm(type) {
                 selectedSpeakerId = selectedId;
                 document.getElementById("dashboardSection").classList.add("d-none");
                 document.getElementById("surveySection").classList.remove("d-none");
-                
+
                 let spkObj = globalSurveyData.speakers.find(s => {
                     let keys = Object.keys(s);
                     return (s.id || s.spk_id || s['รหัส'] || s[keys[0]]) === selectedId;
                 });
-                
+
                 let spkName = spkObj ? (spkObj.name || spkObj.spk_name || spkObj['ชื่อวิทยากร'] || spkObj[Object.keys(spkObj)[1]]) : '';
                 document.getElementById("surveyTitleLabel").innerText = `ประเมินวิทยากร: ${spkName}`;
-                
+
                 renderSurveyQuestions();
                 document.getElementById("btnSubmitSurvey").classList.remove("d-none");
             }
@@ -517,24 +650,24 @@ async function submitRealSurvey() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         // 🌟 เพิ่มระบบอ่านการตอบกลับ (Response) จากเซิร์ฟเวอร์
-        const response = await fetch(GAS_API_URL, { 
-            method: 'POST', 
-            body: JSON.stringify({ 
-                action: currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval', 
-                payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target } 
-            }) 
+        const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: currentSurveyType === 'PROJECT_SURVEY' ? 'submitProjectEval' : 'submitSpeakerEval',
+                payload: { personal_id: localStorage.getItem("tms_personal_id"), answers: answers, target_id: target }
+            })
         });
-        
+
         const result = await response.json();
-        
+
         // 🌟 เช็คให้ชัวร์ว่าเซิร์ฟเวอร์ตอบกลับมาว่า success จริงๆ ค่อยเด้ง Pop-up เขียว
         if (result.status === 'success') {
             Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ' }).then(() => { backToDashboard('surveySection'); });
         } else {
             Swal.fire('บันทึกไม่สำเร็จ', 'สาเหตุ: ' + result.message, 'error');
         }
-    } catch (e) { 
-        Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่', 'error'); 
+    } catch (e) {
+        Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่', 'error');
     }
 }
 
@@ -550,7 +683,7 @@ async function openAssignmentForm() {
     try {
         let response = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'getAssignmentData', payload: { personal_id: localStorage.getItem("tms_personal_id") } }) });
         let result = await response.json();
-        if (result.status === 'success') { globalAssignmentData = result; renderAssignmentDashboard(); } 
+        if (result.status === 'success') { globalAssignmentData = result; renderAssignmentDashboard(); }
         else { tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-danger">${result.message}</td></tr>`; }
     } catch (error) { tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-danger">ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ต</td></tr>`; }
 }
@@ -622,7 +755,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
     let asnConfig = globalAssignmentData.assignments.find(a => a.assign_id === assignId);
     let inputHtml = '', fileToSubmit = null, linkToSubmit = '';
 
-    if (subType === 'LINK') { inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label><input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://..."></div>`; } 
+    if (subType === 'LINK') { inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">วางลิงก์ผลงานของท่าน (URL)</label><input type="url" id="swal-input-link" class="form-control rounded-4 p-2" placeholder="https://..."></div>`; }
     else { inputHtml = `<div class="text-start mt-3"><label class="form-label fw-bold text-primary">เลือกไฟล์จากเครื่องของท่าน</label><input type="file" id="swal-input-file" class="form-control rounded-4 p-2"><small class="text-danger mt-1 d-block">*ระบบแนะนำให้ส่งไฟล์ขนาดไม่เกิน 5MB</small></div>`; }
 
     const { isConfirmed } = await Swal.fire({
@@ -630,7 +763,7 @@ async function promptSubmitAssignment(assignId, subType, isLate) {
         html: `<div class="alert alert-light border text-start mb-0 shadow-sm"><p class="mb-1 fw-bold text-dark fs-6">📌 ชื่องาน: ${asnConfig.title}</p><hr class="my-2 text-secondary"><div class="small text-muted" style="white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto; padding-right: 5px;">${asnConfig.description}</div></div>${inputHtml}`,
         focusConfirm: false, showCancelButton: true, confirmButtonText: 'ถัดไป (Preview)', cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
-            if (subType === 'LINK') { linkToSubmit = document.getElementById('swal-input-link').value; if (!linkToSubmit) { Swal.showValidationMessage('กรุณาวางลิงก์ผลงานครับ'); return false; } return true; } 
+            if (subType === 'LINK') { linkToSubmit = document.getElementById('swal-input-link').value; if (!linkToSubmit) { Swal.showValidationMessage('กรุณาวางลิงก์ผลงานครับ'); return false; } return true; }
             else { let fileInput = document.getElementById('swal-input-file'); if (!fileInput.files.length) { Swal.showValidationMessage('กรุณาเลือกไฟล์ครับ'); return false; } fileToSubmit = fileInput.files[0]; return true; }
         }
     });
@@ -670,7 +803,7 @@ async function sendToGAS(payload) {
     try {
         const response = await fetch(GAS_API_URL, { method: 'POST', mode: 'cors', body: JSON.stringify({ action: 'submitAssignment', payload: payload }) });
         const result = await response.json();
-        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', timer: 2000, showConfirmButton: false }); setTimeout(() => openAssignmentForm(), 2000); } 
+        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'อัปโหลดสำเร็จ!', timer: 2000, showConfirmButton: false }); setTimeout(() => openAssignmentForm(), 2000); }
         else { Swal.fire('ล้มเหลว', result.message, 'error'); }
     } catch (e) { Swal.fire('Error', 'ไม่สามารถส่งข้อมูลได้', 'error'); }
 }
@@ -682,7 +815,7 @@ async function cancelAssignment(assignId) {
     try {
         let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancelAssignment', payload: { personal_id: localStorage.getItem("tms_personal_id"), assign_id: assignId } }) });
         let result = await res.json();
-        if (result.status === 'success') { Swal.fire('ยกเลิกสำเร็จ', 'ท่านสามารถส่งงานชิ้นนี้ใหม่ได้อีกครั้ง', 'success'); openAssignmentForm(); } 
+        if (result.status === 'success') { Swal.fire('ยกเลิกสำเร็จ', 'ท่านสามารถส่งงานชิ้นนี้ใหม่ได้อีกครั้ง', 'success'); openAssignmentForm(); }
         else { Swal.fire('ไม่สามารถยกเลิกได้', result.message, 'error'); }
     } catch (e) { Swal.fire('ผิดพลาด', 'เชื่อมต่อระบบล้มเหลว', 'error'); }
 }
@@ -739,13 +872,13 @@ async function loadMentorData() {
         mentorDataCache = result;
         document.getElementById('mentorGroupLabel').textContent = result.mentorGroup;
         renderMentorTraineesTab();
-    } catch(e) {
+    } catch (e) {
         Swal.fire('ขัดข้อง', 'ไม่สามารถโหลดข้อมูล Mentor ได้', 'error');
     }
 }
 
 function switchMentorTab(tab) {
-    ['trainees','grade','eval'].forEach(t => {
+    ['trainees', 'grade', 'eval'].forEach(t => {
         document.getElementById('mentorTab_' + t).classList.add('d-none');
         const btnId = 'mentorBtn' + t.charAt(0).toUpperCase() + t.slice(1);
         document.getElementById(btnId)?.classList.remove('active');
@@ -760,10 +893,10 @@ function switchMentorTab(tab) {
 
 // ย่อ/ขยาย sidebar (desktop) หรือ เปิด/ปิด drawer (mobile)
 function toggleSidebar(role) {
-    const sidebar  = document.getElementById(role + 'Sidebar');
-    const wrapper  = document.getElementById(role + 'PageWrapper');
-    const overlay  = document.getElementById(role + 'Overlay');
-    const nav      = document.getElementById('main-nav');
+    const sidebar = document.getElementById(role + 'Sidebar');
+    const wrapper = document.getElementById(role + 'PageWrapper');
+    const overlay = document.getElementById(role + 'Overlay');
+    const nav = document.getElementById('main-nav');
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
         sidebar.classList.toggle('mobile-open');
@@ -799,8 +932,8 @@ function renderMentorTraineesTab() {
     const dayMap = {};
     configs.forEach(c => {
         const dayNo = c['day_no (วันที่)'] || c['day_no'] || '';
-        const date  = c['date (ว/ด/ป)'] || c['date'] || '';
-        const slotId    = c['slot_id (รหัสรอบ)'] || c['slot_id'] || '';
+        const date = c['date (ว/ด/ป)'] || c['date'] || '';
+        const slotId = c['slot_id (รหัสรอบ)'] || c['slot_id'] || '';
         const slotLabel = c['slot_label (ชื่อรอบ)'] || c['slot_label'] || '';
         if (!dayMap[dayNo]) dayMap[dayNo] = { date, slots: [] };
         dayMap[dayNo].slots.push({ slotId, slotLabel });
@@ -809,7 +942,7 @@ function renderMentorTraineesTab() {
     const totalSlots = configs.length;
 
     // build header 2 rows
-    const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
     let thRow1 = '<tr class="table-light text-center"><th rowspan="2" class="align-middle">รหัส</th><th rowspan="2" class="align-middle">ชื่อ-สกุล</th><th rowspan="2" class="align-middle">คลัสเตอร์</th><th rowspan="2" class="align-middle">กลุ่ม</th>';
     let thRow2 = '<tr class="table-primary text-center">';
     dayKeys.forEach(dayNo => {
@@ -818,9 +951,9 @@ function renderMentorTraineesTab() {
         try {
             const dt = new Date(dateStr);
             if (!isNaN(dt)) dateStr = dt.getDate() + ' ' + thaiMonths[dt.getMonth()] + ' ' + String(dt.getFullYear() + 543).slice(-2);
-        } catch(e) {}
+        } catch (e) { }
         thRow1 += `<th colspan="${d.slots.length}" class="align-middle text-center">วันที่ ${dayNo}<br><span class="small text-muted">(${dateStr})</span></th>`;
-        d.slots.forEach(s => { thRow2 += `<th>${s.slotLabel.replace('รอบ','')}</th>`; });
+        d.slots.forEach(s => { thRow2 += `<th>${s.slotLabel.replace('รอบ', '')}</th>`; });
     });
     thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">รวม<br>(ครั้ง)</th>';
     thRow1 += '<th rowspan="2" class="align-middle text-center bg-primary text-white">ร้อยละ<br>(%)</th></tr>';
@@ -830,11 +963,11 @@ function renderMentorTraineesTab() {
     const attMap = {};
     (attendance || []).forEach(a => {
         const keys = Object.keys(a);
-        const pid  = a['personal_id'] || a[keys[1]] || '';
-        const dNo  = a['day_no'] || a[keys[2]] || '';
+        const pid = a['personal_id'] || a[keys[1]] || '';
+        const dNo = a['day_no'] || a[keys[2]] || '';
         const slot = a['time_slot'] || a['slot_id'] || a[keys[3]] || '';
         const note = a['note'] || a[keys[5]] || '';
-        const key  = String(dNo) + '_' + String(slot);
+        const key = String(dNo) + '_' + String(slot);
         if (!attMap[pid]) attMap[pid] = {};
         attMap[pid][key] = { note: String(note).trim() };
     });
@@ -845,9 +978,9 @@ function renderMentorTraineesTab() {
         let count = 0;
         tbHtml += '<tr>';
         tbHtml += `<td class="text-center text-muted small">${t.personal_id}</td>`;
-        tbHtml += `<td><div class="fw-bold text-primary">${t.name}</div><div class="small text-muted">${t.area_service||'-'}</div></td>`;
-        tbHtml += `<td class="small">${t.cluster||'-'}</td>`;
-        tbHtml += `<td class="small">${t.group_target||'-'}</td>`;
+        tbHtml += `<td><div class="fw-bold text-primary">${t.name}</div><div class="small text-muted">${t.area_service || '-'}</div></td>`;
+        tbHtml += `<td class="small">${t.cluster || '-'}</td>`;
+        tbHtml += `<td class="small">${t.group_target || '-'}</td>`;
         dayKeys.forEach(dayNo => {
             dayMap[dayNo].slots.forEach(s => {
                 const key = String(dayNo) + '_' + String(s.slotId);
@@ -897,12 +1030,12 @@ function renderMentorGradeTab() {
 
     const statusBadge = (s) => {
         const map = {
-            'รอตรวจ':   'bg-secondary',
-            'ดีมาก':    'bg-success',
-            'ดี':       'bg-primary',
-            'พอใช้':    'bg-warning text-dark',
+            'รอตรวจ': 'bg-secondary',
+            'ดีมาก': 'bg-success',
+            'ดี': 'bg-primary',
+            'พอใช้': 'bg-warning text-dark',
             'ปรับปรุง': 'bg-danger',
-            'ยังไม่ส่ง':'bg-light text-muted border'
+            'ยังไม่ส่ง': 'bg-light text-muted border'
         };
         return `<span class="badge ${map[s] || 'bg-secondary'} text-nowrap">${s}</span>`;
     };
@@ -1021,7 +1154,7 @@ async function openGradeModal(logJson, cfgJson) {
         return `
         <div class="mb-2 p-2 bg-light rounded-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <label class="fw-bold small mb-0">${i+1}. ${r.name}</label>
+                <label class="fw-bold small mb-0">${i + 1}. ${r.name}</label>
                 <span class="text-muted small">เต็ม <strong>${rawScore}</strong> คะแนน <span class="text-secondary">(×${weight} = ${weightedMax})</span></span>
             </div>
             <div class="input-group input-group-sm">
@@ -1075,9 +1208,9 @@ async function openGradeModal(logJson, cfgJson) {
                 <div class="mb-2">
                     <div class="small fw-bold text-muted mb-1">⭐ สถานะ</div>
                     <div class="d-flex gap-1 flex-wrap">
-                        ${['ดีมาก','ดี','พอใช้','ปรับปรุง'].map(s =>
-                            `<button type="button" class="btn btn-sm btn-outline-secondary status-btn px-3" data-status="${s}" onclick="selectMentorStatus(this)">${s}</button>`
-                        ).join('')}
+                        ${['ดีมาก', 'ดี', 'พอใช้', 'ปรับปรุง'].map(s =>
+            `<button type="button" class="btn btn-sm btn-outline-secondary status-btn px-3" data-status="${s}" onclick="selectMentorStatus(this)">${s}</button>`
+        ).join('')}
                     </div>
                     <input type="hidden" id="selectedStatus" value="">
                 </div>
@@ -1085,7 +1218,7 @@ async function openGradeModal(logJson, cfgJson) {
                 <div>
                     <div class="small fw-bold text-muted mb-1">💬 Feedback ถึง Trainee</div>
                     <textarea id="mentorFeedback" class="form-control form-control-sm" rows="4"
-                        placeholder="เขียนคำแนะนำ/ข้อเสนอแนะ...">${log.feedback||''}</textarea>
+                        placeholder="เขียนคำแนะนำ/ข้อเสนอแนะ...">${log.feedback || ''}</textarea>
                 </div>
             </div>
         </div>`,
@@ -1096,7 +1229,7 @@ async function openGradeModal(logJson, cfgJson) {
         customClass: { popup: 'text-start' },
         didOpen: () => {
             calcMentorTotal();
-            if (log.status && ['ดีมาก','ดี','พอใช้','ปรับปรุง'].includes(log.status)) {
+            if (log.status && ['ดีมาก', 'ดี', 'พอใช้', 'ปรับปรุง'].includes(log.status)) {
                 const btn = document.querySelector(`.status-btn[data-status="${log.status}"]`);
                 if (btn) selectMentorStatus(btn);
             }
@@ -1130,10 +1263,10 @@ async function openGradeModal(logJson, cfgJson) {
             await loadMentorData();
             renderMentorGradeTab();
         } else { Swal.fire('ผิดพลาด', result.message, 'error'); }
-    } catch(e) { Swal.fire('ขัดข้อง', 'บันทึกไม่สำเร็จ', 'error'); }
+    } catch (e) { Swal.fire('ขัดข้อง', 'บันทึกไม่สำเร็จ', 'error'); }
 }
 
-window.calcMentorTotal = function() {
+window.calcMentorTotal = function () {
     const rubricInputs = document.querySelectorAll('[id^="rubric_"]');
     let total = 0;
     // คะแนนรวม = sum(value × weight) แต่ละประเด็น
@@ -1146,12 +1279,12 @@ window.calcMentorTotal = function() {
     if (el) el.textContent = total % 1 === 0 ? total.toString() : total.toFixed(1);
 };
 
-window.selectMentorStatus = function(btn) {
+window.selectMentorStatus = function (btn) {
     document.querySelectorAll('.status-btn').forEach(b => {
-        b.classList.remove('btn-success','btn-primary','btn-warning','btn-danger');
+        b.classList.remove('btn-success', 'btn-primary', 'btn-warning', 'btn-danger');
         b.classList.add('btn-outline-secondary');
     });
-    const colorMap = { 'ดีมาก':'btn-success','ดี':'btn-primary','พอใช้':'btn-warning','ปรับปรุง':'btn-danger' };
+    const colorMap = { 'ดีมาก': 'btn-success', 'ดี': 'btn-primary', 'พอใช้': 'btn-warning', 'ปรับปรุง': 'btn-danger' };
     btn.classList.remove('btn-outline-secondary');
     btn.classList.add(colorMap[btn.dataset.status] || 'btn-secondary');
     document.getElementById('selectedStatus').value = btn.dataset.status;
@@ -1194,9 +1327,9 @@ function renderMentorEvalTab() {
             <td class="text-start"><div class="fw-bold">${t.name}</div><div class="text-muted small">${t.personal_id}</div></td>
             <td>${projDone ? '<span class="fs-5">✅</span>' : '<span class="text-danger">❌</span>'}</td>
             ${speakers.map(s => {
-                const done = evalledSpeaker[t.personal_id]?.has(s.spk_id);
-                return `<td>${done ? '<span class="fs-5">✅</span>' : '<span class="text-danger">❌</span>'}</td>`;
-            }).join('')}
+            const done = evalledSpeaker[t.personal_id]?.has(s.spk_id);
+            return `<td>${done ? '<span class="fs-5">✅</span>' : '<span class="text-danger">❌</span>'}</td>`;
+        }).join('')}
         </tr>`;
     });
 
@@ -1213,10 +1346,10 @@ function renderStaffDashboard() {
 
     // ซ่อนเมนูที่ Staff ไม่มีสิทธิ์
     let btnSystem = document.getElementById('sidebarBtnSystem');
-    let btnUser   = document.getElementById('sidebarBtnUser');
+    let btnUser = document.getElementById('sidebarBtnUser');
     let btnReport = document.getElementById('sidebarBtnReport');
     if (btnSystem) btnSystem.classList.add('d-none');
-    if (btnUser)   btnUser.classList.add('d-none');
+    if (btnUser) btnUser.classList.add('d-none');
 
     // ไฮไลต์ปุ่มสรุปรายงานผล
     if (btnReport) {
@@ -1233,16 +1366,16 @@ function renderStaffDashboard() {
 
 function restoreAdminSidebar() {
     const btnSystem = document.getElementById('sidebarBtnSystem');
-    const btnUser   = document.getElementById('sidebarBtnUser');
+    const btnUser = document.getElementById('sidebarBtnUser');
     if (btnSystem) btnSystem.classList.remove('d-none');
-    if (btnUser)   btnUser.classList.remove('d-none');
+    if (btnUser) btnUser.classList.remove('d-none');
     const title = document.getElementById('adminSidebarTitle');
     if (title) { title.style.color = ''; }
 }
 
 function switchAdminTab(tabName) {
     document.querySelectorAll('.admin-tab-content').forEach(tab => tab.classList.add('d-none'));
-    ['sidebarBtnSystem','sidebarBtnUser','sidebarBtnReport'].forEach(id => {
+    ['sidebarBtnSystem', 'sidebarBtnUser', 'sidebarBtnReport'].forEach(id => {
         document.getElementById(id)?.classList.remove('active');
     });
     document.getElementById('adminTab_' + tabName)?.classList.remove('d-none');
@@ -1261,13 +1394,13 @@ async function loadAdminConfig(sheetName) {
 
     document.querySelectorAll('.config-tab-btn').forEach(b => { b.classList.remove('btn-primary', 'text-white'); b.classList.add('btn-outline-primary'); });
     let activeTab = document.getElementById('tab_' + sheetName);
-    if(activeTab) { activeTab.classList.remove('btn-outline-primary'); activeTab.classList.add('btn-primary', 'text-white'); }
+    if (activeTab) { activeTab.classList.remove('btn-outline-primary'); activeTab.classList.add('btn-primary', 'text-white'); }
 
     container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังดึงข้อมูลจากฐานข้อมูล...</p></div>`;
     try {
         let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageConfig', payload: { action: 'GET', sheetName: sheetName } }) });
         let result = await res.json();
-        if (result.status === 'success') { adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers; adminConfigRows = result.rows; renderAdminTable(containerId); } 
+        if (result.status === 'success') { adminConfigHeaders = CUSTOM_HEADERS[sheetName] || result.headers; adminConfigRows = result.rows; renderAdminTable(containerId); }
         else { container.innerHTML = `<div class="alert alert-danger text-center">${result.message}</div>`; }
     } catch (e) { container.innerHTML = `<div class="alert alert-danger text-center">การเชื่อมต่อขัดข้อง</div>`; }
 }
@@ -1275,8 +1408,8 @@ async function loadAdminConfig(sheetName) {
 function renderAdminTable(targetId = "configTableContainer") {
     let html = '<div class="table-responsive bg-white rounded-3"><table class="table table-hover align-middle small text-nowrap mb-0"><thead class="table-light"><tr>';
     adminConfigHeaders.forEach((h, i) => {
-        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; 
-        if (adminCurrentConfigSheet === 'Users' && i >= 6) return; 
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return;
+        if (adminCurrentConfigSheet === 'Users' && i >= 6) return;
         html += `<th>${h}</th>`;
     });
     html += '<th class="text-center border-start bg-light" style="position: sticky; right: 0; z-index: 2;">จัดการ</th></tr></thead><tbody>';
@@ -1284,14 +1417,14 @@ function renderAdminTable(targetId = "configTableContainer") {
     if (adminConfigRows.length === 0) {
         let colSpan = adminConfigHeaders.length + 1;
         if (adminCurrentConfigSheet === 'Assignment_Config') colSpan -= 1;
-        if (adminCurrentConfigSheet === 'Users') colSpan = 7; 
+        if (adminCurrentConfigSheet === 'Users') colSpan = 7;
         html += `<tr><td colspan="${colSpan}" class="text-center py-5 text-muted">ยังไม่มีข้อมูลในระบบ</td></tr>`;
     } else {
         adminConfigRows.forEach(row => {
             html += '<tr>';
             row.forEach((cell, i) => {
-                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return; 
-                if (adminCurrentConfigSheet === 'Users' && i >= 6) return; 
+                if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) return;
+                if (adminCurrentConfigSheet === 'Users' && i >= 6) return;
                 // Strip HTML tags (e.g. from Quill editor) before displaying in table
                 let plainCell = cell.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
                 let displayCell = plainCell.length > 30 ? plainCell.substring(0, 30) + '...' : plainCell;
@@ -1321,37 +1454,37 @@ function parseDateTimeValue(val) {
     let now = new Date(); let d = now.toISOString().split('T')[0]; let h = String(now.getHours()).padStart(2, '0'); let m = String(now.getMinutes()).padStart(2, '0');
     if (val && val.trim() !== '') {
         let parts = val.trim().split(' ');
-        if(parts.length > 0) {
-             let dPart = parts[0];
-             if(dPart.includes('/')) { let dp = dPart.split('/'); if(dp.length === 3) d = `${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`; } 
-             else if (dPart.includes('-')) { d = dPart; } 
-             else if (dPart.includes(':')) { let tPart = dPart.split(':'); h = tPart[0] ? tPart[0].padStart(2,'0') : h; m = tPart[1] ? tPart[1].padStart(2,'0') : m; }
+        if (parts.length > 0) {
+            let dPart = parts[0];
+            if (dPart.includes('/')) { let dp = dPart.split('/'); if (dp.length === 3) d = `${dp[2]}-${dp[1].padStart(2, '0')}-${dp[0].padStart(2, '0')}`; }
+            else if (dPart.includes('-')) { d = dPart; }
+            else if (dPart.includes(':')) { let tPart = dPart.split(':'); h = tPart[0] ? tPart[0].padStart(2, '0') : h; m = tPart[1] ? tPart[1].padStart(2, '0') : m; }
         }
-        if(parts.length > 1) { let tPart = parts[1].split(':'); h = tPart[0] ? tPart[0].padStart(2,'0') : h; m = tPart[1] ? tPart[1].padStart(2,'0') : m; }
+        if (parts.length > 1) { let tPart = parts[1].split(':'); h = tPart[0] ? tPart[0].padStart(2, '0') : h; m = tPart[1] ? tPart[1].padStart(2, '0') : m; }
     }
     return { date: d, hh: h, mm: m };
 }
 
-window.getRubricRowHtml = function(id, name, raw, weight) {
+window.getRubricRowHtml = function (id, name, raw, weight) {
     return `<tr id="rubric_row_${id}" class="rubric-row"><td class="p-1"><input type="text" class="form-control rubric-name shadow-sm" placeholder="เช่น ความเป็นและความสำคัญ..." value="${name}" oninput="calcRubricTotal()"></td><td class="p-1"><input type="number" class="form-control text-center rubric-raw text-primary fw-bold shadow-sm" min="0" value="${raw}" oninput="calcRubricTotal()"></td><td class="p-1"><input type="number" class="form-control text-center rubric-weight text-success fw-bold shadow-sm" min="0" step="0.1" value="${weight}" oninput="calcRubricTotal()"></td><td class="p-1 text-center"><button type="button" class="btn btn-danger shadow-sm" onclick="removeRubricRow(${id})"><i class="bi bi-trash"></i></button></td></tr>`;
 };
 
-window.addRubricRow = function() { window.rubricRowCount = (window.rubricRowCount || 0) + 1; let tbody = document.getElementById('rubricTbody'); if(tbody) { tbody.insertAdjacentHTML('beforeend', window.getRubricRowHtml(window.rubricRowCount, '', 4, 1.5)); window.calcRubricTotal(); } };
-window.removeRubricRow = function(id) { let row = document.getElementById(`rubric_row_${id}`); if(row) { row.remove(); window.calcRubricTotal(); } };
+window.addRubricRow = function () { window.rubricRowCount = (window.rubricRowCount || 0) + 1; let tbody = document.getElementById('rubricTbody'); if (tbody) { tbody.insertAdjacentHTML('beforeend', window.getRubricRowHtml(window.rubricRowCount, '', 4, 1.5)); window.calcRubricTotal(); } };
+window.removeRubricRow = function (id) { let row = document.getElementById(`rubric_row_${id}`); if (row) { row.remove(); window.calcRubricTotal(); } };
 
-window.calcRubricTotal = function() {
+window.calcRubricTotal = function () {
     let rows = document.querySelectorAll('.rubric-row'); let total = 0; let rubricArray = [];
-    rows.forEach(r => { let name = r.querySelector('.rubric-name').value.trim(); let raw = parseFloat(r.querySelector('.rubric-raw').value) || 0; let weight = parseFloat(r.querySelector('.rubric-weight').value) || 0; total += (raw * weight); if(name !== "") { rubricArray.push({name: name, raw: raw, weight: weight}); } });
-    let display = document.getElementById('rubricTotalDisplay'); let finalTotal = total % 1 === 0 ? total : total.toFixed(2); if(display) display.innerText = finalTotal;
-    let hiddenInput = document.getElementById('cfgInput_10'); if(hiddenInput) hiddenInput.value = JSON.stringify(rubricArray);
-    let totalScoreInput = document.getElementById('cfgInput_9'); if(totalScoreInput) totalScoreInput.value = finalTotal;
+    rows.forEach(r => { let name = r.querySelector('.rubric-name').value.trim(); let raw = parseFloat(r.querySelector('.rubric-raw').value) || 0; let weight = parseFloat(r.querySelector('.rubric-weight').value) || 0; total += (raw * weight); if (name !== "") { rubricArray.push({ name: name, raw: raw, weight: weight }); } });
+    let display = document.getElementById('rubricTotalDisplay'); let finalTotal = total % 1 === 0 ? total : total.toFixed(2); if (display) display.innerText = finalTotal;
+    let hiddenInput = document.getElementById('cfgInput_10'); if (hiddenInput) hiddenInput.value = JSON.stringify(rubricArray);
+    let totalScoreInput = document.getElementById('cfgInput_9'); if (totalScoreInput) totalScoreInput.value = finalTotal;
 };
 
-window.handleUserRoleChange = function() {
-    let roleDropdown = document.getElementById('cfgInput_2'); if(!roleDropdown) return;
+window.handleUserRoleChange = function () {
+    let roleDropdown = document.getElementById('cfgInput_2'); if (!roleDropdown) return;
     let role = roleDropdown.value; let targetContainer = document.getElementById('container_cfgInput_5'); let targetInput = document.getElementById('cfgInput_5');
-    if (role === 'Admin' || role === 'Staff') { if(targetContainer) targetContainer.style.display = 'none'; if(targetInput) targetInput.value = ''; } 
-    else { if(targetContainer) targetContainer.style.display = 'block'; }
+    if (role === 'Admin' || role === 'Staff') { if (targetContainer) targetContainer.style.display = 'none'; if (targetInput) targetInput.value = ''; }
+    else { if (targetContainer) targetContainer.style.display = 'block'; }
 };
 
 function openConfigForm(id = null) {
@@ -1369,8 +1502,8 @@ function openConfigForm(id = null) {
         const makeText = (isTextArea = false) => (isTextArea || val.length > 50) ? `<textarea id="cfgInput_${i}" class="form-control border-secondary shadow-sm" rows="3">${val}</textarea>` : `<input type="text" id="cfgInput_${i}" class="form-control border-secondary shadow-sm" value="${val}">`;
 
         const makeRubricEditor = () => {
-            let rubricData = []; if (val && val.trim().startsWith('[')) { try { rubricData = JSON.parse(val); } catch(e) {} }
-            if(rubricData.length === 0) rubricData.push({name: 'ความครบถ้วนของเนื้อหา', raw: 4, weight: 1.5});
+            let rubricData = []; if (val && val.trim().startsWith('[')) { try { rubricData = JSON.parse(val); } catch (e) { } }
+            if (rubricData.length === 0) rubricData.push({ name: 'ความครบถ้วนของเนื้อหา', raw: 4, weight: 1.5 });
             window.rubricRowCount = 0; let rowsHtml = rubricData.map(r => { window.rubricRowCount++; return window.getRubricRowHtml(window.rubricRowCount, r.name, r.raw, r.weight); }).join('');
             return `<div class="card p-3 border-info shadow-sm rounded-4 mt-2" style="background-color: #f0fbff;"><h6 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid"></i> กำหนดเกณฑ์ของภาระงาน</h6><div class="table-responsive"><table class="table table-sm table-borderless align-middle mb-0"><thead class="border-bottom border-secondary"><tr class="text-secondary small"><th class="text-start pb-2">ชื่อเกณฑ์/ประเด็นพิจารณา</th><th class="text-center pb-2" style="width: 100px;">คะแนนเต็ม</th><th class="text-center pb-2" style="width: 100px;">น้ำหนัก</th><th class="text-center pb-2" style="width: 50px;">ลบ</th></tr></thead><tbody id="rubricTbody">${rowsHtml}</tbody></table></div><div class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 border-info"><button type="button" class="btn btn-sm btn-outline-success rounded-pill bg-white shadow-sm fw-bold" onclick="addRubricRow()"><i class="bi bi-plus-circle"></i> เพิ่มประเด็นพิจารณา</button><div class="fw-bold text-dark fs-6 bg-white px-3 py-1 rounded-pill shadow-sm">คะแนนรวมสุทธิ: <span id="rubricTotalDisplay" class="fs-4 text-primary ms-2">0</span></div></div><input type="hidden" id="cfgInput_${i}" value='${val}'></div>`;
         };
@@ -1391,7 +1524,7 @@ function openConfigForm(id = null) {
             else inputHtml = makeText();
         } else { inputHtml = makeText(); }
 
-        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) { html += inputHtml; } 
+        if (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) { html += inputHtml; }
         else { let labelHtml = (adminCurrentConfigSheet === 'Assignment_Config' && i === 10) ? '' : `<label class="form-label fs-6 fw-bold text-primary mb-2">${h}</label>`; html += `<div class="mb-4" id="container_cfgInput_${i}">${labelHtml}${inputHtml}</div>`; }
     });
     html += '</div>';
@@ -1427,24 +1560,24 @@ function openConfigForm(id = null) {
                 document.getElementById('cfgInput_2').value = window.quillInstance.root.innerHTML;
             }
             let newData = [];
-            for(let i=0; i<adminConfigHeaders.length; i++) {
+            for (let i = 0; i < adminConfigHeaders.length; i++) {
                 let el = document.getElementById(`cfgInput_${i}`); let val = el.value.trim();
                 if (el.type === 'datetime-local') val = val.replace('T', ' ');
                 let container = document.getElementById(`container_cfgInput_${i}`); let isHidden = container && container.style.display === 'none';
-                if(i === 0 && val === '' && el.type !== 'hidden' && !isHidden) { Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`); return false; }
+                if (i === 0 && val === '' && el.type !== 'hidden' && !isHidden) { Swal.showValidationMessage(`กรุณากรอก [${adminConfigHeaders[0]}] ให้ครบถ้วน`); return false; }
                 newData.push(val);
             }
             return newData;
         }
-    }).then((result) => { if(result.isConfirmed) saveConfigRow(result.value, isNew); });
+    }).then((result) => { if (result.isConfirmed) saveConfigRow(result.value, isNew); });
 }
 
 async function saveConfigRow(rowData, isNew) {
-    Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageConfig', payload: { action: 'SAVE', sheetName: adminCurrentConfigSheet, rowData: rowData, isNew: isNew } }) });
         let result = await res.json();
-        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); loadAdminConfig(adminCurrentConfigSheet); } 
+        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); loadAdminConfig(adminCurrentConfigSheet); }
         else { Swal.fire('ผิดพลาด', result.message, 'error'); }
     } catch (e) { Swal.fire('ขัดข้อง', 'ไม่สามารถบันทึกได้', 'error'); }
 }
@@ -1452,11 +1585,11 @@ async function saveConfigRow(rowData, isNew) {
 async function deleteConfigRow(id) {
     const confirm = await Swal.fire({ icon: 'warning', title: 'ยืนยันการลบ?', text: `ต้องการลบข้อมูลรหัส "${id}" ใช่หรือไม่? (ลบแล้วเรียกคืนไม่ได้)`, showCancelButton: true, confirmButtonText: 'ใช่, ลบทิ้งเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc3545' });
     if (!confirm.isConfirmed) return;
-    Swal.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageConfig', payload: { action: 'DELETE', sheetName: adminCurrentConfigSheet, id: id } }) });
         let result = await res.json();
-        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false }); loadAdminConfig(adminCurrentConfigSheet); } 
+        if (result.status === 'success') { Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false }); loadAdminConfig(adminCurrentConfigSheet); }
         else { Swal.fire('ผิดพลาด', result.message, 'error'); }
     } catch (e) { Swal.fire('ขัดข้อง', 'ไม่สามารถลบข้อมูลได้', 'error'); }
 }
@@ -1476,25 +1609,25 @@ function exportConfigToExcel() {
 function handleExcelImport(event) {
     let file = event.target.files[0]; if (!file) return;
     let reader = new FileReader();
-    reader.onload = async function(e) {
-        let data = new Uint8Array(e.target.result); let workbook = XLSX.read(data, {type: 'array'});
+    reader.onload = async function (e) {
+        let data = new Uint8Array(e.target.result); let workbook = XLSX.read(data, { type: 'array' });
         let firstSheetName = workbook.SheetNames[0]; let worksheet = workbook.Sheets[firstSheetName];
-        let rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-        if(rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift(); 
+        let rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        if (rows.length > 0 && rows[0].length === adminConfigHeaders.length) rows.shift();
         rows = rows.filter(r => r.join('').trim() !== '');
-        if(rows.length === 0) { Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล หรือรูปแบบตารางไม่ถูกต้อง', 'error'); event.target.value = ''; return; }
+        if (rows.length === 0) { Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล หรือรูปแบบตารางไม่ถูกต้อง', 'error'); event.target.value = ''; return; }
         const confirm = await Swal.fire({ icon: 'warning', title: 'ยืนยันการนำเข้า Excel?', html: `คำเตือน: การนำเข้าจะ<b>เขียนทับ (Overwrite)</b> ข้อมูลเดิมทั้งหมดในตารางนี้<br><br>พบข้อมูลใหม่จำนวน <b class="text-primary">${rows.length}</b> รายการ`, showCancelButton: true, confirmButtonText: 'ใช่, เขียนทับเลย', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#dc3545' });
-        if(confirm.isConfirmed) uploadExcelToGAS(rows); event.target.value = ''; 
+        if (confirm.isConfirmed) uploadExcelToGAS(rows); event.target.value = '';
     };
-    reader.readAsArrayBuffer(file); 
+    reader.readAsArrayBuffer(file);
 }
 
 async function uploadExcelToGAS(rowsData) {
-    Swal.fire({title: 'กำลังอัปเดตฐานข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+    Swal.fire({ title: 'กำลังอัปเดตฐานข้อมูล...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     try {
         let res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: 'manageConfig', payload: { action: 'IMPORT_EXCEL', sheetName: adminCurrentConfigSheet, excelData: rowsData } }) });
         let result = await res.json();
-        if (result.status === 'success') { Swal.fire('สำเร็จ!', result.message, 'success'); loadAdminConfig(adminCurrentConfigSheet); } 
+        if (result.status === 'success') { Swal.fire('สำเร็จ!', result.message, 'success'); loadAdminConfig(adminCurrentConfigSheet); }
         else { Swal.fire('ผิดพลาด', result.message, 'error'); }
     } catch (e) { Swal.fire('ขัดข้อง', 'การเชื่อมต่อล้มเหลว', 'error'); }
 }
@@ -1518,7 +1651,7 @@ async function loadReportDashboard() {
             body: JSON.stringify({ action: 'getDashboardReport' })
         });
         reportDataCache = await res.json();
-        
+
         if (reportDataCache.status === 'success') {
             processAndRenderReport();
         } else {
@@ -1548,18 +1681,18 @@ function processAndRenderReport() {
 
     exam.forEach(e => {
         let pid = e.personal_id;
-        if(userDataMap[pid]) {
+        if (userDataMap[pid]) {
             let score = parseFloat(e.score) || 0;
-            if(e.test_type === 'PRE' && userDataMap[pid].preScore === null) { userDataMap[pid].preScore = score; preScores.push(score); }
-            if(e.test_type === 'POST') { if(userDataMap[pid].postScore === null || score > userDataMap[pid].postScore) { userDataMap[pid].postScore = score; } }
+            if (e.test_type === 'PRE' && userDataMap[pid].preScore === null) { userDataMap[pid].preScore = score; preScores.push(score); }
+            if (e.test_type === 'POST') { if (userDataMap[pid].postScore === null || score > userDataMap[pid].postScore) { userDataMap[pid].postScore = score; } }
         }
     });
 
     Object.values(userDataMap).forEach(u => {
-        if(u.postScore !== null) {
+        if (u.postScore !== null) {
             postScores.push(u.postScore);
             let pct = (u.postScore / (postConfig ? parseFloat(postConfig['full_score'] || 100) : 100)) * 100;
-            if(pct >= passingCriteria) passPostCount++;
+            if (pct >= passingCriteria) passPostCount++;
         }
     });
 
@@ -1568,7 +1701,7 @@ function processAndRenderReport() {
     document.getElementById('repPassPost').innerText = passPostCount;
 
     attendance.forEach(a => {
-        if(userDataMap[a.personal_id]) {
+        if (userDataMap[a.personal_id]) {
             let note = String(a.note || a[Object.keys(a)[5]] || '').toLowerCase();
             if (!note.includes('ลาป่วย') && !note.includes('ลากิจ')) {
                 userDataMap[a.personal_id].attCount++;
@@ -1583,9 +1716,9 @@ function processAndRenderReport() {
         }
     });
     survey.forEach(s => {
-        if(userDataMap[s.personal_id]) {
-            if(s.survey_type === 'PROJECT_SURVEY') userDataMap[s.personal_id].evalProject = true;
-            if(s.survey_type === 'SPEAKER_SURVEY') userDataMap[s.personal_id].evalSpeakerCount = (userDataMap[s.personal_id].evalSpeakerCount || 0) + 1;
+        if (userDataMap[s.personal_id]) {
+            if (s.survey_type === 'PROJECT_SURVEY') userDataMap[s.personal_id].evalProject = true;
+            if (s.survey_type === 'SPEAKER_SURVEY') userDataMap[s.personal_id].evalSpeakerCount = (userDataMap[s.personal_id].evalSpeakerCount || 0) + 1;
         }
     });
 
@@ -1599,7 +1732,7 @@ function processAndRenderReport() {
     document.getElementById('statTableBody').innerHTML = statHtml;
 
     let ctx = document.getElementById('examChart').getContext('2d');
-    if(examChartInstance) examChartInstance.destroy();
+    if (examChartInstance) examChartInstance.destroy();
     examChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1625,7 +1758,7 @@ function processAndRenderReport() {
         tableHtml += `<tr><td class="text-center text-muted">${pid}</td><td><div class="fw-bold text-primary">${u.name}</div><div class="small text-muted" style="font-size: 0.75rem;">${u.area || '-'}</div></td><td class="small">${u.org || '-'}</td><td class="text-center">${u.attCount} ครั้ง</td><td class="text-center">${preBadge}</td><td class="text-center">${postBadge}</td><td class="text-center text-primary fw-bold">${u.assignScore}</td><td class="text-center text-danger fw-bold fs-6">${totalScore}</td><td class="text-center">${spkEval}</td><td class="text-center">${prjEval}</td></tr>`;
     });
 
-    if(tableHtml === '') tableHtml = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
+    if (tableHtml === '') tableHtml = `<tr><td colspan="9" class="text-center py-4 text-muted">ยังไม่มีข้อมูลผู้อบรมในระบบ</td></tr>`;
     document.getElementById('repUserTableBody').innerHTML = tableHtml;
 
     document.getElementById('reportLoading').classList.add('d-none');
@@ -1673,11 +1806,11 @@ function renderAttendanceTab() {
         try {
             let dt = new Date(dateStr);
             if (!isNaN(dt)) {
-                let thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+                let thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
                 let buddhistYear = (dt.getFullYear() + 543).toString().slice(-2);
                 dateStr = dt.getDate() + ' ' + thaiMonths[dt.getMonth()] + ' ' + buddhistYear;
             }
-        } catch(e) {}
+        } catch (e) { }
         thRow1 += `<th colspan="${d.slots.length}" class="align-middle text-center">วันที่ ${dayNo}<br><span class="small text-muted">(${dateStr})</span></th>`;
         d.slots.forEach(s => {
             let shortLabel = s.slotLabel.replace('รอบ', '');
@@ -1814,7 +1947,7 @@ function renderTaskEvalTab() {
             let aid = a['assign_id'];
             let data = assignMap[pid] && assignMap[pid][aid];
             if (data) {
-                const DONE_ST = ['ตรวจแล้ว','ดีมาก','ดี','พอใช้','ปรับปรุง'];
+                const DONE_ST = ['ตรวจแล้ว', 'ดีมาก', 'ดี', 'พอใช้', 'ปรับปรุง'];
                 let badge = DONE_ST.includes(data.status) ? 'bg-success' : data.status === 'รอตรวจ' ? 'bg-warning text-dark' : 'bg-secondary';
                 tbHtml += `<td class="text-center"><span class="badge ${badge}">${data.score}</span><div class="small text-muted" style="font-size:0.6rem;">${data.status}</div></td>`;
             } else {
@@ -1860,23 +1993,23 @@ async function fetchEvaluationSummary() {
         renderEvaluationReport();
         return;
     }
-    
+
     if (container) container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success"></div><div class="mt-2 text-muted">กำลังดึงข้อมูลประเมินจากฐานข้อมูล...</div></div>';
-    
+
     try {
         const res = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'getEvaluationDashboardData' })
         });
         const result = await res.json();
-        
+
         if (result.status === 'success') {
-            globalEvalData = result; 
+            globalEvalData = result;
             renderEvaluationReport(); // วาดหน้าจอทันทีเมื่อโหลดเสร็จ
         } else {
             if (container) container.innerHTML = `<div class="text-danger text-center py-5">เกิดข้อผิดพลาด: ${result.message}</div>`;
         }
-    } catch(e) {
+    } catch (e) {
         if (container) container.innerHTML = `<div class="text-danger text-center py-5">การเชื่อมต่อขัดข้อง กรุณาลองรีเฟรชหน้าเว็บ</div>`;
     }
 }
@@ -1888,26 +2021,26 @@ function renderEvaluationReport() {
     let evalType = document.getElementById('evalTypeSelector').value;
     let speakerSelect = document.getElementById('evalSpeakerSelector');
     let contentArea = document.getElementById('evalReportContent');
-    
+
     // --- 1. จัดการ Dropdown วิทยากร ---
     if (evalType === 'SPEAKER_SURVEY') {
         speakerSelect.classList.remove('d-none');
         let currentSpkVal = speakerSelect.value;
-        
+
         let spkHtml = '';
         globalEvalData.speakers.forEach(spk => {
             let keys = Object.keys(spk);
             let spkId = spk.id || spk.spk_id || spk['รหัส'] || spk[keys[0]];
             let spkName = spk.name || spk.spk_name || spk['ชื่อวิทยากร'] || spk[keys[1]];
             let spkTopic = spk.topic || spk.spk_topic || spk['หัวข้อบรรยาย'] || spk[keys[2]];
-            
+
             if (spkId && spkName) {
                 let displayText = spkTopic ? `${spkName} (${spkTopic})` : spkName;
                 spkHtml += `<option value="${spkId}">🎤 ${displayText}</option>`;
             }
         });
         speakerSelect.innerHTML = spkHtml || `<option value="">ไม่มีข้อมูลวิทยากร</option>`;
-        
+
         if (currentSpkVal && speakerSelect.querySelector(`option[value="${currentSpkVal}"]`)) {
             speakerSelect.value = currentSpkVal;
         }
@@ -1920,38 +2053,38 @@ function renderEvaluationReport() {
     const targetSurveys = globalEvalData.surveys ? globalEvalData.surveys.filter(s => s.targetId === targetId || s.target_id === targetId) : [];
     const totalN = targetSurveys.length;
 
-    if(totalN === 0) {
+    if (totalN === 0) {
         contentArea.innerHTML = `<div class="alert alert-warning text-center py-4 shadow-sm border-0"><i class="bi bi-info-circle"></i> ยังไม่มีผู้ตอบแบบประเมินในหัวข้อนี้ครับ</div>`;
         return;
     }
 
     // แปลง String เป็น JSON Object
     let parsedSurveys = targetSurveys.map(s => {
-       let ansObj = {};
-       if (s.answers && typeof s.answers === 'object') ansObj = s.answers;
-       else if (s.answers && typeof s.answers === 'string') { try { ansObj = JSON.parse(s.answers); } catch(e){} }
-       else if (s.answers_json) { try { ansObj = JSON.parse(s.answers_json); } catch(e){} }
-       return { ...s, parsedAnswers: ansObj };
+        let ansObj = {};
+        if (s.answers && typeof s.answers === 'object') ansObj = s.answers;
+        else if (s.answers && typeof s.answers === 'string') { try { ansObj = JSON.parse(s.answers); } catch (e) { } }
+        else if (s.answers_json) { try { ansObj = JSON.parse(s.answers_json); } catch (e) { } }
+        return { ...s, parsedAnswers: ansObj };
     });
 
     // --- 3. ดึงและกรองคำถาม ---
     let targetQuestions = [];
-    for (let qId in globalEvalData.questions) { 
+    for (let qId in globalEvalData.questions) {
         let qData = globalEvalData.questions[qId];
         let qType = qData.type || qData.q_type || qData['ประเภท (Pre/Post/Survey)'];
-        
+
         if (qType === evalType) {
             let cat = qData.category || qData.q_category || qData['หมวดหมู่'];
             let txt = qData.text || qData.question || qData['คำถาม'];
-            let opts = [qData.opt_a || qData['ตัวเลือก A'], qData.opt_b || qData['ตัวเลือก B'], qData.opt_c || qData['ตัวเลือก C'], qData.opt_d || qData['ตัวเลือก D'], qData.opt_e || qData['ตัวเลือก E']].filter(o=>o);
-            
+            let opts = [qData.opt_a || qData['ตัวเลือก A'], qData.opt_b || qData['ตัวเลือก B'], qData.opt_c || qData['ตัวเลือก C'], qData.opt_d || qData['ตัวเลือก D'], qData.opt_e || qData['ตัวเลือก E']].filter(o => o);
+
             let inputType = qData.inputType || qData.input_type || 'CHOICE';
-            if(!qData.inputType && !qData.input_type) {
-                if(opts[0] === 'TEXT') inputType = 'TEXT';
-                else if(opts.length > 0 && opts.every(o => !isNaN(o))) inputType = 'RATING';
+            if (!qData.inputType && !qData.input_type) {
+                if (opts[0] === 'TEXT') inputType = 'TEXT';
+                else if (opts.length > 0 && opts.every(o => !isNaN(o))) inputType = 'RATING';
             }
             let options = qData.options || opts.filter(o => o !== 'TEXT');
-            targetQuestions.push({ q_id: qId, category: cat, text: txt, inputType: inputType, options: options }); 
+            targetQuestions.push({ q_id: qId, category: cat, text: txt, inputType: inputType, options: options });
         }
     }
 
@@ -1971,20 +2104,20 @@ function renderEvaluationReport() {
                     <thead class="table-light text-center">
                         <tr><th class="text-start ps-4">รายการประเมิน</th><th style="width: 15%;">จำนวน (คน)</th><th style="width: 15%;">ร้อยละ (%)</th></tr>
                     </thead><tbody>`;
-            
+
             choiceQs.forEach(q => {
                 html += `<tr class="table-secondary"><td colspan="3" class="fw-bold text-primary ps-4">${q.text}</td></tr>`;
-                let counts = {}; 
-                if(q.options) q.options.forEach(opt => counts[opt] = 0);
-                
-                parsedSurveys.forEach(s => { 
-                    const ans = s.parsedAnswers[q.q_id]; 
-                    if (ans) counts[ans] = (counts[ans] || 0) + 1; 
+                let counts = {};
+                if (q.options) q.options.forEach(opt => counts[opt] = 0);
+
+                parsedSurveys.forEach(s => {
+                    const ans = s.parsedAnswers[q.q_id];
+                    if (ans) counts[ans] = (counts[ans] || 0) + 1;
                 });
-                
-                if(q.options) {
+
+                if (q.options) {
                     q.options.forEach(opt => {
-                        let c = counts[opt] || 0; 
+                        let c = counts[opt] || 0;
                         let pct = totalN > 0 ? ((c / totalN) * 100).toFixed(2) : 0;
                         html += `<tr><td class="ps-5 text-muted"><i class="bi bi-caret-right-fill text-secondary" style="font-size:0.7rem;"></i> ${opt}</td><td class="text-center fw-bold">${c}</td><td class="text-center">${pct}%</td></tr>`;
                     });
@@ -2005,26 +2138,26 @@ function renderEvaluationReport() {
                 <thead class="table-light text-center">
                     <tr><th style="width: 5%;">ข้อที่</th><th class="text-start" style="width: 55%;">รายการประเมิน</th><th style="width: 10%;">ค่าเฉลี่ย (x̄)</th><th style="width: 10%;">S.D.</th><th style="width: 20%;">แปลผล</th></tr>
                 </thead><tbody>`;
-        
+
         let allRatingScores = [];
         ratingCategories.forEach(cat => {
             let ratingQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'RATING');
             html += `<tr class="table-secondary"><td colspan="5" class="fw-bold text-success text-start ps-3"><i class="bi bi-folder2-open"></i> ${cat}</td></tr>`;
-            
+
             let catScores = [];
             ratingQs.forEach((q, idx) => {
                 let scores = [];
-                parsedSurveys.forEach(s => { 
-                    let val = parseFloat(s.parsedAnswers[q.q_id]); 
-                    if(!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); } 
+                parsedSurveys.forEach(s => {
+                    let val = parseFloat(s.parsedAnswers[q.q_id]);
+                    if (!isNaN(val)) { scores.push(val); catScores.push(val); allRatingScores.push(val); }
                 });
-                
+
                 let mean = 0, sd = 0; const count = scores.length;
-                if(count > 0) { 
-                    mean = scores.reduce((a,b)=>a+b, 0) / count; 
-                    let variance = 0; 
-                    if(count > 1) variance = scores.reduce((a,b)=>a+Math.pow(b-mean, 2), 0) / (count-1); 
-                    sd = Math.sqrt(variance); 
+                if (count > 0) {
+                    mean = scores.reduce((a, b) => a + b, 0) / count;
+                    let variance = 0;
+                    if (count > 1) variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (count - 1);
+                    sd = Math.sqrt(variance);
                 }
 
                 html += `<tr>
@@ -2035,13 +2168,13 @@ function renderEvaluationReport() {
                     <td class="text-center"><span class="badge ${mean >= 3.5 ? 'bg-success' : 'bg-warning text-dark'}">${count > 0 ? getRatingMeaning(mean) : '-'}</span></td>
                 </tr>`;
             });
-            
+
             const catCount = catScores.length; let catMean = 0, catSd = 0;
-            if(catCount > 0) { 
-                catMean = catScores.reduce((a,b)=>a+b, 0) / catCount; 
-                let catVariance = 0; 
-                if(catCount > 1) catVariance = catScores.reduce((a,b)=>a+Math.pow(b-catMean, 2), 0) / (catCount-1); 
-                catSd = Math.sqrt(catVariance); 
+            if (catCount > 0) {
+                catMean = catScores.reduce((a, b) => a + b, 0) / catCount;
+                let catVariance = 0;
+                if (catCount > 1) catVariance = catScores.reduce((a, b) => a + Math.pow(b - catMean, 2), 0) / (catCount - 1);
+                catSd = Math.sqrt(catVariance);
             }
             html += `<tr class="table-info fw-bold">
                 <td colspan="2" class="text-end pe-4 text-info-emphasis">สรุปผล ${cat}</td>
@@ -2050,13 +2183,13 @@ function renderEvaluationReport() {
                 <td class="text-center"><span class="badge ${catMean >= 3.5 ? 'bg-info text-dark' : 'bg-warning text-dark'} shadow-sm">${catCount > 0 ? getRatingMeaning(catMean) : '-'}</span></td>
             </tr>`;
         });
-        
+
         const allCount = allRatingScores.length; let allMean = 0, allSd = 0;
-        if(allCount > 0) { 
-            allMean = allRatingScores.reduce((a,b)=>a+b, 0) / allCount; 
-            let allVariance = 0; 
-            if(allCount > 1) allVariance = allRatingScores.reduce((a,b)=>a+Math.pow(b-allMean, 2), 0) / (allCount-1); 
-            allSd = Math.sqrt(allVariance); 
+        if (allCount > 0) {
+            allMean = allRatingScores.reduce((a, b) => a + b, 0) / allCount;
+            let allVariance = 0;
+            if (allCount > 1) allVariance = allRatingScores.reduce((a, b) => a + Math.pow(b - allMean, 2), 0) / (allCount - 1);
+            allSd = Math.sqrt(allVariance);
         }
         html += `<tr class="table-primary fw-bold" style="border-top: 2px solid #0d6efd;">
             <td colspan="2" class="text-end pe-4 text-primary">สรุปรวมทุกด้าน</td>
@@ -2077,20 +2210,20 @@ function renderEvaluationReport() {
         textCategories.forEach(cat => {
             let textQs = targetQuestions.filter(q => q.category === cat && q.inputType === 'TEXT');
             textQs.forEach(q => {
-                let texts = []; 
-                parsedSurveys.forEach(s => { 
-                    const ans = s.parsedAnswers[q.q_id]; 
-                    if(ans && ans.trim() !== '') texts.push(ans.trim()); 
+                let texts = [];
+                parsedSurveys.forEach(s => {
+                    const ans = s.parsedAnswers[q.q_id];
+                    if (ans && ans.trim() !== '') texts.push(ans.trim());
                 });
                 textResponses.push({ question: q.text, answers: texts });
             });
         });
-        
+
         html += `<div class="accordion" id="textAccordion">`;
         textResponses.forEach((tr, i) => {
             const collapseId = `collapse-text-${i}`;
-            html += `<div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden"><h2 class="accordion-header" id="heading-${collapseId}"><button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true" aria-controls="${collapseId}">${i+1}. ${tr.question}</button></h2><div id="${collapseId}" class="accordion-collapse collapse show" aria-labelledby="heading-${collapseId}"><div class="accordion-body p-0"><ul class="list-group list-group-flush">`;
-            if(tr.answers.length === 0) { html += `<li class="list-group-item text-muted text-center small py-3">- ไม่มีผู้ให้ข้อเสนอแนะ -</li>`; } 
+            html += `<div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden"><h2 class="accordion-header" id="heading-${collapseId}"><button class="accordion-button bg-light fw-bold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true" aria-controls="${collapseId}">${i + 1}. ${tr.question}</button></h2><div id="${collapseId}" class="accordion-collapse collapse show" aria-labelledby="heading-${collapseId}"><div class="accordion-body p-0"><ul class="list-group list-group-flush">`;
+            if (tr.answers.length === 0) { html += `<li class="list-group-item text-muted text-center small py-3">- ไม่มีผู้ให้ข้อเสนอแนะ -</li>`; }
             else { tr.answers.forEach(ans => { html += `<li class="list-group-item small px-4"><i class="bi bi-arrow-right-short text-success fs-5"></i> ${ans}</li>`; }); }
             html += `</ul></div></div></div>`;
         });
@@ -2104,12 +2237,12 @@ function renderEvaluationReport() {
 // ไม่ว่าปุ่มแท็บของพี่จะใช้ ID หรือ Class อะไร ถ้ามันคลิกแล้วโชว์ตารางประเมิน มันจะโหลดข้อมูลทันที!
 document.addEventListener('DOMContentLoaded', () => {
     // ดักจับการคลิกทุกอย่างในหน้าเว็บ
-    document.body.addEventListener('click', function(e) {
+    document.body.addEventListener('click', function (e) {
         // เช็คว่าปุ่มที่กด เกี่ยวข้องกับคำว่า "ประเมิน" (evaluation) หรือไม่
-        if (e.target.closest('[data-bs-target="#evaluation"]') || 
-            e.target.closest('#evaluation-tab') || 
+        if (e.target.closest('[data-bs-target="#evaluation"]') ||
+            e.target.closest('#evaluation-tab') ||
             (e.target.innerText && e.target.innerText.includes('ผลประเมินวิทยากร/โครงการ'))) {
-            
+
             // ถ้ายังไม่มีข้อมูล หรือข้อมูลว่างเปล่า ให้โหลดใหม่
             if (!globalEvalData) {
                 fetchEvaluationSummary();
@@ -2182,21 +2315,21 @@ function exportReportSheet(type) {
 
             let ws = XLSX.utils.aoa_to_sheet([[`สรุปผล${sheetName}`], []]);
             contentArea.querySelectorAll('table').forEach(table => {
-                let data = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(table), {header: 1});
-                XLSX.utils.sheet_add_aoa(ws, data, {origin: -1});
-                XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+                let data = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(table), { header: 1 });
+                XLSX.utils.sheet_add_aoa(ws, data, { origin: -1 });
+                XLSX.utils.sheet_add_aoa(ws, [[]], { origin: -1 });
             });
             let accordionEl = contentArea.querySelector('#textAccordion');
             if (accordionEl) {
-                XLSX.utils.sheet_add_aoa(ws, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], {origin: -1});
-                XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+                XLSX.utils.sheet_add_aoa(ws, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], { origin: -1 });
+                XLSX.utils.sheet_add_aoa(ws, [[]], { origin: -1 });
                 accordionEl.querySelectorAll('.accordion-item').forEach((item, idx) => {
                     let q = item.querySelector('.accordion-button');
-                    XLSX.utils.sheet_add_aoa(ws, [[q ? q.innerText.trim() : `คำถาม ${idx+1}`]], {origin: -1});
+                    XLSX.utils.sheet_add_aoa(ws, [[q ? q.innerText.trim() : `คำถาม ${idx + 1}`]], { origin: -1 });
                     let answers = item.querySelectorAll('.list-group-item:not(.text-muted)');
-                    if (answers.length === 0) { XLSX.utils.sheet_add_aoa(ws, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], {origin: -1}); }
-                    else { answers.forEach((ans, ai) => { XLSX.utils.sheet_add_aoa(ws, [[`  ${ai+1}. ${ans.innerText.replace(/^[▶→➤]\s*/, '').trim()}`]], {origin: -1}); }); }
-                    XLSX.utils.sheet_add_aoa(ws, [[]], {origin: -1});
+                    if (answers.length === 0) { XLSX.utils.sheet_add_aoa(ws, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], { origin: -1 }); }
+                    else { answers.forEach((ans, ai) => { XLSX.utils.sheet_add_aoa(ws, [[`  ${ai + 1}. ${ans.innerText.replace(/^[▶→➤]\s*/, '').trim()}`]], { origin: -1 }); }); }
+                    XLSX.utils.sheet_add_aoa(ws, [[]], { origin: -1 });
                 });
             }
             XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -2217,7 +2350,7 @@ function exportFullReportToExcel() {
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
     });
-    
+
     setTimeout(() => {
         try {
             // 1. สร้างสมุดงานใหม่ (Workbook)
@@ -2241,15 +2374,15 @@ function exportFullReportToExcel() {
             let evalTypeObj = document.getElementById('evalTypeSelector');
             let speakerObj = document.getElementById('evalSpeakerSelector');
             let dynamicSheetName = "รายงานความพึงพอใจ"; // ชื่อเริ่มต้น
-            
+
             if (evalTypeObj && evalTypeObj.value === 'PROJECT_SURVEY') {
                 dynamicSheetName = "ประเมินโครงการ";
             } else if (speakerObj && !speakerObj.classList.contains('d-none')) {
                 // ดึงชื่อวิทยากรมาตั้งชื่อชีต และตัดเครื่องหมาย 🎤 ออก
                 // หมายเหตุ: Excel จำกัดชื่อชีตไม่เกิน 31 ตัวอักษร
                 dynamicSheetName = speakerObj.options[speakerObj.selectedIndex].text
-                                   .replace("🎤 ", "")
-                                   .substring(0, 31); 
+                    .replace("🎤 ", "")
+                    .substring(0, 31);
             }
 
             let contentArea = document.getElementById('evalReportContent');
@@ -2262,9 +2395,9 @@ function exportFullReportToExcel() {
                 if (tables.length > 0) {
                     tables.forEach(table => {
                         let tempSheet = XLSX.utils.table_to_sheet(table);
-                        let tableData = XLSX.utils.sheet_to_json(tempSheet, {header: 1});
-                        XLSX.utils.sheet_add_aoa(ws3, tableData, {origin: -1});
-                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
+                        let tableData = XLSX.utils.sheet_to_json(tempSheet, { header: 1 });
+                        XLSX.utils.sheet_add_aoa(ws3, tableData, { origin: -1 });
+                        XLSX.utils.sheet_add_aoa(ws3, [[]], { origin: -1 });
                     });
                     hasData = true;
                 }
@@ -2272,24 +2405,24 @@ function exportFullReportToExcel() {
                 // ตอนที่ 3: ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด) จาก accordion/list
                 let accordionEl = contentArea.querySelector('#textAccordion');
                 if (accordionEl) {
-                    XLSX.utils.sheet_add_aoa(ws3, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], {origin: -1});
-                    XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
+                    XLSX.utils.sheet_add_aoa(ws3, [['3. ข้อมูลเชิงคุณภาพ (ข้อเสนอแนะปลายเปิด)']], { origin: -1 });
+                    XLSX.utils.sheet_add_aoa(ws3, [[]], { origin: -1 });
                     let items = accordionEl.querySelectorAll('.accordion-item');
                     items.forEach((item, idx) => {
                         let questionEl = item.querySelector('.accordion-button');
-                        let question = questionEl ? questionEl.innerText.trim() : `คำถาม ${idx+1}`;
-                        XLSX.utils.sheet_add_aoa(ws3, [[question]], {origin: -1});
+                        let question = questionEl ? questionEl.innerText.trim() : `คำถาม ${idx + 1}`;
+                        XLSX.utils.sheet_add_aoa(ws3, [[question]], { origin: -1 });
                         let answers = item.querySelectorAll('.list-group-item:not(.text-muted)');
                         if (answers.length === 0) {
-                            XLSX.utils.sheet_add_aoa(ws3, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], {origin: -1});
+                            XLSX.utils.sheet_add_aoa(ws3, [['  - ไม่มีผู้ให้ข้อเสนอแนะ']], { origin: -1 });
                         } else {
                             answers.forEach((ans, aIdx) => {
                                 // ลบ icon ออก ดึงเฉพาะข้อความ
                                 let text = ans.innerText.replace(/^[▶→➤]\s*/, '').trim();
-                                XLSX.utils.sheet_add_aoa(ws3, [[`  ${aIdx+1}. ${text}`]], {origin: -1});
+                                XLSX.utils.sheet_add_aoa(ws3, [[`  ${aIdx + 1}. ${text}`]], { origin: -1 });
                             });
                         }
-                        XLSX.utils.sheet_add_aoa(ws3, [[]], {origin: -1});
+                        XLSX.utils.sheet_add_aoa(ws3, [[]], { origin: -1 });
                     });
                     hasData = true;
                 }
@@ -2325,7 +2458,7 @@ function exportFullReportToExcel() {
             // 2. สั่งบันทึกไฟล์ (ระบุชื่อไฟล์ตามวันที่ปัจจุบัน)
             let today = new Date().toISOString().split('T')[0];
             XLSX.writeFile(wb, `TMS_Report_Full_${today}.xlsx`);
-            
+
             Swal.fire({
                 icon: 'success',
                 title: 'ส่งออกข้อมูลสำเร็จ',
@@ -2333,7 +2466,7 @@ function exportFullReportToExcel() {
                 timer: 2000,
                 showConfirmButton: false
             });
-            
+
         } catch (error) {
             console.error(error);
             Swal.fire('ผิดพลาด', 'ไม่สามารถสร้างไฟล์ Excel ได้: ' + error.message, 'error');

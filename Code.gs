@@ -24,6 +24,7 @@ function doPost(e) {
     var result = { status: 'error', message: 'ไม่รู้จักคำสั่ง: ' + action };
 
     if (action === 'getUserProfile') { result = getUserProfile(payload.personal_id); } 
+    else if (action === 'searchUsers') { result = searchUsers(payload); }
     else if (action === 'submitAttendance') { result = submitAttendance(payload); } 
     else if (action === 'getExamData') { result = getExamData(payload.personal_id); } 
     else if (action === 'submitExam') { result = submitExam(payload); }
@@ -125,24 +126,120 @@ function doPost(e) {
   }
 }
 
-function getUserProfile(personalId) {
-    var masterSs = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = masterSs.getSheetByName('Users');
-    var data = sheet.getDataRange().getDisplayValues();
-    var searchId = personalId.toString().trim().toLowerCase();
+function getDbMasterUsersContext() {
+    var masterDbId = '10wAzcOmhlFaizhys6Wn4FeJ3quenLyNj25pYSj0x8YQ';
+    var sheet = SpreadsheetApp.openById(masterDbId).getSheetByName('Users');
+    var lastRow = sheet.getLastRow();
+    var lastColumn = sheet.getLastColumn();
 
-    for (var i = 1; i < data.length; i++) {
-        var rowId = data[i][0].toString().trim().toLowerCase();
+    if (lastRow < 30) {
+        return { headers: [], rows: [] };
+    }
+
+    var headers = sheet.getRange(30, 1, 1, lastColumn).getDisplayValues()[0];
+    var dataRowCount = Math.max(lastRow - 30, 0);
+    var rows = dataRowCount > 0 ? sheet.getRange(31, 1, dataRowCount, lastColumn).getDisplayValues() : [];
+    return { headers: headers, rows: rows };
+}
+
+function findHeaderIndex(headers, candidates, fallbackIndex) {
+    var normalizedHeaders = headers.map(function(header) {
+        return (header || '').toString().trim().toLowerCase();
+    });
+
+    for (var i = 0; i < candidates.length; i++) {
+        var candidate = candidates[i].toLowerCase();
+        for (var j = 0; j < normalizedHeaders.length; j++) {
+            if (normalizedHeaders[j] === candidate) {
+                return j;
+            }
+        }
+    }
+
+    return fallbackIndex;
+}
+
+function getUserProfile(personalId) {
+    var userContext = getDbMasterUsersContext();
+    var headers = userContext.headers;
+    var data = userContext.rows;
+    var searchId = personalId.toString().trim().toLowerCase();
+    var personalIdIndex = findHeaderIndex(headers, ['personal_id', 'รหัสประจำตัว'], 0);
+    var nameIndex = findHeaderIndex(headers, ['name', 'ชื่อ-นามสกุล', 'ชื่อ - นามสกุล'], 1);
+    var roleIndex = findHeaderIndex(headers, ['role', 'บทบาท'], 2);
+    var areaIndex = findHeaderIndex(headers, ['area_service', 'area service', 'สังกัด/หน่วยงาน', 'สังกัด'], 3);
+    var groupIndex = findHeaderIndex(headers, ['group_target', 'กลุ่มเป้าหมาย'], 5);
+
+    for (var i = 0; i < data.length; i++) {
+        var rowId = (data[i][personalIdIndex] || '').toString().trim().toLowerCase();
         if (rowId === searchId) {
             return {
                 status: 'success',
                 data: {
-                    name: data[i][1], role: data[i][2], area_service: data[i][3], group_target: data[i][5]
+                    name: data[i][nameIndex], role: data[i][roleIndex], area_service: data[i][areaIndex], group_target: data[i][groupIndex]
                 }
             };
         }
     }
     return { status: 'error', message: 'ไม่มีรหัสประจำตัวนี้ในระบบ' };
+}
+
+function searchUsers(payload) {
+    try {
+        var userContext = getDbMasterUsersContext();
+        var headers = userContext.headers;
+        var data = userContext.rows;
+        var nameQuery = ((payload && payload.name) || '').toString().trim().toLowerCase();
+        var areaQuery = ((payload && payload.area_service) || '').toString().trim().toLowerCase();
+        var schoolQuery = ((payload && payload.school) || '').toString().trim().toLowerCase();
+
+        var personalIdIndex = findHeaderIndex(headers, ['personal_id', 'รหัสประจำตัว'], 0);
+        var nameIndex = findHeaderIndex(headers, ['name', 'ชื่อ-นามสกุล', 'ชื่อ - นามสกุล'], 1);
+        var roleIndex = findHeaderIndex(headers, ['role', 'บทบาท'], 2);
+        var areaIndex = findHeaderIndex(headers, ['area_service', 'area service', 'สังกัด/หน่วยงาน', 'สังกัด'], 3);
+        var clusterIndex = findHeaderIndex(headers, ['cluster', 'Cluster'], 4);
+        var schoolIndex = findHeaderIndex(headers, ['school', 'โรงเรียน', 'school_name', 'ชื่อโรงเรียน'], -1);
+
+        if (!nameQuery && !areaQuery && !schoolQuery) {
+            return { status: 'error', message: 'กรุณาระบุชื่อ - นามสกุล, สังกัด หรือโรงเรียนอย่างน้อย 1 ช่อง' };
+        }
+
+        var matchedUsers = [];
+        for (var i = 0; i < data.length; i++) {
+            var personalId = (data[i][personalIdIndex] || '').toString().trim();
+            var name = (data[i][nameIndex] || '').toString().trim();
+            var role = (data[i][roleIndex] || '').toString().trim();
+            var areaService = (data[i][areaIndex] || '').toString().trim();
+            var cluster = (data[i][clusterIndex] || '').toString().trim();
+            var school = schoolIndex >= 0 ? (data[i][schoolIndex] || '').toString().trim() : '';
+
+            var lowerName = name.toLowerCase();
+            var lowerArea = areaService.toLowerCase();
+            var lowerCluster = cluster.toLowerCase();
+            var lowerSchool = school.toLowerCase();
+
+            var isNameMatch = !nameQuery || lowerName.indexOf(nameQuery) !== -1;
+            var isAreaMatch = !areaQuery || lowerArea.indexOf(areaQuery) !== -1 || lowerCluster.indexOf(areaQuery) !== -1;
+            var isSchoolMatch = !schoolQuery || lowerSchool.indexOf(schoolQuery) !== -1;
+
+            if (isNameMatch && isAreaMatch && isSchoolMatch) {
+                matchedUsers.push({
+                    personal_id: personalId,
+                    name: name,
+                    role: role,
+                    area_service: areaService,
+                    cluster: cluster,
+                    school: school
+                });
+            }
+
+            if (matchedUsers.length >= 30) break;
+        }
+
+        return { status: 'success', data: matchedUsers };
+    } catch (error) {
+        return { status: 'error', message: 'เกิดข้อผิดพลาดในการค้นหาข้อมูล: ' + error.message };
+    }
 }
 
 // ============================================================
