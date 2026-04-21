@@ -1,0 +1,5 @@
+{
+    "claudeCode.useTerminal": true,
+    "github.copilot.chat.claudeAgent.allowDangerouslySkipPermissions": true,
+    "github.copilot.chat.anthropic.tools.websearch.enabled": true
+}

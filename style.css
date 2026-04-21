@@ -1,0 +1,340 @@
+body {
+  font-family: 'Niramit', sans-serif;
+  background-color: #f4f7f9;
+  background-image: radial-gradient(rgba(9, 0, 107, 0.12) 2px, transparent 2px);
+  background-size: 25px 25px;
+  background-position: center center;
+  background-attachment: fixed;
+}
+
+.card {
+  border: none;
+  border-radius: 12px;
+}
+
+.menu-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================= */
+/* 🗂️ Fixed Drawer Sidebar (Admin / Staff / Mentor) */
+/* ========================================= */
+
+/* ตัวแปรความกว้างและความสูง navbar */
+:root {
+    --sidebar-w: 220px;
+    --sidebar-w-collapsed: 60px;
+    --navbar-h: 62px;   /* ความสูงโดยประมาณของ sticky navbar */
+}
+
+/* Sidebar หลัก — fixed ซ้ายสุด เต็มความสูง */
+.app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--sidebar-w);
+    background: #fff;
+    border-right: 1px solid #e9ecef;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.07);
+    z-index: 1040;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s ease;
+    overflow: hidden;
+}
+
+/* สถานะย่อ */
+.app-sidebar.collapsed {
+    width: var(--sidebar-w-collapsed);
+}
+
+/* ---- Sidebar Header (โลโก้ + hamburger) ---- */
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    height: 60px;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.sidebar-brand-text {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0d6efd;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+}
+
+.app-sidebar.collapsed .sidebar-brand-text {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 1.3rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+    line-height: 1;
+}
+
+.sidebar-toggle:hover {
+    background: #f0f4ff;
+    color: #0d6efd;
+}
+
+/* ---- Nav items ---- */
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-family: 'Niramit', sans-serif;
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background 0.18s, color 0.18s;
+    text-decoration: none;
+}
+
+.sidebar-nav-item i {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
+
+.sidebar-nav-item .nav-label {
+    opacity: 1;
+    transition: opacity 0.15s ease;
+    overflow: hidden;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item .nav-label {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.sidebar-nav-item:hover {
+    background: #f0f4ff;
+    color: #0d6efd;
+}
+
+.sidebar-nav-item.active {
+    background: #0d6efd;
+    color: #fff !important;
+    font-weight: 600;
+}
+
+.sidebar-nav-item.danger {
+    color: #dc3545;
+}
+
+.sidebar-nav-item.danger:hover {
+    background: #fff1f1;
+    color: #b02a37;
+}
+
+/* spacer ดัน logout ลงล่าง */
+.sidebar-spacer { flex: 1; min-height: 16px; }
+
+/* ---- Tooltip เมื่อ collapsed ---- */
+.app-sidebar.collapsed .sidebar-nav-item {
+    position: relative;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(var(--sidebar-w-collapsed) + 4px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #333;
+    color: #fff;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 9999;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item:hover::after {
+    opacity: 1;
+}
+
+/* ---- Content area เลื่อนขวาตาม sidebar ---- */
+.sidebar-page-wrapper {
+    margin-left: var(--sidebar-w);
+    transition: margin-left 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-bottom: 1rem;
+}
+
+.sidebar-page-wrapper.collapsed {
+    margin-left: var(--sidebar-w-collapsed);
+}
+
+/* Footer ภายใน sidebar-page-wrapper */
+.sidebar-footer {
+    margin-top: auto;
+    background-color: #0d6efd;
+    color: #fff;
+    text-align: center;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+/* ========================================= */
+/* 📐 Full-width Layout (Navbar → Content → Footer) */
+/* ========================================= */
+
+/* Navbar ติดบนสุด เต็มจอทุกขนาด */
+#main-nav {
+    width: 100%;
+    left: 0;
+    top: 0;
+    z-index: 1030;
+}
+
+/* Navbar เมื่อ sidebar แสดงอยู่ — ดัน content ออกจากซ้าย */
+#main-nav.has-sidebar {
+    position: sticky;
+    top: 0;
+    padding-left: calc(var(--sidebar-w) + 0.5rem);
+    transition: padding-left 0.25s ease;
+}
+
+#main-nav.has-sidebar.sidebar-collapsed {
+    padding-left: calc(var(--sidebar-w-collapsed) + 0.5rem);
+}
+
+/* Content area: ขยายเต็ม และมี padding ที่ responsive */
+#page-content {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+#page-content > .container-fluid {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+    #page-content > .container-fluid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    #page-content > .container-fluid {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+/* Footer เต็มจอเสมอ */
+#main-footer {
+    width: 100%;
+    margin-top: auto;
+}
+
+/* ป้องกัน horizontal scroll บนมือถือ */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* 📱 มือถือ: sidebar ซ่อน กดปุ่มถึงเลื่อนออกมา */
+@media (max-width: 767px) {
+    .app-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease, width 0.25s ease;
+        width: var(--sidebar-w) !important;
+    }
+
+    .app-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-page-wrapper,
+    .sidebar-page-wrapper.collapsed {
+        margin-left: 0 !important;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 1039;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
