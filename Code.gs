@@ -159,28 +159,45 @@ function findHeaderIndex(headers, candidates, fallbackIndex) {
     return fallbackIndex;
 }
 
-function getUserProfile(personalId) {
-    var userContext = getDbMasterUsersContext();
-    var headers = userContext.headers;
-    var data = userContext.rows;
+function findUserProfileInRows(rows, personalId) {
     var searchId = personalId.toString().trim().toLowerCase();
-    var personalIdIndex = findHeaderIndex(headers, ['personal_id', 'รหัสประจำตัว'], 0);
-    var nameIndex = findHeaderIndex(headers, ['name', 'ชื่อ-นามสกุล', 'ชื่อ - นามสกุล'], 1);
-    var roleIndex = findHeaderIndex(headers, ['role', 'บทบาท'], 2);
-    var areaIndex = findHeaderIndex(headers, ['area_service', 'area service', 'สังกัด/หน่วยงาน', 'สังกัด'], 3);
-    var groupIndex = findHeaderIndex(headers, ['group_target', 'กลุ่มเป้าหมาย'], 5);
 
-    for (var i = 0; i < data.length; i++) {
-        var rowId = (data[i][personalIdIndex] || '').toString().trim().toLowerCase();
+    for (var i = 0; i < rows.length; i++) {
+        var rowId = (rows[i][0] || '').toString().trim().toLowerCase();
         if (rowId === searchId) {
             return {
                 status: 'success',
                 data: {
-                    name: data[i][nameIndex], role: data[i][roleIndex], area_service: data[i][areaIndex], group_target: data[i][groupIndex]
+                    name: rows[i][1] || '',
+                    role: rows[i][2] || '',
+                    area_service: rows[i][3] || '',
+                    group_target: rows[i][5] || ''
                 }
             };
         }
     }
+
+    return null;
+}
+
+function getUserProfile(personalId) {
+    var masterDbId = '10wAzcOmhlFaizhys6Wn4FeJ3quenLyNj25pYSj0x8YQ';
+    var masterSheet = SpreadsheetApp.openById(masterDbId).getSheetByName('Users');
+    var masterData = masterSheet.getDataRange().getDisplayValues();
+    var foundUser = findUserProfileInRows(masterData, personalId);
+    if (foundUser) {
+        return foundUser;
+    }
+
+    var fallbackSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Users');
+    if (fallbackSheet) {
+        var fallbackData = fallbackSheet.getDataRange().getDisplayValues();
+        var fallbackUser = findUserProfileInRows(fallbackData, personalId);
+        if (fallbackUser) {
+            return fallbackUser;
+        }
+    }
+
     return { status: 'error', message: 'ไม่มีรหัสประจำตัวนี้ในระบบ' };
 }
 
